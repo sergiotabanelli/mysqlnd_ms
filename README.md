@@ -17,7 +17,7 @@ The mysqlnd_ms_get_last_gtid php function will now use the distinct master conne
 You can use a MySQL memcached plugin managed db table as transaction id repository.
 The new "memcached_key" directive can be used as a replacement of "on_commit", "fetch_last_gtid" and  "check_for_gtid" SQL query directives. 
 To use this feature login to the master, install the MySQL memcached plugin and set the innodb_api_enable_binlog option. Create the transaction id table ... something like:
-
+```
 CREATE DATABASE mygtid;
 USE mygtid;
 CREATE TABLE `memcached` (
@@ -28,16 +28,16 @@ CREATE TABLE `memcached` (
   `expiry` int(11) NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
+```
 Add the new transaction id table to innodb_memcache.containers: 
-
+```
 INSERT INTO `innodb_memcache`.`containers` (`name`, `db_schema`, `db_table`, `key_columns`, `value_columns`, `flags`, `cas_column`, `expire_time_column`,`unique_idx_name_on_key`) VALUES ('default', 'mygtid', 'memcached', 'id', 'trx_id', 'flags','cas','expiry','PRIMARY');
-
+```
 Reload the memcached mysql plugin daemon:
-
+```
 UNINSTALL PLUGIN daemon_memcached;
 INSTALL PLUGIN daemon_memcached soname "libmemcached.so";
-
+```
 On all slaves install the MySQL memcached plugin, if slaves can be promoted to master and have binary log enabled set also the innodb_api_enable_binlog option. 
 
 In mysqlnd_ms json configuration file replace the "on_commit", "fetch_last_gtid" and  "check_for_gtid" directives with new "memcached_key" directive...something like:
@@ -47,11 +47,12 @@ In mysqlnd_ms json configuration file replace the "on_commit", "fetch_last_gtid"
             "memcached_key":"myid"
         },
         .......
-
+	
 ---> memcached_port and memcached_port_add_hack directives:
 To preserve mysql_fabric support, the memcached server port COULD NOT be set on a per server node basis, so the memcached mysql plugin daemons should be run on the same port for every node of the cluster. Use the memcached_port directive to specify it if not running on standard 11211 memcached port. 
 For test and development environment that runs multiple mysql instances on the same server, there is also the horrible memcached_port_add_hack directive, if set, the resulting memcached port, will be the mysql specified port for the node plus the specified value. The following configuration example will land to memcached ports 11211=3306+7905 for node wtf0, 11212=3307+7905 for node wtf1, 11213=3308+7905 for node wtf2 :
 
+```
 {
     "wtf-1": {
         "master": {
@@ -85,7 +86,7 @@ For test and development environment that runs multiple mysql instances on the s
         }
    }
 }
-
+```
 
 ---> Set gtid qos option after injection:
 With qos session consistency the gtid qos option is automatically set after every master injection, this way there is no need to set it through the mysqlnd_ms_set_qos function, you can simply set the qos filter in json configuration file without any change to php applications.
@@ -113,6 +114,7 @@ Will route all queries that start with one of the listed tokens to the master no
 ---> mysqlnd_ms_set_trx() and mysqlnd_ms_unset_trx() php functions:
 Use it to mark transactions begin for php modules, like PDO:beginTransaction, that does not use the mysqlnd_tx_begin call, i.e.:
 
+```
 class MyPDO extends PDO
 {
     public function beginTransaction()
@@ -121,6 +123,7 @@ class MyPDO extends PDO
         return parent::beginTransaction();
     }
 }
+```
 
 ---> More SQL Hints:
 MYSQLND_MS_STRONG_SWITCH "ms=strong": Switch to qos strong consistency
