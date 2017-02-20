@@ -1,0 +1,129 @@
+ABOUT
+
+This directory contains a tiny, very complicated framework
+for micro benchmarks. In this document we mean by micro
+benchmarks PHP scripts that test certain functions of the
+ext/mysqli API and record the runtimes of them.
+
+The tests have not much in common with real-life applications,
+unless you run the same query like 1.000 times in your
+applications and you fetch over and over the same results or
+you call mysqli_connect() 10.000 times at the beginning of your
+scripts.
+
+Therefore the micro benchmarks say nothing about real-life
+performance. BUT they can give hints for bottle-neck analysis.
+
+
+THE BASIC IDEA
+
+The basic idea here is to have several PHP binaries compiled
+with different options and compare how fast they can execute
+the micro benchmarks. The micro benchmarks are the PHP
+scripts contained in the directory micro_benches/.
+
+For every PHP binaries, configured in framework/config.php
+the framework basically does:
+
+exec('/configured/php -f my_micro_bench.php')
+
+With my_micro_bench.php being something like (pseudo-code):
+
+$host = <DB host from framework/config.php>;
+$user = <DB user from framework/config.php>;
+[...]
+include('micro_bench_eg_mysqli_connect.php');
+$tmp = serialize(array('times' => $times));
+[...]
+fwrite('data_exchange_file.txt', $tmp)
+
+Then the runtimes are read from the data exchange file:
+
+ - stored in a database for manual post-processing
+ - shown on the command line
+ - written to HTML files
+
+
+CONFIGURATION / INSTALLATION
+
+Edit framework/config.php . Read the notes in the file.
+
+The framework requires a MySQL database to store 
+results. Install it, if needed. The default name for the
+database is 'runbench', see the config.php.
+
+
+RUNNING
+
+Make sure you have adapted framework/config.php
+to your needs and followed the other INSTALLATION steps.
+
+With the default settings, runtime is about 15 minutes on
+a single CPU 2Ghz P4 system. The maximum memory usage is
+just a bit above 1GB.
+
+Ok, you're warned. Go to the directory framework/:
+
+> cd php/ext/mysqli/tests/bench/framework/
+
+Check the syntax of the CLI script main.php:
+
+> php main.php -v
+Missing file and/or directory specification!
+
+Syntax:
+  program [options] dir_or_file [dir_or_file [dir_or_file ...]]
+
+Options:
+  -v                - Verbose
+  -h                - Help
+  -q                - Quiet, suppress output
+
+
+Try running a micro benchmark, for example mysqli_data_seek_random.php:
+
+> php main.php -v ../micro_benches/mysqli_data_seek_random
+
+[2011-03-01 15:48:07] Starting run for binary 'mysqli' and runner 'rb_testrunner_normal'...
+[...]
+
+Wait for the results. You can find a HTML representation of
+the results in the HTML output directory that you configured in
+framework/config.php. By default: framework/web/
+
+If the run fails, you usually see something like:
+
+...'configured/php -f mysqli_data_seek_random_php_run_normal.php'
+
+The file mysqli_data_seek_random_php_run_normal.php
+is and example of the temporary file that the framework
+creates (see THE BASIC IDEA). You can start to debug,
+profile - whatever you want - based on this temporary file.
+However, before you rerun main.php make sure you removed
+all of these temporary files!
+
+If you want to run all micro benchmarks, do:
+
+> php main.php -v ../micro_benches
+
+
+READING AND UNDERSTANDING RESULTS
+
+This is difficult!
+
+Make sure you have no load on your
+box for comparable results. Make sure you study the
+source of the micro benchmark files carefully.
+Try to understand what the scripts do.
+
+
+WINDOWS?
+
+Never tried it on Windows. Good luck, and don't
+forget to contribute and suggest fixes if need be!
+
+
+OPROFILE SUPPORT?
+
+Not yet. We had it once in an older version. Basically
+you need to write a new testrunner. 

@@ -1,0 +1,861 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://pear.php.net/dtd/package-2.0" xmlns:tasks="http://pear.php.net/dtd/tasks-1.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" packagerversion="1.4.8" version="2.0" xsi:schemaLocation="http://pear.php.net/dtd/tasks-1.0 http://pear.php.net/dtd/tasks-1.0.xsd http://pear.php.net/dtd/package-2.0 http://pear.php.net/dtd/package-2.0.xsd">
+  <name>mysqlnd_ms</name>
+  <channel>pecl.php.net</channel>
+  <summary>A replication and load balancing plugin for mysqlnd</summary>
+  <description>The mysqlnd_ms replication and load balancing plugin can be used with PHP MySQL extensions (ext/mysql, ext/mysqli, ext/pdo_mysql) if they are compiled to use mysqlnd. The plugin inspects queries and does read-write splitting. Read-only queries are sent to MySQL replication slave servers while all other queries are redirected to the MySQL replication master server. Very few, if any, application changes are required, depending on the usage scenario.</description>
+  <lead>
+    <name>Andrey Hristov</name>
+    <user>andrey</user>
+    <email>andrey@php_net</email>
+    <active>yes</active>
+  </lead>
+  <lead>
+    <name>Ulf Wendel</name>
+    <user>uw</user>
+    <email>uw@php_net</email>
+    <active>yes</active>
+  </lead>
+  <lead>
+    <name>Johannes Schlüter</name>
+    <user>johannes</user>
+    <email>johannes@php.net</email>
+    <active>yes</active>
+  </lead>
+  <date>2013-09-26</date>
+  <time>12:00:00</time>
+  <version>
+    <release>1.6.0</release>
+    <api>1.6.0</api>
+  </version>
+  <stability>
+    <release>alpha</release>
+    <api>alpha</api>
+  </stability>
+  <license uri="http://www.php.net/license">PHP License</license>
+  <notes>Add initial MySQL Fabric support and automatic retry for transient errors</notes>
+  <contents>
+    <dir name="/">
+      <dir name="fabric">
+        <file name="mysqlnd_fabric_parse_xml.c" role="src"/>
+        <file name="mysqlnd_fabric_priv.h" role="src"/>
+        <file name="mysqlnd_fabric.h" role="src"/>
+        <file name="mysqlnd_fabric.c" role="src"/>
+        <file name="mysqlnd_fabric_strategy_direct.c" role="src"/>
+        <file name="mysqlnd_fabric_strategy_dump.c" role="src"/>
+        <file name="mysqlnd_fabric_php.c" role="src"/>
+      </dir>
+      <!-- //fabric -->
+      <dir name="tests">
+        <file name="bug_60605.phpt" role="test"/>
+        <file name="bug_pecl_22784.phpt" role="test"/>
+        <file name="config.inc" role="test"/>
+        <file name="connect.inc" role="test"/>
+        <file name="mysqlnd_ms_autocommit_kill.phpt" role="test"/>
+        <file name="mysqlnd_ms_autocommit.phpt" role="test"/>
+        <file name="mysqlnd_ms_begin_mysqli_fail.phpt" role="test"/>
+        <file name="mysqlnd_ms_begin_mysqli.phpt" role="test"/>
+        <file name="mysqlnd_ms_begin_mysqli_rr.phpt" role="test"/>
+        <file name="mysqlnd_ms_begin_pdo_rr.phpt" role="test"/>
+        <file name="mysqlnd_ms_change_user_fail.phpt" role="test"/>
+        <file name="mysqlnd_ms_change_user_transient_error_lazy.phpt" role="test"/>
+        <file name="mysqlnd_ms_change_user_transient_error.phpt" role="test"/>
+        <file name="mysqlnd_ms_change_user.phpt" role="test"/>
+        <file name="mysqlnd_ms_charsets_fail.phpt" role="test"/>
+        <file name="mysqlnd_ms_charsets_kill.phpt" role="test"/>
+        <file name="mysqlnd_ms_charsets_pdo_fail.phpt" role="test"/>
+        <file name="mysqlnd_ms_charsets_transient_error_lazy.phpt" role="test"/>
+        <file name="mysqlnd_ms_charsets_transient_error.phpt" role="test"/>
+        <file name="mysqlnd_ms_charsets.phpt" role="test"/>
+        <file name="mysqlnd_ms_commit.phpt" role="test"/>
+        <file name="mysqlnd_ms_config_access.phpt" role="test"/>
+        <file name="mysqlnd_ms_connection_references.phpt" role="test"/>
+        <file name="mysqlnd_ms_constants.phpt" role="test"/>
+        <file name="mysqlnd_ms_disable_rw_rr.phpt" role="test"/>
+        <file name="mysqlnd_ms_dump_servers.phpt" role="test"/>
+        <file name="mysqlnd_ms_empty_slave_list.phpt" role="test"/>
+        <file name="mysqlnd_ms_enable_rw_rr_failover.phpt" role="test"/>
+        <file name="mysqlnd_ms_enable_rw_rr.phpt" role="test"/>
+        <file name="mysqlnd_ms_error_errno_sqlstate.phpt" role="test"/>
+        <file name="mysqlnd_ms_error_message.phpt" role="test"/>
+        <file name="mysqlnd_ms_fabric_cmd_sharding_lookup_servers.phpt" role="test"/>
+        <file name="mysqlnd_ms_fabric_config1.phpt" role="test"/>
+        <file name="mysqlnd_ms_fabric_config2.phpt" role="test"/>
+        <file name="mysqlnd_ms_fabric_config3.phpt" role="test"/>
+        <file name="mysqlnd_ms_fabric_config4.phpt" role="test"/>
+        <file name="mysqlnd_ms_fabric_config5.phpt" role="test"/>
+        <file name="mysqlnd_ms_fabric_config_many_hosts.phpt" role="test"/>
+        <file name="mysqlnd_ms_fabric_host_timeout.phpt" role="test"/>
+        <file name="mysqlnd_ms_fabric_warn_trx_boundaries_off.phpt" role="test"/>
+        <file name="mysqlnd_ms_fabric_warn_trx_boundaries_on.phpt" role="test"/>
+        <file name="mysqlnd_ms_failover_old_syntax_default.phpt" role="test"/>
+        <file name="mysqlnd_ms_failover_old_syntax_disabled.phpt" role="test"/>
+        <file name="mysqlnd_ms_failover_old_syntax_loop.phpt" role="test"/>
+        <file name="mysqlnd_ms_failover_old_syntax_master.phpt" role="test"/>
+        <file name="mysqlnd_ms_field_count.phpt" role="test"/>
+        <file name="mysqlnd_ms_filter_empty_lazy.phpt" role="test"/>
+        <file name="mysqlnd_ms_filter_empty_non_lazy.phpt" role="test"/>
+        <file name="mysqlnd_ms_filter_groups_no_master.phpt" role="test"/>
+        <file name="mysqlnd_ms_filter_groups_no_slave.phpt" role="test"/>
+        <file name="mysqlnd_ms_filter_groups.phpt" role="test"/>
+        <file name="mysqlnd_ms_filter_groups_qos_rr.phpt" role="test"/>
+        <file name="mysqlnd_ms_filter_groups_setup_mess.phpt" role="test"/>
+        <file name="mysqlnd_ms_filter_groups_unknown_master.phpt" role="test"/>
+        <file name="mysqlnd_ms_filter_groups_unknown_slave.phpt" role="test"/>
+        <file name="mysqlnd_ms_filter_multi_last.phpt" role="test"/>
+        <file name="mysqlnd_ms_filter_qos_config_conflict1.phpt" role="test"/>
+        <file name="mysqlnd_ms_filter_qos_config_conflict2.phpt" role="test"/>
+        <file name="mysqlnd_ms_filter_qos_config_conflict3.phpt" role="test"/>
+        <file name="mysqlnd_ms_filter_qos_config_conflict4.phpt" role="test"/>
+        <file name="mysqlnd_ms_filter_qos_config.phpt" role="test"/>
+        <file name="mysqlnd_ms_filter_qos_eventual_age.phpt" role="test"/>
+        <file name="mysqlnd_ms_filter_qos_eventual_cache_conflict.phpt" role="test"/>
+        <file name="mysqlnd_ms_filter_qos_eventual_cache.phpt" role="test"/>
+        <file name="mysqlnd_ms_filter_qos_eventual_consistency.phpt" role="test"/>
+        <file name="mysqlnd_ms_filter_qos_eventual_consistency_rr.phpt" role="test"/>
+        <file name="mysqlnd_ms_filter_qos_eventual_disable_rw_split.phpt" role="test"/>
+        <file name="mysqlnd_ms_filter_qos_eventual_trx_stickiness_on_failover.phpt" role="test"/>
+        <file name="mysqlnd_ms_filter_qos_eventual_trx_stickiness_on_failover_rr.phpt" role="test"/>
+        <file name="mysqlnd_ms_filter_qos_eventual_trx_stickiness_on.phpt" role="test"/>
+        <file name="mysqlnd_ms_filter_qos_eventual_trx_stickiness_on_rr.phpt" role="test"/>
+        <file name="mysqlnd_ms_filter_qos_eventual_trx_stickiness.phpt" role="test"/>
+        <file name="mysqlnd_ms_filter_qos_multi_master.phpt" role="test"/>
+        <file name="mysqlnd_ms_filter_qos_multi_master_strong_r.phpt" role="test"/>
+        <file name="mysqlnd_ms_filter_qos_multi_master_strong_rr.phpt" role="test"/>
+        <file name="mysqlnd_ms_filter_qos.phpt" role="test"/>
+        <file name="mysqlnd_ms_filter_qos_rt_gtid_master_on_write.phpt" role="test"/>
+        <file name="mysqlnd_ms_filter_qos_rt_gtid.phpt" role="test"/>
+        <file name="mysqlnd_ms_filter_qos_rt_gtid_trx_stickiness.phpt" role="test"/>
+        <file name="mysqlnd_ms_filter_qos_rt_gtid_trx_stickiness_rr.phpt" role="test"/>
+        <file name="mysqlnd_ms_filter_qos_rt_gtid_wait_for_fail.phpt" role="test"/>
+        <file name="mysqlnd_ms_filter_qos_rt_gtid_wait_for.phpt" role="test"/>
+        <file name="mysqlnd_ms_filter_qos_runtime.phpt" role="test"/>
+        <file name="mysqlnd_ms_filter_qos_session_consistency_mm_rr.phpt" role="test"/>
+        <file name="mysqlnd_ms_filter_qos_session_consistency_no_slaves.phpt" role="test"/>
+        <file name="mysqlnd_ms_filter_qos_session_consistency.phpt" role="test"/>
+        <file name="mysqlnd_ms_filter_qos_session_consistency_trx_stickiness_on.phpt" role="test"/>
+        <file name="mysqlnd_ms_filter_qos_session_consistency_trx_stickiness_on_rr.phpt" role="test"/>
+        <file name="mysqlnd_ms_filter_qos_strong_consistency.phpt" role="test"/>
+        <file name="mysqlnd_ms_filter_qos_trx_stickiness.phpt" role="test"/>
+        <file name="mysqlnd_ms_filter_ro_partitioning_rr.phpt" role="test"/>
+        <file name="mysqlnd_ms_filter_twice.phpt" role="test"/>
+        <file name="mysqlnd_ms_get_charset.phpt" role="test"/>
+        <file name="mysqlnd_ms_get_connection_stats.phpt" role="test"/>
+        <file name="mysqlnd_ms_get_last_gtid_config.phpt" role="test"/>
+        <file name="mysqlnd_ms_get_last_gtid_params.phpt" role="test"/>
+        <file name="mysqlnd_ms_get_last_gtid.phpt" role="test"/>
+        <file name="mysqlnd_ms_get_last_gtid_sql_error.phpt" role="test"/>
+        <file name="mysqlnd_ms_get_last_used_connection.phpt" role="test"/>
+        <file name="mysqlnd_ms_get_last_used_connection_switches.phpt" role="test"/>
+        <file name="mysqlnd_ms_get_stats_disabled.phpt" role="test"/>
+        <file name="mysqlnd_ms_get_stats.phpt" role="test"/>
+        <file name="mysqlnd_ms_get_stats_register_shutdown.phpt" role="test"/>
+        <file name="mysqlnd_ms_gtid_autocommit_stats.phpt" role="test"/>
+        <file name="mysqlnd_ms_gtid_basics.phpt" role="test"/>
+        <file name="mysqlnd_ms_gtid_begin_mysqli_r.phpt" role="test"/>
+        <file name="mysqlnd_ms_gtid_begin_mysqli_rr_trx_stickiness_on.phpt" role="test"/>
+        <file name="mysqlnd_ms_gtid_begin_mysqli_r_trx_stickiness_on.phpt" role="test"/>
+        <file name="mysqlnd_ms_gtid_commit_stats.phpt" role="test"/>
+        <file name="mysqlnd_ms_gtid_commit_stats_ps.phpt" role="test"/>
+        <file name="mysqlnd_ms_gtid_implicit_commit_autocommit.phpt" role="test"/>
+        <file name="mysqlnd_ms_gtid_invalid_check_for_gtid.phpt" role="test"/>
+        <file name="mysqlnd_ms_gtid_invalid_fetch_last_gtid.phpt" role="test"/>
+        <file name="mysqlnd_ms_gtid_invalid_on_commit.phpt" role="test"/>
+        <file name="mysqlnd_ms_gtid_ps_autocommit_get_result_mq.phpt" role="test"/>
+        <file name="mysqlnd_ms_gtid_ps_autocommit_get_result.phpt" role="test"/>
+        <file name="mysqlnd_ms_gtid_ps_autocommit_no_result.phpt" role="test"/>
+        <file name="mysqlnd_ms_gtid_ps_autocommit_report_error_off.phpt" role="test"/>
+        <file name="mysqlnd_ms_gtid_ps_autocommit_report_error.phpt" role="test"/>
+        <file name="mysqlnd_ms_gtid_ps_autocommit_store_result.phpt" role="test"/>
+        <file name="mysqlnd_ms_gtid_ps_autocommit_use_result.phpt" role="test"/>
+        <file name="mysqlnd_ms_gtid_ps_report_errors_on.phpt" role="test"/>
+        <file name="mysqlnd_ms_gtid_report_errors_off_non_lazy.phpt" role="test"/>
+        <file name="mysqlnd_ms_gtid_report_errors_off.phpt" role="test"/>
+        <file name="mysqlnd_ms_gtid_report_errors_on_non_lazy.phpt" role="test"/>
+        <file name="mysqlnd_ms_gtid_report_errors_on.phpt" role="test"/>
+        <file name="mysqlnd_ms_gtid_serverside_basics.phpt" role="test"/>
+        <file name="mysqlnd_ms_gtid_serverside_stats.phpt" role="test"/>
+        <file name="mysqlnd_ms_gtid_tx_non_ms.phpt" role="test"/>
+        <file name="mysqlnd_ms_host_info.phpt" role="test"/>
+        <file name="mysqlnd_ms_info.phpt" role="test"/>
+        <file name="mysqlnd_ms_ini_settings.phpt" role="test"/>
+        <file name="mysqlnd_ms_insert_affected_pdo.phpt" role="test"/>
+        <file name="mysqlnd_ms_insert_affected.phpt" role="test"/>
+        <file name="mysqlnd_ms_last_used_random_once.phpt" role="test"/>
+        <file name="mysqlnd_ms_last_used_random.phpt" role="test"/>
+        <file name="mysqlnd_ms_last_used_rr.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_autocommit.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_autocommit_switches.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_change_user.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_charsets.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_commit.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_failure_failover_remember_master_only_random.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_failure_failover_remember_random_default_strategy.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_failure_failover_remember_random_once.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_failure_failover_remember_random.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_failure_failover_remember_rr_default_strategy.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_failure_failover_remember_rr.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_get_charset.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_master_failure_failover_loop_max_retries_random_once.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_master_failure_failover_loop_max_retries_rr.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_master_failure_no_slaves.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_master_failure.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_master_failure_random_once.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_master_failure_random.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_master_failure_rr.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_master_failure_user.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_more_results.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_multi_master_failure_failover_loop_master_random_once.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_multi_master_failure_failover_loop_master_random.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_multi_master_failure_failover_loop_master_rr.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_next_result.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_other_commands_old.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_other_commands.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_prepared_statements.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_real_escape.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_real_escape_set_charset.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_rollback.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_select_db.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_set_charset.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_slave_failure2_random.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_slave_failure2_user.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_slave_failure_failover_loop_master_random_once.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_slave_failure_failover_loop_master_random.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_slave_failure_failover_loop_master_rr.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_slave_failure_failover_loop_max_retries_random_once.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_slave_failure_failover_loop_max_retries_random.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_slave_failure_failover_loop_max_retries_range.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_slave_failure_failover_loop_max_retries_rr.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_slave_failure_failover_loop_multi_master_random_once.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_slave_failure_failover_loop_multi_master_random.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_slave_failure_failover_loop_multi_master_rr.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_slave_failure_failover_loop_no_master2_random_once.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_slave_failure_failover_loop_no_master2_random.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_slave_failure_failover_loop_no_master2_rr.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_slave_failure_failover_loop_no_master_random_once.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_slave_failure_failover_loop_no_master_random.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_slave_failure_failover_loop_no_master_rr.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_slave_failure_failover_loop_random_once.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_slave_failure_failover_loop_random.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_slave_failure_failover_loop_rr.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_slave_failure_failover_random_once.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_slave_failure_failover_random.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_slave_failure_failover_rr.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_slave_failure_random_once.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_slave_failure_random.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_slave_failure_rr.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_slave_failure_user.phpt" role="test"/>
+        <file name="mysqlnd_ms_lazy_stmt_init.phpt" role="test"/>
+        <file name="mysqlnd_ms_lb_filter_twice_ro_rr.phpt" role="test"/>
+        <file name="mysqlnd_ms_lb_filter_twice_rr_ro.phpt" role="test"/>
+        <file name="mysqlnd_ms_limits_async_cont.phpt" role="test"/>
+        <file name="mysqlnd_ms_limits_async.phpt" role="test"/>
+        <file name="mysqlnd_ms_limits_autocommit.phpt" role="test"/>
+        <file name="mysqlnd_ms_limits_connection_options.phpt" role="test"/>
+        <file name="mysqlnd_ms_limits_multi_query_lazy.phpt" role="test"/>
+        <file name="mysqlnd_ms_limits_poll.phpt" role="test"/>
+        <file name="mysqlnd_ms_limits_sql_calc_found_rows.phpt" role="test"/>
+        <file name="mysqlnd_ms_limits_sql_prepare.phpt" role="test"/>
+        <file name="mysqlnd_ms_limits_sql_transactions.phpt" role="test"/>
+        <file name="mysqlnd_ms_limits_use_db.phpt" role="test"/>
+        <file name="mysqlnd_ms_manual_failover_killed.phpt" role="test"/>
+        <file name="mysqlnd_ms_manual_failover_unknown.phpt" role="test"/>
+        <file name="mysqlnd_ms_master_on_write.phpt" role="test"/>
+        <file name="mysqlnd_ms_master_on_write_random.phpt" role="test"/>
+        <file name="mysqlnd_ms_master_on_write_round_robin.phpt" role="test"/>
+        <file name="mysqlnd_ms_master_unreachable_random_once.phpt" role="test"/>
+        <file name="mysqlnd_ms_master_unreachable_random.phpt" role="test"/>
+        <file name="mysqlnd_ms_master_unreachable_rr.phpt" role="test"/>
+        <file name="mysqlnd_ms_master_unreachable_user.phpt" role="test"/>
+        <file name="mysqlnd_ms_match_wild.phpt" role="test"/>
+        <file name="mysqlnd_ms_multi_master_no_slaves_ro.phpt" role="test"/>
+        <file name="mysqlnd_ms_multi_master_no_slaves_r.phpt" role="test"/>
+        <file name="mysqlnd_ms_multi_master_no_slaves_rr_nf.phpt" role="test"/>
+        <file name="mysqlnd_ms_multi_master_no_slaves_rr.phpt" role="test"/>
+        <file name="mysqlnd_ms_multi_master_on.phpt" role="test"/>
+        <file name="mysqlnd_ms_multi_master.phpt" role="test"/>
+        <file name="mysqlnd_ms_multi_query_no_ms.phpt" role="test"/>
+        <file name="mysqlnd_ms_multi_query.phpt" role="test"/>
+        <file name="mysqlnd_ms_no_master.phpt" role="test"/>
+        <file name="mysqlnd_ms_no_slaves.phpt" role="test"/>
+        <file name="mysqlnd_ms_pdo_autocommit.phpt" role="test"/>
+        <file name="mysqlnd_ms_pdo_basics.phpt" role="test"/>
+        <file name="mysqlnd_ms_pdo_begin_trx.phpt" role="test"/>
+        <file name="mysqlnd_ms_phpinfo.phpt" role="test"/>
+        <file name="mysqlnd_ms_pick_random_once2.phpt" role="test"/>
+        <file name="mysqlnd_ms_pick_random_once.phpt" role="test"/>
+        <file name="mysqlnd_ms_pick_random.phpt" role="test"/>
+        <file name="mysqlnd_ms_pick_random_user_multi_no_master_non_lazy.phpt" role="test"/>
+        <file name="mysqlnd_ms_pick_random_user_multi_no_master.phpt" role="test"/>
+        <file name="mysqlnd_ms_pick_random_user_multi_no_slave_non_lazy.phpt" role="test"/>
+        <file name="mysqlnd_ms_pick_random_user_multi_no_slave.phpt" role="test"/>
+        <file name="mysqlnd_ms_pick_random_user_multi_slave_err.phpt" role="test"/>
+        <file name="mysqlnd_ms_pick_random_weight_list_length_error2.phpt" role="test"/>
+        <file name="mysqlnd_ms_pick_random_weight_list_length_error.phpt" role="test"/>
+        <file name="mysqlnd_ms_pick_random_weight_master_fail_loop.phpt" role="test"/>
+        <file name="mysqlnd_ms_pick_random_weight.phpt" role="test"/>
+        <file name="mysqlnd_ms_pick_random_weight_range.phpt" role="test"/>
+        <file name="mysqlnd_ms_pick_random_weight_sticky.phpt" role="test"/>
+        <file name="mysqlnd_ms_pick_round_robin.phpt" role="test"/>
+        <file name="mysqlnd_ms_pick_round_robin_weight_loop.phpt" role="test"/>
+        <file name="mysqlnd_ms_pick_round_robin_weight_master.phpt" role="test"/>
+        <file name="mysqlnd_ms_pick_round_robin_weight.phpt" role="test"/>
+        <file name="mysqlnd_ms_pick_ro_user_multi_no_master_non_lazy.phpt" role="test"/>
+        <file name="mysqlnd_ms_pick_ro_user_multi_no_master.phpt" role="test"/>
+        <file name="mysqlnd_ms_pick_ro_user_multi_no_slave_non_lazy.phpt" role="test"/>
+        <file name="mysqlnd_ms_pick_ro_user_multi_no_slave.phpt" role="test"/>
+        <file name="mysqlnd_ms_pick_ro_user_multi_slave_killed.phpt" role="test"/>
+        <file name="mysqlnd_ms_pick_ro_user_multi_slave_removed.phpt" role="test"/>
+        <file name="mysqlnd_ms_pick_rr_user_multi_no_master_non_lazy.phpt" role="test"/>
+        <file name="mysqlnd_ms_pick_rr_user_multi_no_master.phpt" role="test"/>
+        <file name="mysqlnd_ms_pick_rr_user_multi_no_slave_non_lazy.phpt" role="test"/>
+        <file name="mysqlnd_ms_pick_rr_user_multi_no_slave.phpt" role="test"/>
+        <file name="mysqlnd_ms_pick_unknown_policy.phpt" role="test"/>
+        <file name="mysqlnd_ms_pick_user_complex.phpt" role="test"/>
+        <file name="mysqlnd_ms_pick_user_error.phpt" role="test"/>
+        <file name="mysqlnd_ms_pick_user_function.phpt" role="test"/>
+        <file name="mysqlnd_ms_pick_user_multi_multi_master.phpt" role="test"/>
+        <file name="mysqlnd_ms_pick_user_multi_multi_slaves.phpt" role="test"/>
+        <file name="mysqlnd_ms_pick_user_multi.phpt" role="test"/>
+        <file name="mysqlnd_ms_pick_user_multi_return_big_id.phpt" role="test"/>
+        <file name="mysqlnd_ms_pick_user_multi_return_bogus_list.phpt" role="test"/>
+        <file name="mysqlnd_ms_pick_user_multi_return_negative_id.phpt" role="test"/>
+        <file name="mysqlnd_ms_pick_user_multi_return_slave_twice.phpt" role="test"/>
+        <file name="mysqlnd_ms_pick_user_multi_return_void.phpt" role="test"/>
+        <file name="mysqlnd_ms_pick_user_multi_trx_stickiness.phpt" role="test"/>
+        <file name="mysqlnd_ms_pick_user_no_callback.phpt" role="test"/>
+        <file name="mysqlnd_ms_pick_user_return_void.phpt" role="test"/>
+        <file name="mysqlnd_ms_pick_user_unknown_function.phpt" role="test"/>
+        <file name="mysqlnd_ms_pick_user_unknown_server.phpt" role="test"/>
+        <file name="mysqlnd_ms_ping.phpt" role="test"/>
+        <file name="mysqlnd_ms_prepared_statements.phpt" role="test"/>
+        <file name="mysqlnd_ms_prepare_switch.phpt" role="test"/>
+        <file name="mysqlnd_ms_prepare_transient_error_lazy.phpt" role="test"/>
+        <file name="mysqlnd_ms_prepare_transient_error.phpt" role="test"/>
+        <file name="mysqlnd_ms_proto_info.phpt" role="test"/>
+        <file name="mysqlnd_ms_ps_commit.phpt" role="test"/>
+        <file name="mysqlnd_ms_ps_execute_transient_error.phpt" role="test"/>
+        <file name="mysqlnd_ms_qc_failed_master.phpt" role="test"/>
+        <file name="mysqlnd_ms_qc_failed_slave_failover.phpt" role="test"/>
+        <file name="mysqlnd_ms_qc_failed_slave.phpt" role="test"/>
+        <file name="mysqlnd_ms_query_is_select.phpt" role="test"/>
+        <file name="mysqlnd_ms_query_is_select_rw_disabled.phpt" role="test"/>
+        <file name="mysqlnd_ms_random_once_unknown_parameter.phpt" role="test"/>
+        <file name="mysqlnd_ms_random_unknown_parameter.phpt" role="test"/>
+        <file name="mysqlnd_ms_real_escape.phpt" role="test"/>
+        <file name="mysqlnd_ms_real_query.phpt" role="test"/>
+        <file name="mysqlnd_ms_reflection_extension.phpt" role="test"/>
+        <file name="mysqlnd_ms_reflection_functions.phpt" role="test"/>
+        <file name="mysqlnd_ms_rr_unknown_parameter.phpt" role="test"/>
+        <file name="mysqlnd_ms_select_db_fail.phpt" role="test"/>
+        <file name="mysqlnd_ms_select_db_kill.phpt" role="test"/>
+        <file name="mysqlnd_ms_select_db_transient_error_lazy.phpt" role="test"/>
+        <file name="mysqlnd_ms_select_db_transient_error.phpt" role="test"/>
+        <file name="mysqlnd_ms_select_db.phpt" role="test"/>
+        <file name="mysqlnd_ms_server_charset_real_escape_change_back.phpt" role="test"/>
+        <file name="mysqlnd_ms_server_charset_real_escape_change_later.phpt" role="test"/>
+        <file name="mysqlnd_ms_server_charset_real_escape_change.phpt" role="test"/>
+        <file name="mysqlnd_ms_server_charset_real_escape.phpt" role="test"/>
+        <file name="mysqlnd_ms_server_info.phpt" role="test"/>
+        <file name="mysqlnd_ms_server_version.phpt" role="test"/>
+        <file name="mysqlnd_ms_set_qos_age_killed.phpt" role="test"/>
+        <file name="mysqlnd_ms_set_qos_age_no_value.phpt" role="test"/>
+        <file name="mysqlnd_ms_set_qos_age.phpt" role="test"/>
+        <file name="mysqlnd_ms_set_qos_cache.phpt" role="test"/>
+        <file name="mysqlnd_ms_set_qos_gtid_lost_connection.phpt" role="test"/>
+        <file name="mysqlnd_ms_set_qos_gtid_sql_error2.phpt" role="test"/>
+        <file name="mysqlnd_ms_set_qos_gtid_sql_error.phpt" role="test"/>
+        <file name="mysqlnd_ms_set_qos_gtid_sql_parsing2.phpt" role="test"/>
+        <file name="mysqlnd_ms_set_qos_gtid_sql_parsing.phpt" role="test"/>
+        <file name="mysqlnd_ms_set_qos_params.phpt" role="test"/>
+        <file name="mysqlnd_ms_set_qos_trx_stickiness_master.phpt" role="test"/>
+        <file name="mysqlnd_ms_set_qos_trx_stickiness_off.phpt" role="test"/>
+        <file name="mysqlnd_ms_set_qos_trx_stickiness_on.phpt" role="test"/>
+        <file name="mysqlnd_ms_set_qos_trx_stickiness_on_rr.phpt" role="test"/>
+        <file name="mysqlnd_ms_set_server_option_lazy.phpt" role="test"/>
+        <file name="mysqlnd_ms_set_server_option.phpt" role="test"/>
+        <file name="mysqlnd_ms_settings_connect_flags_invalid.phpt" role="test"/>
+        <file name="mysqlnd_ms_settings_connect_flags.phpt" role="test"/>
+        <file name="mysqlnd_ms_settings_db_invalid.phpt" role="test"/>
+        <file name="mysqlnd_ms_settings_default_lazy.phpt" role="test"/>
+        <file name="mysqlnd_ms_settings_force_config.phpt" role="test"/>
+        <file name="mysqlnd_ms_settings_host_credentials_inherit.phpt" role="test"/>
+        <file name="mysqlnd_ms_settings_host_credentials_invalid.phpt" role="test"/>
+        <file name="mysqlnd_ms_settings_host_credentials_types.phpt" role="test"/>
+        <file name="mysqlnd_ms_settings_ini_bool_false_aus.phpt" role="test"/>
+        <file name="mysqlnd_ms_settings_ini_bool_false_false.phpt" role="test"/>
+        <file name="mysqlnd_ms_settings_ini_bool_false_off.phpt" role="test"/>
+        <file name="mysqlnd_ms_settings_ini_bool_false_zero.phpt" role="test"/>
+        <file name="mysqlnd_ms_settings_ini_bool_true.phpt" role="test"/>
+        <file name="mysqlnd_ms_settings_ini_file_faulty.phpt" role="test"/>
+        <file name="mysqlnd_ms_settings_ini_file_invalid.phpt" role="test"/>
+        <file name="mysqlnd_ms_settings_ini_file_json_empty.phpt" role="test"/>
+        <file name="mysqlnd_ms_settings_ini_file_json_stub.phpt" role="test"/>
+        <file name="mysqlnd_ms_settings_no_host.phpt" role="test"/>
+        <file name="mysqlnd_ms_settings_no_json.phpt" role="test"/>
+        <file name="mysqlnd_ms_settings_password_invalid.phpt" role="test"/>
+        <file name="mysqlnd_ms_settings_plugin_conf_false_aus.phpt" role="test"/>
+        <file name="mysqlnd_ms_settings_plugin_conf_false_false.phpt" role="test"/>
+        <file name="mysqlnd_ms_settings_plugin_conf_false_off.phpt" role="test"/>
+        <file name="mysqlnd_ms_settings_plugin_conf_false_zero.phpt" role="test"/>
+        <file name="mysqlnd_ms_settings_plugin_conf_true_empty.phpt" role="test"/>
+        <file name="mysqlnd_ms_settings_port_invalid2.phpt" role="test"/>
+        <file name="mysqlnd_ms_settings_port_invalid.phpt" role="test"/>
+        <file name="mysqlnd_ms_settings_port_wrong_master.phpt" role="test"/>
+        <file name="mysqlnd_ms_settings_port_wrong_slave.phpt" role="test"/>
+        <file name="mysqlnd_ms_settings_server_charset_invalid.phpt" role="test"/>
+        <file name="mysqlnd_ms_settings_socket_invalid.phpt" role="test"/>
+        <file name="mysqlnd_ms_settings_unknown_section_force_config.phpt" role="test"/>
+        <file name="mysqlnd_ms_settings_unknown_section.phpt" role="test"/>
+        <file name="mysqlnd_ms_settings_user_invalid.phpt" role="test"/>
+        <file name="mysqlnd_ms_simple.phpt" role="test"/>
+        <file name="mysqlnd_ms_slave_unreachable_random_once.phpt" role="test"/>
+        <file name="mysqlnd_ms_slave_unreachable_random.phpt" role="test"/>
+        <file name="mysqlnd_ms_slave_unreachable_rr.phpt" role="test"/>
+        <file name="mysqlnd_ms_slave_unreachable_user.phpt" role="test"/>
+        <file name="mysqlnd_ms_sql_hints.phpt" role="test"/>
+        <file name="mysqlnd_ms_sql_hints_space.phpt" role="test"/>
+        <file name="mysqlnd_ms_stat.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_assorted_slave.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_basics.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_db_detection.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_dual.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_evaluation_order.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_evaluation_order_qualified_first.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_master_no_match_random_once.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_master_no_match_random.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_master_no_match_rr.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_master_ref_slave_rr.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_parser10.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_parser11.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_parser12.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_parser13.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_parser14.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_parser15.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_parser16.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_parser17.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_parser18.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_parser19.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_parser1.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_parser20.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_parser21.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_parser22.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_parser23.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_parser24.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_parser25.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_parser26.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_parser27.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_parser28.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_parser29.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_parser2.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_parser3.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_parser4.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_parser5.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_parser6.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_parser7.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_parser8.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_parser9.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_parser.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_rule_empty_pattern_cont_ro.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_rule_empty_pattern_cont_r.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_rule_empty_pattern_cont_rr.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_rule_empty_pattern.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_rule_empty_random_once.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_rule_empty_random.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_rule_empty_rr.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_rule_master_empty_random_once.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_rule_master_empty_random.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_rule_master_empty_rr.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_rule_numeric.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_rule_slave_empty_random_once.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_rule_slave_empty_random.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_rule_slave_empty_rr.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_rule_twice2.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_rule_twice.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_rule_unknown_parameter.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_slave_no_match_random_once.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_slave_no_match_random.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_slave_no_match_rr.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_slave_ref_master_random.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_slave_rr.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_sql_hint.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_undefined_master_in_rule_lazy.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_undefined_master_in_rule.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_undefined_slave_in_rule_lazy.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_undefined_slave_in_rule.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_unknown_parameter2.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_unknown_parameter3.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_unknown_parameter.phpt" role="test"/>
+        <file name="mysqlnd_ms_table_write_non_unique.phpt" role="test"/>
+        <file name="mysqlnd_ms_thread_id.phpt" role="test"/>
+        <file name="mysqlnd_ms_tmp_double_error.phpt" role="test"/>
+        <file name="mysqlnd_ms_transient_error.phpt" role="test"/>
+        <file name="mysqlnd_ms_trx_stickiness_master_failover_random.phpt" role="test"/>
+        <file name="mysqlnd_ms_trx_stickiness_master_failover_rr.phpt" role="test"/>
+        <file name="mysqlnd_ms_trx_stickiness_master_random_once.phpt" role="test"/>
+        <file name="mysqlnd_ms_trx_stickiness_master_random.phpt" role="test"/>
+        <file name="mysqlnd_ms_trx_stickiness_master_rr.phpt" role="test"/>
+        <file name="mysqlnd_ms_trx_stickiness_master_user.phpt" role="test"/>
+        <file name="mysqlnd_ms_trx_stickiness_no_slave_failover_random.phpt" role="test"/>
+        <file name="mysqlnd_ms_trx_stickiness_no_slave_failover_rr.phpt" role="test"/>
+        <file name="mysqlnd_ms_trx_stickiness_on_begin_name_random.phpt" role="test"/>
+        <file name="mysqlnd_ms_trx_stickiness_on_random.phpt" role="test"/>
+        <file name="mysqlnd_ms_trx_stickiness_on_ro_mor_random.phpt" role="test"/>
+        <file name="mysqlnd_ms_trx_stickiness_on_ro_mor_rr.phpt" role="test"/>
+        <file name="mysqlnd_ms_trx_stickiness_on_ro_random.phpt" role="test"/>
+        <file name="mysqlnd_ms_trx_stickiness_on_ro_rr.phpt" role="test"/>
+        <file name="mysqlnd_ms_trx_stickiness_on_rr.phpt" role="test"/>
+        <file name="mysqlnd_ms_trx_stickiness_slave_failover_random.phpt" role="test"/>
+        <file name="mysqlnd_ms_trx_stickiness_slave_failover_rr.phpt" role="test"/>
+        <file name="mysqlnd_ms_unknown_filter2.phpt" role="test"/>
+        <file name="mysqlnd_ms_unknown_filter3.phpt" role="test"/>
+        <file name="mysqlnd_ms_unknown_filter4.phpt" role="test"/>
+        <file name="mysqlnd_ms_unknown_filter5.phpt" role="test"/>
+        <file name="mysqlnd_ms_unknown_filter6.phpt" role="test"/>
+        <file name="mysqlnd_ms_unknown_filter_cont_ro.phpt" role="test"/>
+        <file name="mysqlnd_ms_unknown_filter_cont_r.phpt" role="test"/>
+        <file name="mysqlnd_ms_unknown_filter_cont_rr.phpt" role="test"/>
+        <file name="mysqlnd_ms_unknown_filter.phpt" role="test"/>
+        <file name="mysqlnd_ms_use_result2.phpt" role="test"/>
+        <file name="mysqlnd_ms_use_result.phpt" role="test"/>
+        <file name="mysqlnd_ms_warning_count.phpt" role="test"/>
+        <file name="README" role="test"/>
+        <file name="skipif.inc" role="test"/>
+        <file name="util.inc" role="test"/>
+
+        <dir name="fabric">
+          <file name="fabric_sharding_dump_simple.phpt" role="test" />
+          <file name="fabric_invalid_strategy.phpt" role="test" />
+          <file name="fabric_and_master.phpt" role="test" />
+          <file name="fabric_rpc_hostlist.phpt" role="test" />
+          <file name="fabric_no_hosts_in_confg.phpt" role="test" />
+        </dir>
+
+        <dir name="bench">
+         <file name="README" role="test" />
+
+         <dir name="framework">
+          <file name="abstract.php" role="test" />
+          <file name="config.php" role="test" />
+          <file name="main.php" role="test" />
+          <file name="rb_main.php" role="test" />
+          <file name="rb_renderer_normal.php" role="test" />
+          <file name="rb_storage_db_normal.php" role="test" />
+          <file name="rb_testrunner_normal.php" role="test" />
+
+          <dir name="web">
+           <file name="rb_create_csv.php" role="test" />
+          </dir>
+         </dir>
+
+         <dir name="micro_benches">
+          <file name="andrey_stmt1.php" role="test" />
+          <file name="andrey_stmt1_php_run_normal.php" role="test" />
+          <file name="andrey_stmt2.php" role="test" />
+          <file name="georg_bench1.php" role="test" />
+          <file name="georg_bench2.php" role="test" />
+          <file name="mysqli_affected_rows.php" role="test" />
+          <file name="mysqli_connect_and_close.php" role="test" />
+          <file name="mysqli_connect.php" role="test" />
+          <file name="mysqli_data_seek_random.php" role="test" />
+          <file name="mysqli_data_seek_random_php_run_normal.php" role="test" />
+          <file name="mysqli_data_seek_sequential.php" role="test" />
+          <file name="mysqli_fetch_all_vs_fetch_array.php" role="test" />
+          <file name="mysqli_fetch_field_direct.php" role="test" />
+          <file name="mysqli_fetch_long_buffered.php" role="test" />
+          <file name="mysqli_fetch_long_unbuffered.php" role="test" />
+          <file name="mysqli_fetch_long_unbuffered_php_run_normal.php" role="test" />
+          <file name="mysqli_insert_id.php" role="test" />
+          <file name="mysqli_many_cols_buf.php" role="test" />
+          <file name="mysqli_many_cols_unbuf.php" role="test" />
+          <file name="mysqli_query_insert_varchar.php" role="test" />
+          <file name="mysqli_query_update_varchar.php" role="test" />
+          <file name="mysqli_real_connect_and_close.php" role="test" />
+          <file name="mysqli_real_query.php" role="test" />
+          <file name="mysqli_select_varchar_buffered.php" role="test" />
+          <file name="mysqli_sel_unbuf.php" role="test" />
+          <file name="mysqli_skeleton.php" role="test" />
+          <file name="mysqli_stmt_data_seek_random.php" role="test" />
+          <file name="mysqli_stmt_execute.php" role="test" />
+          <file name="mysqli_stmt_insert.php" role="test" />
+          <file name="mysqli_stmt_many_col.php" role="test" />
+          <file name="mysqli_stmt_seek_seq.php" role="test" />
+          <file name="mysqli_stmt_sel_buf.php" role="test" />
+          <file name="mysqli_stmt_sel_unbuf.php" role="test" />
+          <file name="mysqli_variable_command_size.php" role="test" />
+          <file name="mysqlnd_ms_php.ini" role="test" />
+          <file name="mysqlnd_ms_slave_hint.php" role="test" />
+         </dir>
+
+        </dir>
+        <!-- // bench -->
+      </dir>
+      <!-- //tests -->
+      <file name="CHANGES" role="doc"/>
+      <file name="config.m4" role="src"/>
+      <file name="config.w32" role="src"/>
+      <file name="CREDITS" role="doc"/>
+      <file name="LICENSE" role="doc"/>
+      <file name="mf_wcomp.c" role="src"/>
+      <file name="mysqlnd_ms.c" role="src"/>
+      <file name="mysqlnd_ms_config_json.c" role="src"/>
+      <file name="mysqlnd_ms_config_json.h" role="src"/>
+      <file name="mysqlnd_ms_enum_n_def.h" role="src"/>
+      <file name="mysqlnd_ms_filter_groups.c" role="src"/>
+      <file name="mysqlnd_ms_filter_groups.h" role="src"/>
+      <file name="mysqlnd_ms_filter_qos.c" role="src"/>
+      <file name="mysqlnd_ms_filter_qos.h" role="src"/>
+      <file name="mysqlnd_ms_filter_random.c" role="src"/>
+      <file name="mysqlnd_ms_filter_random.h" role="src"/>
+      <file name="mysqlnd_ms_filter_round_robin.c" role="src"/>
+      <file name="mysqlnd_ms_filter_round_robin.h" role="src"/>
+      <file name="mysqlnd_ms_filter_table_partition.c" role="src"/>
+      <file name="mysqlnd_ms_filter_table_partition.h" role="src"/>
+      <file name="mysqlnd_ms_filter_user.c" role="src"/>
+      <file name="mysqlnd_ms_filter_user.h" role="src"/>
+      <file name="mysqlnd_ms.h" role="src"/>
+      <file name="mysqlnd_ms_lb_weights.c" role="src"/>
+      <file name="mysqlnd_ms_lb_weights.h" role="src"/>
+      <file name="mysqlnd_ms_switch.c" role="src"/>
+      <file name="mysqlnd_ms_switch.h" role="src"/>
+      <file name="mysqlnd_qp.h" role="src"/>
+      <file name="mysqlnd_query_lexer.c" role="src"/>
+      <file name="mysqlnd_query_lexer.flex" role="src"/>
+      <file name="mysqlnd_query_lexer.lex.h" role="src"/>
+      <file name="mysqlnd_query_parser.c" role="src"/>
+      <file name="mysqlnd_query_parser.grammar" role="src"/>
+      <file name="mysqlnd_query_parser.h" role="src"/>
+      <file name="package.xml" role="src"/>
+      <file name="php_mysqlnd_ms.c" role="src"/>
+      <file name="php_mysqlnd_ms.h" role="src"/>
+      <file name="README" role="doc"/>
+      <file name="README.fabric" role="doc"/>
+    </dir>
+    <!-- / -->
+  </contents>
+  <dependencies>
+    <required>
+      <php>
+        <min>5.3.6-dev</min>
+      </php>
+      <pearinstaller>
+        <min>1.4.0</min>
+      </pearinstaller>
+    </required>
+  </dependencies>
+
+  <providesextension>mysqlnd_ms</providesextension>
+
+  <extsrcrelease />
+
+  <changelog>
+    <release>
+      <version>
+        <release>1.6.0</release>
+        <api>1.6.0</api>
+      </version>
+      <stability>
+        <release>alpha</release>
+        <api>alpha</api>
+      </stability>
+      <date>2013-09-26</date>
+      <license uri="http://www.php.net/license">PHP License</license>
+      <notes>Add initial MySQL Fabric support and automatic retry for transient errors</notes>
+    </release>
+    <release>
+      <version>
+        <release>1.5.2</release>
+        <api>1.5.0</api>
+      </version>
+      <stability>
+        <release>GA</release>
+        <api>GA</api>
+      </stability>
+      <date>2013-06-21</date>
+      <license uri="http://www.php.net/license">PHP License</license>
+      <notes>Fix hardcoded version number</notes>
+    </release>
+    <release>
+      <version>
+        <release>1.5.1</release>
+        <api>1.5.0</api>
+      </version>
+      <stability>
+        <release>GA</release>
+        <api>GA</api>
+      </stability>
+      <date>2013-06-18</date>
+      <license uri="http://www.php.net/license">PHP License</license>
+      <notes>GA release</notes>
+    </release>
+    <release>
+      <version>
+        <release>1.5.0</release>
+        <api>1.5.0</api>
+      </version>
+      <stability>
+        <release>alpha</release>
+        <api>alpha</api>
+      </stability>
+      <date>2012-08-15</date>
+      <license uri="http://www.php.net/license">PHP License</license>
+      <notes>GA release</notes>
+    </release>
+    <release>
+      <version>
+        <release>1.4.2</release>
+        <api>1.4.0</api>
+      </version>
+      <stability>
+        <release>stable</release>
+        <api>stable</api>
+      </stability>
+      <date>2012-08-15</date>
+      <license uri="http://www.php.net/license">PHP License</license>
+      <notes>GA release</notes>
+    </release>
+    <release>
+      <version>
+        <release>1.4.1</release>
+        <api>1.4.0</api>
+      </version>
+      <stability>
+        <release>beta</release>
+        <api>beta</api>
+      </stability>
+      <date>2012-08-01</date>
+      <license uri="http://www.php.net/license">PHP License</license>
+      <notes>Beta release, stable API, for testing</notes>
+    </release>
+    <release>
+      <version>
+        <release>1.4.0</release>
+        <api>1.4.0</api>
+      </version>
+      <stability>
+        <release>alpha</release>
+        <api>alpha</api>
+      </stability>
+      <date>2012-07-16</date>
+      <license uri="http://www.php.net/license">PHP License</license>
+      <notes>Small change to fix the build in case MS is built/used together with QC</notes>
+    </release>
+    <release>
+      <version>
+        <release>1.3.1</release>
+        <api>1.3.0</api>
+      </version>
+      <stability>
+        <release>alpha</release>
+        <api>alpha</api>
+      </stability>
+      <date>2012-04-16</date>
+      <license uri="http://www.php.net/license">PHP License</license>
+      <notes>Small change to fix the build in case MS is built/used together with QC</notes>
+    </release>
+    <release>
+      <version>
+        <release>1.3.0</release>
+        <api>1.3.0</api>
+      </version>
+      <stability>
+        <release>alpha</release>
+        <api>alpha</api>
+      </stability>
+      <date>2012-04-12</date>
+      <license uri="http://www.php.net/license">PHP License</license>
+      <notes>New feature release with QoS and QC integration</notes>
+    </release>
+    <release>
+      <version>
+        <release>1.2.1</release>
+        <api>1.2.0</api>
+      </version>
+      <stability>
+        <release>beta</release>
+        <api>beta</api>
+      </stability>
+      <date>2012-01-24</date>
+      <license uri="http://www.php.net/license">PHP License</license>
+      <notes>beta release</notes>
+    </release>
+    <release>
+      <version>
+        <release>1.2.0</release>
+        <api>1.2.0</api>
+      </version>
+      <stability>
+        <release>alpha</release>
+        <api>alpha</api>
+      </stability>
+      <date>2011-12-14</date>
+      <license uri="http://www.php.net/license">PHP License</license>
+      <notes>Global Transaction ID injection and quality-of-service concept</notes>
+    </release>
+    <release>
+      <version>
+        <release>1.1.2</release>
+        <api>1.1.0</api>
+      </version>
+      <stability>
+        <release>stable</release>
+        <api>stable</api>
+      </stability>
+      <date>2011-11-04</date>
+      <license uri="http://www.php.net/license">PHP License</license>
+      <notes>Fixed the build for 5.4. Declaring the code as stable. Refer to CHANGES for more information</notes>
+    </release>
+    <release>
+      <version>
+        <release>1.1.1</release>
+        <api>1.1.0</api>
+      </version>
+      <stability>
+        <release>beta</release>
+        <api>stable</api>
+      </stability>
+      <date>2011-10-11</date>
+      <license uri="http://www.php.net/license">PHP License</license>
+      <notes>The same as 1.1.0 code-wise. A note added to config.m4 for an experimental and currently unsupported option</notes>
+    </release>
+	<release>
+      <version>
+        <release>1.1.0</release>
+        <api>1.1.0</api>
+      </version>
+      <stability>
+        <release>beta</release>
+        <api>stable</api>
+      </stability>
+      <date>2011-09-29</date>
+      <license uri="http://www.php.net/license">PHP License</license>
+      <notes>Numerous feature enhancements. Refer to CHANGES for more information</notes>
+    </release>
+    <release>
+      <version>
+        <release>1.0.1</release>
+        <api>1.0.0</api>
+      </version>
+      <stability>
+        <release>alpha</release>
+        <api>stable</api>
+      </stability>
+      <date>2011-04-21</date>
+      <license uri="http://www.php.net/license">PHP License</license>
+      <notes>Fixed debug build (credits to Vladimir Getmanshchuk). All 1.0 features implemented.</notes>
+    </release>
+    <release>
+      <version>
+        <release>1.0.0</release>
+        <api>1.0.0</api>
+      </version>
+      <stability>
+        <release>alpha</release>
+        <api>stable</api>
+      </stability>
+      <date>2011-04-20</date>
+      <license uri="http://www.php.net/license">PHP License</license>
+      <notes>Initial package release. All 1.0 features implemented.</notes>
+    </release>
+  </changelog>
+</package>

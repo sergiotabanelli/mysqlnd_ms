@@ -1,0 +1,29 @@
+{
+  "myapp": {
+    "master": {
+      "master_1": {
+        "host": "localhost",
+        "socket": "\/tmp\/mysql57.sock"
+      }
+    },
+    "slave": {
+      "slave_0": {
+        "host": "127.0.0.1",
+        "port": 3308
+      },
+      "slave_1": {
+        "host": "192.168.2.28",
+        "port": 3306
+      }
+    },
+    "filters": {
+      "node_groups": {
+        "Partition_A" : {
+          "master": ["master_1"],
+          "slave": ["slave_0"]
+        }
+      },
+      "roundrobin": []
+    }
+  }
+}

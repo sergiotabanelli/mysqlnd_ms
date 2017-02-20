@@ -1,0 +1,29 @@
+{
+  "myapp": {
+    "master": {
+      "master_1": {
+        "host": "localhost",
+        "socket": "\/tmp\/mysql57.sock"
+      }
+    },
+    "slave": {
+      "slave_0": {
+        "host": "unavailable_to_trigger_failover",
+        "port": 9999
+      },
+      "slave_1": {
+        "host": "192.168.2.28",
+        "port": 3306
+      }
+    },
+    "filters": {
+      "random": {
+        "sticky": "1"
+      }
+    },
+    "failover": {
+      "strategy": "loop_before_master",
+      "remember_failed": true
+    }
+  }
+}

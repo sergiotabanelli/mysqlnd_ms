@@ -1,0 +1,107 @@
+Introduction
+============
+
+The mysqlnd replication and load balancing plugin (mysqlnd_ms) adds easy to use
+MySQL replication support to all PHP MySQL extensions that use mysqlnd.
+
+This package contains support for MySQL Fabric's initial releases. MySQL Fabric,
+part of MySQL Utilities, is aan integrated framework for managing farms of MySQL
+servers with support for both high-availability and sharding.
+
+This version of mysqlnd_ms includes initial support for collecting master/slave
+configuration for sharding setups from MySQL Fabric. The configuration of this
+plugin is changed for not specifying hard coded lists of master and slave 
+servers but a reference to MySQL Fabric. It also adds functions exported to PHP
+users for picking shard servers ased on a sharding ID and a function to return
+configured MySQL Fabric instances, which can be used to run additional API calls
+against MySQL Fabric's RPC interface.
+
+MySQL Fabric, including its docuemntation, is avaialable from the MySQL Labs
+site on http://labs.mysql.com/
+
+Configuration
+=============
+
+Over the well documented mysqlnd_ms plugin the the following is extended to 
+allow MySQL Fabric confiuration like this:
+
+{
+    "myapp" : {
+        "fabric": {
+            "hosts": [
+                { "host": "fabric.example.com", "port": 8080 }
+            ]
+        }
+    }
+}
+
+The "fabric" object here replaces the previous "master" and "slave" objects. 
+Other options miht still be used. i.e. to select the roundrobin filter for
+picking servers the following configuration may be used.
+
+
+{
+    "myapp" : {
+        "fabric": {
+            "hosts": [
+                { "host": "fabric.example.com", "port": 8080 }
+            ]
+        },
+        "filters": {
+            "roundrobin": [ ]
+        }
+    }
+}
+
+Functions
+=========
+
+The following functions are added:
+
+ void mysqlnd_ms_fabric_select_shard(object $connection, string $tablename, string $shard_key);
+ void mysqlnd_ms_fabric_select_global(object $connection, string $tablename);
+ array mysqlnd_ms_dump_servers(object $connection);
+ array mysqlnd_ms_dump_fabric_hosts(object $connection);
+
+Parameters:
+  $connection - A mysql resource or an mysqli or PDO connection object
+  $tablename  - A table name as part of a MySQL Fabric connection
+  $shard_key  - A shard key
+
+The function mysqlnd_ms_fabric_select_shard() will query MySQL Fabric for the
+servers responsible for handling the shard roupof the specified shard key. This
+will set mysqlnd_ms's master and slave server lists accordingly. Dependin on
+the configuration this will default to lazy connections, so no connection to
+MySQL servers will be established.
+
+The function mysqlnd_ms_fabric_select_global() is similar to the previous
+function, but references the global group from the Fabric sharding setup.
+
+The two dump functions return internal information. mysqlnd_ms_dump_servers()
+seres deuging purpose in order to verify correct information has been returned
+by MySQL Fabric.
+
+mysqlnd_ms_dump_fabric_hosts() returns the list of hosts configured in the 
+myslqnd_ms configuration. This allows PHP libraries to connect to the same
+MySQL Fabric instance without having to parse the configuration file itself.
+
+Installation
+============
+
+If your system has the PEAR and PECL tools installed this plugin can be
+installed by a single command from the command line.
+
+If you want to use the stable version:
+
+    # pecl install mysqlnd_ms-alpha
+
+Fabric support requires the mysql-utilities-1.4.0-labs-fabric release of MySQL
+Utilities which includes MySQL Fabric 0.4.0 and is available from 
+
+    http://labs.mysql.com/
+
+Further information
+===================
+
+Please refer to the full documentation for mysqlnd_ms on http://php.net/mysqlnd_ms
+

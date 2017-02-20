@@ -1,0 +1,89 @@
+Introduction
+============
+
+The mysqlnd replication and load balancing plugin (mysqlnd_ms) adds easy to use
+MySQL replication support to all PHP MySQL extensions that use mysqlnd.
+ 
+As of version PHP 5.3.3 the MySQL native driver for PHP (mysqlnd) features an 
+internal plugin C API. C plugins, such as the replication and load balancing 
+plugin, can extend the functionality of mysqlnd.
+ 
+The MySQL native driver for PHP is a C library which ships together with PHP as
+of PHP 5.3.0. It serves as a drop-in replacement for the MySQL Client Library 
+(AKA libmysql/libmysqlclient). Using mysqlnd has several advantages: no extra 
+downloads because it comes with PHP, PHP license, lower memory consumption in 
+certain cases, new functionality such as asynchronous queries.
+ 
+Mysqlnd plugins such as the replication and load balancing plugin operate
+mostly transparent from an user perspective. The replication and load balancing
+plugin supports all PHP applications and all PHP MySQL extensions ( mysqli,
+mysql, PDO_MYSQL). It does not change existing APIs. Therefore, it can easily
+be used with existing PHP applications.
+ 
+
+Key Features
+============
+	 
+ * Transparent and therefore easy to use
+   o supports all PHP MySQL extensions
+   o no API changes
+   o very little, if any, application changes required, dependent on the usage 
+     scenario required
+ * Featured read-write split strategies
+   o Automatic detection of SELECT, supports SQL hints to overrule automatism
+   o user-defined
+ * Featured load balancing strategies
+   o Round Robin: choose different slave in round robin fashion for every
+     slave request.
+   o Random: choose random slave for every slave request.
+   o Random once (sticky): choose random slave once to run all slave requests
+     for the duration of a web request.
+   o User-defined. The application can register callbacks with mysqlnd_ms.
+																													     
+Limitations
+===========																													     
+
+The built-in read/write-split mechanism is very basic. Every query which
+starts with SELECT is considered a read request to be sent to a MySQL slave 
+server. All other queries, including, for example, SHOW statements, are
+considered as write requests to be sent to the MySQL master server. The 
+build-in behaviour can be overruled using SQL hints or an user-defined callback
+function.
+
+The read/write splitter is not aware of multi-statements. Multi-statements are
+considered as one statement. The decision of where to run the statement will be
+based on the beginning of the statement string.
+
+The plugin does not support native prepared statements. Please note that
+PDO_MySQL is using a client-side prepared statement emulation by default.
+Client-side emulated prepared statements are fully supported by the replication
+and load balancing plugin because the emulation is not using native prepared
+statements. If you are using PHP based database abstraction, please consult the
+vendor manual to learn if a client-side prepared statement emulation is used.
+																													     
+On the name
+===========
+
+The shortcut mysqlnd_ms stands for mysqlnd master slave plugin. The name was
+choosen for a quick-and-dirty proof-of-concept. In the beginning the developers 
+did not expect to continue using the code base.
+
+Installation
+============
+
+If your system has the PEAR and PECL tools installed this plugin can be installed
+by a single command from the command line.
+
+If you want to use the stable version:
+
+    # pecl install mysqlnd_ms
+
+If you want to use an alpha version:
+
+    # pecl install mysqlnd_ms-alpha
+
+Further information
+===================
+
+Please refer to the full documentation on http://php.net/mysqlnd_ms
+

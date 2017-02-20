@@ -1,0 +1,33 @@
+Edit config.inc prior to running the tests.
+
+Four MySQL servers are required for running *all* tests:
+
+  1) replication master
+  2) replication slave
+
+Master and slave must be configured as a replication cluster. Replication
+must be up and running.
+
+  3) emulated replication master
+  4) emulated replication slave
+
+The emulated master and slave must not be setup as a replication cluster.
+Those servers are used whenever asynchronous replication could give false
+positives or errors are simulated which would break the replication stream.
+
+Most tests use the emulated server pair. Only few need the replication server
+pair. Some tests can be run with only one physical server as both emulated master
+and emulated slave, Some tests don't need MySQL at all.
+
+All configured hosts must use the same user, password settings.
+Using host[:port|socket] you can set the port respectively socket of the
+master and slave server. If not give, MYSQL_TEST_SOCKET and MYSQL_TEST_PORT
+are used.
+
+MYSQL_TEST_MASTER_HOST="localhost"
+MYSQL_TEST_SLAVE_HOST="localhost"
+
+Example using host[:port|socket] syntax:
+
+MYSQL_TEST_MASTER_HOST="127.0.0.1:3307"
+MYSQL_TEST_SLAVE_HOST="localhost:/tmp/mysql2.sock"

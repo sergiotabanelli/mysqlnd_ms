@@ -1,0 +1,99 @@
+The examples try to help you getting started with the mysqlnd plugin.
+
+*Find more in the manual!*
+
+Please, find more examples at:
+
+  http://php.net/mysqlnd_ms
+
+The examples given here cover a fraction of the functionality only. Explanations
+are kept to a bare minimum.
+
+*Preconditions*
+
+Make sure you have compiled PHP with PECL/mysqlnd_ms support, the extension
+is loaded and the PHP MySQL extensions are configured to use the mysqlnd library
+when building PHP:
+
+  ./configure --with-mysql=mysqlnd --with-mysqli=mysqlnd
+    --with-pdo-mysql=mysqlnd --enable-mysqlnd-ms
+
+If you are unfamiliar with the mysqlnd library, please consult the PHP manual:
+
+  http://php.net/mysqlnd_ms
+
+*Setup*
+
+Edit the server settings in the configuration file you plan to use:
+
+  mysqlnd_ms_single_master_config.json
+  mysqlnd_ms_single_master_config_client_failover.json
+  mysqlnd_ms_multi_master_config.json
+  mysqlnd_ms_single_master_config_sharding.json
+
+Use the single_master configuration files if running a lazy primary copy
+(asynchronous master slave) cluster of MySQL such as MySQL Replication. Use
+the multi_master configuration file if running a non-lazy update-anywhere
+(synchronous multi master) cluster of MySQL, for example, MySQL Cluster.
+
+Further cluster topologies are supported but beyond the scope of the examples.
+
+Edit the server settings.
+
+It is assumed that you have configured one MySQL user on all servers using
+the same password on all servers. Using different users on different servers
+is explained in the documentation.
+
+Edit config.php to set username and password. All examples include config.php.
+
+*Running*
+
+The examples and tests make use of the mysqli extension and its API. mysqli
+is the most feature-complete of the three PHP MySQL extensions
+(mysql, mysqli, PDO_MYSQL). Because PECL/mysqlnd_ms is a plugin for the mysqlnd
+library and all of the three PHP MySQL extensions can be configured to use the
+mysqlnd library "under the hood" at the C level, the plugin can be used with any
+of the three extensions. However, mysqli is the most powerful of the breed
+and I'm familiar with it. Thus, I'm always using mysqli in the examples
+and in the tests.
+
+Single master with read-write splitting enabled:
+
+  php -d mysqlnd_ms.enable=1 \
+      -d mysqlnd_ms.config_file=mysqlnd_ms_single_master_config.json \
+      rw_split.php
+
+Single master with failover (see documentation notes!):
+
+  php -d mysqlnd_ms.enable=1 \
+      -d mysqlnd_ms.config_file=mysqlnd_ms_single_master_config_failover.json \
+      failover.php
+
+
+Single master with manual partitioning/sharding (see documentation notes!):
+
+  php -d mysqlnd_ms.enable=1 \
+      -d mysqlnd_ms.config_file=mysqlnd_ms_single_master_config_sharding.json \
+      sharding.php
+
+Multi master with read-write splitting disabled:
+
+
+  php -d mysqlnd_ms.enable=1 \
+      -d mysqlnd_ms.multi_master=1 \
+      -d mysqlnd_ms.disable_rw_split=1 \
+      -d mysqlnd_ms.config_file=mysqlnd_ms_multi_master_config.json \
+      multi_master.php
+
+*Pitfall*
+
+Unfortunately the plugin cannot emit a proper warning if a config file is not
+a valid JSON document! Instead you will get an error message such as:
+
+
+Warning: mysqli::mysqli(): php_network_getaddresses: getaddrinfo failed: Name or service not known in /home/nixnutz/php-src/pecl/mysqlnd_ms/trunk/examples/multi_master.php on line 34
+
+Warning: mysqli::mysqli(): (HY000/2002): php_network_getaddresses: getaddrinfo failed: Name or service not known in /home/nixnutz/php-src/pecl/mysqlnd_ms/trunk/examples/multi_master.php on line 34
+Please check the *config.json used and config.php, failed to connect: [2002] php_network_getaddresses: getaddrinfo failed: Name or service not known
+
+Thus, double check your changes if you make edits to the configuration files!

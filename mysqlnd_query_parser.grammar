@@ -1,0 +1,1321 @@
+%{
+/*
+  +----------------------------------------------------------------------+
+  | PHP Version 5                                                        |
+  +----------------------------------------------------------------------+
+  | Copyright (c) 1997-2008 The PHP Group                                |
+  +----------------------------------------------------------------------+
+  | This source file is subject to version 3.01 of the PHP license,      |
+  | that is bundled with this package in the file LICENSE, and is        |
+  | available through the world-wide-web at the following url:           |
+  | http://www.php.net/license/3_01.txt                                  |
+  | If you did not receive a copy of the PHP license and are unable to   |
+  | obtain it through the world-wide-web, please send a note to          |
+  | license@php.net so we can mail you a copy immediately.               |
+  +----------------------------------------------------------------------+
+  | Authors: Andrey Hristov <andrey@mysql.com>                           |
+  |          Ulf Wendel <uwendel@mysql.com>                              |
+  +----------------------------------------------------------------------+
+*/
+
+#include "php.h"
+#include "mysqlnd_ms.h"
+#include "zend_llist.h"
+/* Compile with : bison -o mysqlnd_query_parser.c -d mysqlnd_query_parser.grammar --name-prefix=mysqlnd_qp_ */
+
+#define yyerror mysqlnd_qp_error
+extern int mysqlnd_qp_error(const char * format, ...);
+
+#if defined(PHP_DEBUG) && !defined(YYDEBUG)
+#define YYDEBUG 1
+#else
+#define YYDEBUG 0
+#endif
+
+#define YYPARSE_PARAM my_parser TSRMLS_DC
+#define PINFO (((struct st_mysqlnd_query_parser *) my_parser)->parse_info)
+#define YYLEX_PARAM *(yyscan_t *)(((struct st_mysqlnd_query_parser *) my_parser)->scanner->scanner) TSRMLS_CC
+
+%}
+%union {
+  zval zv;
+  const char * kn; /* keyword_name */
+  smart_str * comment;
+}
+
+%{
+/* so we can override the default declaration */
+#define YY_DECL 
+#include "mysqlnd_query_lexer.lex.h"
+extern int mysqlnd_qp_lex(YYSTYPE * yylval_param, yyscan_t yyscanner TSRMLS_DC);
+%}
+
+%pure_parser /* We should be thread-safe */
+
+
+%token <kn> QC_TOKEN_ACCESSIBLE
+%token <kn> QC_TOKEN_ACTION
+%token <kn> QC_TOKEN_ADD
+%token <kn> QC_TOKEN_ADDDATE
+%token <kn> QC_TOKEN_AFTER
+%token <kn> QC_TOKEN_AGAINST
+%token <kn> QC_TOKEN_AGGREGATE
+%token <kn> QC_TOKEN_ALGORITHM
+%token <kn> QC_TOKEN_ALL
+%token <kn> QC_TOKEN_ALTER
+%token <kn> QC_TOKEN_ANALYZE
+%token <kn> QC_TOKEN_AND_AND
+%token <kn> QC_TOKEN_AND
+%token <kn> QC_TOKEN_BETWEEN_AND
+%token <kn> QC_TOKEN_ANY
+%token <kn> QC_TOKEN_AS
+%token <kn> QC_TOKEN_ASC
+%token <kn> QC_TOKEN_ASCII
+%token <kn> QC_TOKEN_ASENSITIVE
+%token <kn> QC_TOKEN_AT
+%token <kn> QC_TOKEN_AUTHORS
+%token <kn> QC_TOKEN_AUTOEXTEND_SIZE
+%token <kn> QC_TOKEN_AUTO_INC
+%token <kn> QC_TOKEN_AVG_ROW_LENGTH
+%token <kn> QC_TOKEN_AVG
+%token <kn> QC_TOKEN_BACKUP
+%token <kn> QC_TOKEN_BEFORE
+%token <kn> QC_TOKEN_BEGIN
+%token <kn> QC_TOKEN_BETWEEN
+%token <kn> QC_TOKEN_BIGINT
+%token <kn> QC_TOKEN_BINARY
+%token <kn> QC_TOKEN_BINLOG
+%token <kn> QC_TOKEN_BIN_NUM
+%token <kn> QC_TOKEN_BIT_AND
+%token <kn> QC_TOKEN_BIT_OR
+%token <kn> QC_TOKEN_BIT
+%token <kn> QC_TOKEN_BIT_XOR
+%token <kn> QC_TOKEN_BLOB
+%token <kn> QC_TOKEN_BLOCK
+%token <kn> QC_TOKEN_BOOLEAN
+%token <kn> QC_TOKEN_BOOL
+%token <kn> QC_TOKEN_BOTH
+%token <kn> QC_TOKEN_BTREE
+%token <kn> QC_TOKEN_BY
+%token <kn> QC_TOKEN_BYTE
+%token <kn> QC_TOKEN_CACHE
+%token <kn> QC_TOKEN_CALL
+%token <kn> QC_TOKEN_CASCADE
+%token <kn> QC_TOKEN_CASCADED
+%token <kn> QC_TOKEN_CASE
+%token <kn> QC_TOKEN_CAST
+%token <kn> QC_TOKEN_CATALOG_NAME
+%token <kn> QC_TOKEN_CHAIN
+%token <kn> QC_TOKEN_CHANGE
+%token <kn> QC_TOKEN_CHANGED
+%token <kn> QC_TOKEN_CHARSET
+%token <kn> QC_TOKEN_CHAR
+%token <kn> QC_TOKEN_CHECKSUM
+%token <kn> QC_TOKEN_CHECK
+%token <kn> QC_TOKEN_CIPHER
+%token <kn> QC_TOKEN_CLASS_ORIGIN
+%token <kn> QC_TOKEN_CLIENT
+%token <kn> QC_TOKEN_CLOSE
+%token <kn> QC_TOKEN_COALESCE
+%token <kn> QC_TOKEN_CODE
+%token <kn> QC_TOKEN_COLLATE
+%token <kn> QC_TOKEN_COLLATION
+%token <kn> QC_TOKEN_COLUMNS
+%token <kn> QC_TOKEN_COLUMN
+%token <kn> QC_TOKEN_COLUMN_NAME
+%token <zv> QC_TOKEN_COMMENT
+%token <kn> QC_TOKEN_COMMITTED
+%token <kn> QC_TOKEN_COMMIT
+%token <kn> QC_TOKEN_COMPACT
+%token <kn> QC_TOKEN_COMPLETION
+%token <kn> QC_TOKEN_COMPRESSED
+%token <kn> QC_TOKEN_CONCURRENT
+%token <kn> QC_TOKEN_CONDITION
+%token <kn> QC_TOKEN_CONNECTION
+%token <kn> QC_TOKEN_CONSISTENT
+%token <kn> QC_TOKEN_CONSTRAINT
+%token <kn> QC_TOKEN_CONSTRAINT_CATALOG
+%token <kn> QC_TOKEN_CONSTRAINT_NAME
+%token <kn> QC_TOKEN_CONSTRAINT_SCHEMA
+%token <kn> QC_TOKEN_CONTAINS
+%token <kn> QC_TOKEN_CONTEXT
+%token <kn> QC_TOKEN_CONTINUE
+%token <kn> QC_TOKEN_CONTRIBUTORS
+%token <kn> QC_TOKEN_CONVERT
+%token <kn> QC_TOKEN_COUNT
+%token <kn> QC_TOKEN_CPU
+%token <kn> QC_TOKEN_CREATE
+%token <kn> QC_TOKEN_CROSS
+%token <kn> QC_TOKEN_CUBE
+%token <kn> QC_TOKEN_CURDATE
+%token <kn> QC_TOKEN_CURRENT_USER
+%token <kn> QC_TOKEN_CURSOR
+%token <kn> QC_TOKEN_CURSOR_NAME
+%token <kn> QC_TOKEN_CURTIME
+%token <kn> QC_TOKEN_DATABASE
+%token <kn> QC_TOKEN_DATABASES
+%token <kn> QC_TOKEN_DATAFILE
+%token <kn> QC_TOKEN_DATA
+%token <kn> QC_TOKEN_DATETIME
+%token <kn> QC_TOKEN_DATE_ADD_INTERVAL
+%token <kn> QC_TOKEN_DATE_SUB_INTERVAL
+%token <kn> QC_TOKEN_DATE
+%token <kn> QC_TOKEN_DAY_HOUR
+%token <kn> QC_TOKEN_DAY_MICROSECOND
+%token <kn> QC_TOKEN_DAY_MINUTE
+%token <kn> QC_TOKEN_DAY_SECOND
+%token <kn> QC_TOKEN_DAY
+%token <kn> QC_TOKEN_DEALLOCATE
+%token <kn> QC_TOKEN_DECIMAL_NUM
+%token <kn> QC_TOKEN_DECIMAL
+%token <kn> QC_TOKEN_DECLARE
+%token <kn> QC_TOKEN_DEFAULT
+%token <kn> QC_TOKEN_DEFINER
+%token <kn> QC_TOKEN_DELAYED
+%token <kn> QC_TOKEN_DELAY_KEY_WRITE
+%token <kn> QC_TOKEN_DELETE
+%token <kn> QC_TOKEN_DESC
+%token <kn> QC_TOKEN_DESCRIBE
+%token <kn> QC_TOKEN_DES_KEY_FILE
+%token <kn> QC_TOKEN_DETERMINISTIC
+%token <kn> QC_TOKEN_DIRECTORY
+%token <kn> QC_TOKEN_DISABLE
+%token <kn> QC_TOKEN_DISCARD
+%token <kn> QC_TOKEN_DISK
+%token <kn> QC_TOKEN_DISTINCT
+%token <kn> QC_TOKEN_DIV
+%token <kn> QC_TOKEN_DOUBLE
+%token <kn> QC_TOKEN_DO
+%token <kn> QC_TOKEN_DROP
+%token <kn> QC_TOKEN_DUAL
+%token <kn> QC_TOKEN_DUMPFILE
+%token <kn> QC_TOKEN_DUPLICATE
+%token <kn> QC_TOKEN_DYNAMIC
+%token <kn> QC_TOKEN_EACH
+%token <kn> QC_TOKEN_ELSE
+%token <kn> QC_TOKEN_ELSEIF
+%token <kn> QC_TOKEN_ENABLE
+%token <kn> QC_TOKEN_ENCLOSED
+%token <kn> QC_TOKEN_END
+%token <kn> QC_TOKEN_ENDS
+%token <kn> QC_TOKEN_END_OF_INPUT
+%token <kn> QC_TOKEN_ENGINES
+%token <kn> QC_TOKEN_ENGINE
+%token <kn> QC_TOKEN_ENUM
+%token <kn> QC_TOKEN_EQ
+%token <kn> QC_TOKEN_EQUAL
+%token <kn> QC_TOKEN_ERRORS
+%token <kn> QC_TOKEN_ESCAPED
+%token <kn> QC_TOKEN_ESCAPE
+%token <kn> QC_TOKEN_EVENTS
+%token <kn> QC_TOKEN_EVENT
+%token <kn> QC_TOKEN_EVERY
+%token <kn> QC_TOKEN_EXECUTE
+%token <kn> QC_TOKEN_EXISTS
+%token <kn> QC_TOKEN_EXIT
+%token <kn> QC_TOKEN_EXPANSION
+%token <kn> QC_TOKEN_EXTENDED
+%token <kn> QC_TOKEN_EXTENT_SIZE
+%token <kn> QC_TOKEN_EXTRACT
+%token <kn> QC_TOKEN_FALSE
+%token <kn> QC_TOKEN_FAST
+%token <kn> QC_TOKEN_FAULTS
+%token <kn> QC_TOKEN_FETCH
+%token <kn> QC_TOKEN_FILE
+%token <kn> QC_TOKEN_FIRST
+%token <kn> QC_TOKEN_FIXED
+%token <kn> QC_TOKEN_FLOAT_NUM
+%token <kn> QC_TOKEN_FLOAT
+%token <kn> QC_TOKEN_FLUSH
+%token <kn> QC_TOKEN_FORCE
+%token <kn> QC_TOKEN_FOREIGN
+%token <kn> QC_TOKEN_FOR
+%token <kn> QC_TOKEN_FOUND
+%token <kn> QC_TOKEN_FRAC_SECOND
+%token <kn> QC_TOKEN_FROM
+%token <kn> QC_TOKEN_FULL
+%token <kn> QC_TOKEN_FULLTEXT
+%token <kn> QC_TOKEN_FUNCTION
+%token <kn> QC_TOKEN_GE
+%token <kn> QC_TOKEN_GEOMETRYCOLLECTION
+%token <kn> QC_TOKEN_GEOMETRY
+%token <kn> QC_TOKEN_GET_FORMAT
+%token <kn> QC_TOKEN_GLOBAL
+%token <kn> QC_TOKEN_GRANT
+%token <kn> QC_TOKEN_GRANTS
+%token <kn> QC_TOKEN_GROUP
+%token <kn> QC_TOKEN_GROUP_CONCAT
+%token <kn> QC_TOKEN_GT
+%token <kn> QC_TOKEN_HANDLER
+%token <kn> QC_TOKEN_HASH
+%token <kn> QC_TOKEN_HAVING
+%token <kn> QC_TOKEN_HELP
+%token <kn> QC_TOKEN_HEX_NUM
+%token <kn> QC_TOKEN_HIGH_PRIORITY
+%token <kn> QC_TOKEN_HOST
+%token <kn> QC_TOKEN_HOSTS
+%token <kn> QC_TOKEN_HOUR_MICROSECOND
+%token <kn> QC_TOKEN_HOUR_MINUTE
+%token <kn> QC_TOKEN_HOUR_SECOND
+%token <kn> QC_TOKEN_HOUR
+%token <kn> QC_TOKEN_IDENT
+%token <kn> QC_TOKEN_IDENTIFIED
+%token <kn> QC_TOKEN_IDENT_QUOTED
+%token <kn> QC_TOKEN_IF
+%token <kn> QC_TOKEN_IGNORE
+%token <kn> QC_TOKEN_IGNORE_SERVER_IDS
+%token <kn> QC_TOKEN_IMPORT
+%token <kn> QC_TOKEN_INDEXES
+%token <kn> QC_TOKEN_INDEX
+%token <kn> QC_TOKEN_INFILE
+%token <kn> QC_TOKEN_INITIAL_SIZE
+%token <kn> QC_TOKEN_INNER
+%token <kn> QC_TOKEN_INOUT
+%token <kn> QC_TOKEN_INSENSITIVE
+%token <kn> QC_TOKEN_INSERT
+%token <kn> QC_TOKEN_INSERT_METHOD
+%token <kn> QC_TOKEN_INSTALL
+%token <kn> QC_TOKEN_INTERVAL
+%token <kn> QC_TOKEN_INTO
+%token <kn> QC_TOKEN_INT
+%token <kn> QC_TOKEN_INVOKER
+%token <kn> QC_TOKEN_IN
+%token <kn> QC_TOKEN_IO
+%token <kn> QC_TOKEN_IPC
+%token <kn> QC_TOKEN_IS
+%token <kn> QC_TOKEN_ISOLATION
+%token <kn> QC_TOKEN_ISSUER
+%token <kn> QC_TOKEN_ITERATE
+%token <kn> QC_TOKEN_JOIN
+%token <kn> QC_TOKEN_KEYS
+%token <kn> QC_TOKEN_KEY_BLOCK_SIZE
+%token <kn> QC_TOKEN_KEY
+%token <kn> QC_TOKEN_KILL
+%token <kn> QC_TOKEN_LANGUAGE
+%token <kn> QC_TOKEN_LAST
+%token <kn> QC_TOKEN_LE
+%token <kn> QC_TOKEN_LEADING
+%token <kn> QC_TOKEN_LEAVES
+%token <kn> QC_TOKEN_LEAVE
+%token <kn> QC_TOKEN_LEFT
+%token <kn> QC_TOKEN_LESS
+%token <kn> QC_TOKEN_LEVEL
+%token <kn> QC_TOKEN_LEX_HOSTNAME
+%token <kn> QC_TOKEN_LIKE
+%token <kn> QC_TOKEN_LIMIT
+%token <kn> QC_TOKEN_LINEAR
+%token <kn> QC_TOKEN_LINES
+%token <kn> QC_TOKEN_LINESTRING
+%token <kn> QC_TOKEN_LIST
+%token <kn> QC_TOKEN_LOAD
+%token <kn> QC_TOKEN_LOCAL
+%token <kn> QC_TOKEN_LOCATOR
+%token <kn> QC_TOKEN_LOCKS
+%token <kn> QC_TOKEN_LOCK
+%token <kn> QC_TOKEN_LOGFILE
+%token <kn> QC_TOKEN_LOGS
+%token <kn> QC_TOKEN_LONGBLOB
+%token <kn> QC_TOKEN_LONGTEXT
+%token <kn> QC_TOKEN_LONG_NUM
+%token <kn> QC_TOKEN_LONG
+%token <kn> QC_TOKEN_LOOP
+%token <kn> QC_TOKEN_LOW_PRIORITY
+%token <kn> QC_TOKEN_LT
+%token <kn> QC_TOKEN_MASTER_CONNECT_RETRY
+%token <kn> QC_TOKEN_MASTER_HOST
+%token <kn> QC_TOKEN_MASTER_LOG_FILE
+%token <kn> QC_TOKEN_MASTER_LOG_POS
+%token <kn> QC_TOKEN_MASTER_PASSWORD
+%token <kn> QC_TOKEN_MASTER_PORT
+%token <kn> QC_TOKEN_MASTER_SERVER_ID
+%token <kn> QC_TOKEN_MASTER_SSL_CAPATH
+%token <kn> QC_TOKEN_MASTER_SSL_CA
+%token <kn> QC_TOKEN_MASTER_SSL_CERT
+%token <kn> QC_TOKEN_MASTER_SSL_CIPHER
+%token <kn> QC_TOKEN_MASTER_SSL_KEY
+%token <kn> QC_TOKEN_MASTER_SSL
+%token <kn> QC_TOKEN_MASTER_SSL_VERIFY_SERVER_CERT
+%token <kn> QC_TOKEN_MASTER
+%token <kn> QC_TOKEN_MASTER_USER
+%token <kn> QC_TOKEN_MASTER_HEARTBEAT_PERIOD
+%token <kn> QC_TOKEN_MATCH
+%token <kn> QC_TOKEN_MAX_CONNECTIONS_PER_HOUR
+%token <kn> QC_TOKEN_MAX_QUERIES_PER_HOUR
+%token <kn> QC_TOKEN_MAX_ROWS
+%token <kn> QC_TOKEN_MAX_SIZE
+%token <kn> QC_TOKEN_MAX
+%token <kn> QC_TOKEN_MAX_UPDATES_PER_HOUR
+%token <kn> QC_TOKEN_MAX_USER_CONNECTIONS
+%token <kn> QC_TOKEN_MAX_VALUE
+%token <kn> QC_TOKEN_MEDIUMBLOB
+%token <kn> QC_TOKEN_MEDIUMINT
+%token <kn> QC_TOKEN_MEDIUMTEXT
+%token <kn> QC_TOKEN_MEDIUM
+%token <kn> QC_TOKEN_MEMORY
+%token <kn> QC_TOKEN_MERGE
+%token <kn> QC_TOKEN_MESSAGE_TEXT
+%token <kn> QC_TOKEN_MICROSECOND
+%token <kn> QC_TOKEN_MIGRATE
+%token <kn> QC_TOKEN_MINUTE_MICROSECOND
+%token <kn> QC_TOKEN_MINUTE_SECOND
+%token <kn> QC_TOKEN_MINUTE
+%token <kn> QC_TOKEN_MIN_ROWS
+%token <kn> QC_TOKEN_MIN
+%token <kn> QC_TOKEN_MODE
+%token <kn> QC_TOKEN_MODIFIES
+%token <kn> QC_TOKEN_MODIFY
+%token <kn> QC_TOKEN_MOD
+%token <kn> QC_TOKEN_MONTH
+%token <kn> QC_TOKEN_MULTILINESTRING
+%token <kn> QC_TOKEN_MULTIPOINT
+%token <kn> QC_TOKEN_MULTIPOLYGON
+%token <kn> QC_TOKEN_MUTEX
+%token <kn> QC_TOKEN_MYSQL_ERRNO
+%token <kn> QC_TOKEN_NAMES
+%token <kn> QC_TOKEN_NAME
+%token <kn> QC_TOKEN_NATIONAL
+%token <kn> QC_TOKEN_NATURAL
+%token <kn> QC_TOKEN_NCHAR_STRING
+%token <kn> QC_TOKEN_NCHAR
+%token <kn> QC_TOKEN_NDBCLUSTER
+%token <kn> QC_TOKEN_NE
+%token <kn> QC_TOKEN_NE_TRIPLE
+%token <kn> QC_TOKEN_NEG
+%token <kn> QC_TOKEN_NEW
+%token <kn> QC_TOKEN_NEXT
+%token <kn> QC_TOKEN_NODEGROUP
+%token <kn> QC_TOKEN_NONE
+%token <kn> QC_TOKEN_NOT2
+%token <kn> QC_TOKEN_NOT
+%token <kn> QC_TOKEN_NOW
+%token <kn> QC_TOKEN_NO
+%token <kn> QC_TOKEN_NO_WAIT
+%token <kn> QC_TOKEN_NO_WRITE_TO_BINLOG
+%token <kn> QC_TOKEN_NULL
+%token <kn> QC_TOKEN_NUM
+%token <kn> QC_TOKEN_NUMERIC
+%token <kn> QC_TOKEN_NVARCHAR
+%token <kn> QC_TOKEN_OFFSET
+%token <kn> QC_TOKEN_OLD_PASSWORD
+%token <kn> QC_TOKEN_ON
+%token <kn> QC_TOKEN_ONE_SHOT
+%token <kn> QC_TOKEN_ONE
+%token <kn> QC_TOKEN_OPEN
+%token <kn> QC_TOKEN_OPTIMIZE
+%token <kn> QC_TOKEN_OPTIONS
+%token <kn> QC_TOKEN_OPTION
+%token <kn> QC_TOKEN_OPTIONALLY
+%token <kn> QC_TOKEN_OR2
+%token <kn> QC_TOKEN_ORDER
+%token <kn> QC_TOKEN_OR_OR
+%token <kn> QC_TOKEN_OR
+%token <kn> QC_TOKEN_OUTER
+%token <kn> QC_TOKEN_OUTFILE
+%token <kn> QC_TOKEN_OUT
+%token <kn> QC_TOKEN_OWNER
+%token <kn> QC_TOKEN_PACK_KEYS
+%token <kn> QC_TOKEN_PAGE
+%token <kn> QC_TOKEN_PARAM_MARKER
+%token <kn> QC_TOKEN_PARSER
+%token <kn> QC_TOKEN_PARTIAL
+%token <kn> QC_TOKEN_PARTITIONING
+%token <kn> QC_TOKEN_PARTITIONS
+%token <kn> QC_TOKEN_PARTITION
+%token <kn> QC_TOKEN_PASSWORD
+%token <kn> QC_TOKEN_PHASE
+%token <kn> QC_TOKEN_PLUGINS
+%token <kn> QC_TOKEN_PLUGIN
+%token <kn> QC_TOKEN_POINT
+%token <kn> QC_TOKEN_POLYGON
+%token <kn> QC_TOKEN_PORT
+%token <kn> QC_TOKEN_POSITION
+%token <kn> QC_TOKEN_PRECISION
+%token <kn> QC_TOKEN_PREPARE
+%token <kn> QC_TOKEN_PRESERVE
+%token <kn> QC_TOKEN_PREV
+%token <kn> QC_TOKEN_PRIMARY
+%token <kn> QC_TOKEN_PRIVILEGES
+%token <kn> QC_TOKEN_PROCEDURE
+%token <kn> QC_TOKEN_PROCESS
+%token <kn> QC_TOKEN_PROCESSLIST
+%token <kn> QC_TOKEN_PROFILE
+%token <kn> QC_TOKEN_PROFILES
+%token <kn> QC_TOKEN_PURGE
+%token <kn> QC_TOKEN_QUARTER
+%token <kn> QC_TOKEN_QUERY
+%token <kn> QC_TOKEN_QUICK
+%token <kn> QC_TOKEN_RANGE
+%token <kn> QC_TOKEN_READS
+%token <kn> QC_TOKEN_READ_ONLY
+%token <kn> QC_TOKEN_READ
+%token <kn> QC_TOKEN_READ_WRITE
+%token <kn> QC_TOKEN_REAL
+%token <kn> QC_TOKEN_REBUILD
+%token <kn> QC_TOKEN_RECOVER
+%token <kn> QC_TOKEN_REDOFILE
+%token <kn> QC_TOKEN_REDO_BUFFER_SIZE
+%token <kn> QC_TOKEN_REDUNDANT
+%token <kn> QC_TOKEN_REFERENCES
+%token <kn> QC_TOKEN_REGEXP
+%token <kn> QC_TOKEN_RELAYLOG
+%token <kn> QC_TOKEN_RELAY_LOG_FILE
+%token <kn> QC_TOKEN_RELAY_LOG_POS
+%token <kn> QC_TOKEN_RELAY_THREAD
+%token <kn> QC_TOKEN_RELEASE
+%token <kn> QC_TOKEN_RELOAD
+%token <kn> QC_TOKEN_REMOVE
+%token <kn> QC_TOKEN_RENAME
+%token <kn> QC_TOKEN_REORGANIZE
+%token <kn> QC_TOKEN_REPAIR
+%token <kn> QC_TOKEN_REPEATABLE
+%token <kn> QC_TOKEN_REPEAT
+%token <kn> QC_TOKEN_REPLACE
+%token <kn> QC_TOKEN_REPLICATION
+%token <kn> QC_TOKEN_REQUIRE
+%token <kn> QC_TOKEN_RESET
+%token <kn> QC_TOKEN_RESIGNAL
+%token <kn> QC_TOKEN_RESOURCES
+%token <kn> QC_TOKEN_RESTORE
+%token <kn> QC_TOKEN_RESTRICT
+%token <kn> QC_TOKEN_RESUME
+%token <kn> QC_TOKEN_RETURNS
+%token <kn> QC_TOKEN_RETURN
+%token <kn> QC_TOKEN_REVOKE
+%token <kn> QC_TOKEN_RIGHT
+%token <kn> QC_TOKEN_ROLLBACK
+%token <kn> QC_TOKEN_ROLLUP
+%token <kn> QC_TOKEN_ROUTINE
+%token <kn> QC_TOKEN_ROWS
+%token <kn> QC_TOKEN_ROW_FORMAT
+%token <kn> QC_TOKEN_ROW
+%token <kn> QC_TOKEN_RTREE
+%token <kn> QC_TOKEN_SAVEPOINT
+%token <kn> QC_TOKEN_SCHEDULE
+%token <kn> QC_TOKEN_SCHEMA_NAME
+%token <kn> QC_TOKEN_SECOND_MICROSECOND
+%token <kn> QC_TOKEN_SECOND
+%token <kn> QC_TOKEN_SECURITY
+%token <kn> QC_TOKEN_SELECT
+%token <kn> QC_TOKEN_SENSITIVE
+%token <kn> QC_TOKEN_SEPARATOR
+%token <kn> QC_TOKEN_SERIALIZABLE
+%token <kn> QC_TOKEN_SERIAL
+%token <kn> QC_TOKEN_SESSION
+%token <kn> QC_TOKEN_SERVER
+%token <kn> QC_TOKEN_SERVER_OPTIONS
+%token <kn> QC_TOKEN_SET
+%token <kn> QC_TOKEN_SET_VAR
+%token <kn> QC_TOKEN_SHARE
+%token <kn> QC_TOKEN_SHIFT_LEFT
+%token <kn> QC_TOKEN_SHIFT_RIGHT
+%token <kn> QC_TOKEN_SHOW
+%token <kn> QC_TOKEN_SHUTDOWN
+%token <kn> QC_TOKEN_SIGNAL
+%token <kn> QC_TOKEN_SIGNED
+%token <kn> QC_TOKEN_SIMPLE
+%token <kn> QC_TOKEN_SLAVE
+%token <kn> QC_TOKEN_SMALLINT
+%token <kn> QC_TOKEN_SNAPSHOT
+%token <kn> QC_TOKEN_SOCKET
+%token <kn> QC_TOKEN_SONAME
+%token <kn> QC_TOKEN_SOUNDS
+%token <kn> QC_TOKEN_SOURCE
+%token <kn> QC_TOKEN_SPATIAL
+%token <kn> QC_TOKEN_SPECIFIC
+%token <kn> QC_TOKEN_SQLEXCEPTION
+%token <kn> QC_TOKEN_SQLSTATE
+%token <kn> QC_TOKEN_SQLWARNING
+%token <kn> QC_TOKEN_SQL_BIG_RESULT
+%token <kn> QC_TOKEN_SQL_BUFFER_RESULT
+%token <kn> QC_TOKEN_SQL_CACHE
+%token <kn> QC_TOKEN_SQL_CALC_FOUND_ROWS
+%token <kn> QC_TOKEN_SQL_NO_CACHE
+%token <kn> QC_TOKEN_SQL_SMALL_RESULT
+%token <kn> QC_TOKEN_SQL
+%token <kn> QC_TOKEN_SQL_THREAD
+%token <kn> QC_TOKEN_SSL
+%token <kn> QC_TOKEN_STARTING
+%token <kn> QC_TOKEN_STARTS
+%token <kn> QC_TOKEN_START
+%token <kn> QC_TOKEN_STATUS
+%token <kn> QC_TOKEN_STDDEV_SAMP
+%token <kn> QC_TOKEN_STD
+%token <kn> QC_TOKEN_STOP
+%token <kn> QC_TOKEN_STORAGE
+%token <kn> QC_TOKEN_STRAIGHT_JOIN
+%token <zv> QC_TOKEN_STRING
+%token <kn> QC_TOKEN_SUBCLASS_ORIGIN
+%token <kn> QC_TOKEN_SUBDATE
+%token <kn> QC_TOKEN_SUBJECT
+%token <kn> QC_TOKEN_SUBPARTITIONS
+%token <kn> QC_TOKEN_SUBPARTITION
+%token <kn> QC_TOKEN_SUBSTRING
+%token <kn> QC_TOKEN_SUM
+%token <kn> QC_TOKEN_SUPER
+%token <kn> QC_TOKEN_SUSPEND
+%token <kn> QC_TOKEN_SWAPS
+%token <kn> QC_TOKEN_SWITCHES
+%token <kn> QC_TOKEN_SYSDATE
+%token <kn> QC_TOKEN_TABLES
+%token <kn> QC_TOKEN_TABLESPACE
+%token <kn> QC_TOKEN_TABLE_REF_PRIORITY
+%token <kn> QC_TOKEN_TABLE
+%token <kn> QC_TOKEN_TABLE_CHECKSUM
+%token <kn> QC_TOKEN_TABLE_NAME
+%token <kn> QC_TOKEN_TEMPORARY
+%token <kn> QC_TOKEN_TEMPTABLE
+%token <kn> QC_TOKEN_TERMINATED
+%token <kn> QC_TOKEN_TEXT_STRING
+%token <kn> QC_TOKEN_TEXT
+%token <kn> QC_TOKEN_THAN
+%token <kn> QC_TOKEN_THEN
+%token <kn> QC_TOKEN_TIMESTAMP
+%token <kn> QC_TOKEN_TIMESTAMP_ADD
+%token <kn> QC_TOKEN_TIMESTAMP_DIFF
+%token <kn> QC_TOKEN_TIME
+%token <kn> QC_TOKEN_TINYBLOB
+%token <kn> QC_TOKEN_TINYINT
+%token <kn> QC_TOKEN_TINYTEXT
+%token <kn> QC_TOKEN_TO
+%token <kn> QC_TOKEN_TRAILING
+%token <kn> QC_TOKEN_TRANSACTION
+%token <kn> QC_TOKEN_TRIGGERS
+%token <kn> QC_TOKEN_TRIGGER
+%token <kn> QC_TOKEN_TRIM
+%token <kn> QC_TOKEN_TRUE
+%token <kn> QC_TOKEN_TRUNCATE
+%token <kn> QC_TOKEN_TYPES
+%token <kn> QC_TOKEN_TYPE
+%token <kn> QC_TOKEN_UDF_RETURNS
+%token <kn> QC_TOKEN_ULONGLONG_NUM
+%token <kn> QC_TOKEN_UNCOMMITTED
+%token <kn> QC_TOKEN_UNDEFINED
+%token <kn> QC_TOKEN_UNDERSCORE_CHARSET
+%token <kn> QC_TOKEN_UNDOFILE
+%token <kn> QC_TOKEN_UNDO_BUFFER_SIZE
+%token <kn> QC_TOKEN_UNDO
+%token <kn> QC_TOKEN_UNICODE
+%token <kn> QC_TOKEN_UNINSTALL
+%token <kn> QC_TOKEN_UNION
+%token <kn> QC_TOKEN_UNIQUE
+%token <kn> QC_TOKEN_UNKNOWN
+%token <kn> QC_TOKEN_UNLOCK
+%token <kn> QC_TOKEN_UNSIGNED
+%token <kn> QC_TOKEN_UNTIL
+%token <kn> QC_TOKEN_UPDATE
+%token <kn> QC_TOKEN_UPGRADE
+%token <kn> QC_TOKEN_USAGE
+%token <kn> QC_TOKEN_USER
+%token <kn> QC_TOKEN_USE_FRM
+%token <kn> QC_TOKEN_USE
+%token <kn> QC_TOKEN_USING
+%token <kn> QC_TOKEN_UTC_DATE
+%token <kn> QC_TOKEN_UTC_TIMESTAMP
+%token <kn> QC_TOKEN_UTC_TIME
+%token <kn> QC_TOKEN_VALUES
+%token <kn> QC_TOKEN_VALUE
+%token <kn> QC_TOKEN_VARBINARY
+%token <kn> QC_TOKEN_VARCHAR
+%token <kn> QC_TOKEN_VARIABLES
+%token <kn> QC_TOKEN_VARIANCE
+%token <kn> QC_TOKEN_VARYING
+%token <kn> QC_TOKEN_VAR_SAMP
+%token <kn> QC_TOKEN_VIEW
+%token <kn> QC_TOKEN_WAIT
+%token <kn> QC_TOKEN_WARNINGS
+%token <kn> QC_TOKEN_WEEK
+%token <kn> QC_TOKEN_WHEN
+%token <kn> QC_TOKEN_WHERE
+%token <kn> QC_TOKEN_WHILE
+%token <kn> QC_TOKEN_WITH
+%token <kn> QC_TOKEN_WITH_CUBE
+%token <kn> QC_TOKEN_WITH_ROLLUP
+%token <kn> QC_TOKEN_WORK
+%token <kn> QC_TOKEN_WRAPPER
+%token <kn> QC_TOKEN_WRITE
+%token <kn> QC_TOKEN_X509
+%token <kn> QC_TOKEN_XA
+%token <kn> QC_TOKEN_XML
+%token <kn> QC_TOKEN_XOR
+%token <kn> QC_TOKEN_YEAR_MONTH
+%token <kn> QC_TOKEN_YEAR
+%token <kn> QC_TOKEN_ZEROFILL
+%token <kn> QC_TOKEN_CLIENT_FLAG
+%token <kn> QC_TOKEN_GLOBAL_VAR
+%token <kn> QC_TOKEN_SESSION_VAR
+%token <kn> QC_TOKEN_BRACKET_OPEN
+%token <kn> QC_TOKEN_BRACKET_CLOSE
+%token <kn> QC_TOKEN_PLUS
+%token <kn> QC_TOKEN_MINUS
+%token <kn> QC_TOKEN_STAR
+%token <kn> QC_TOKEN_COMMA
+%token <kn> QC_TOKEN_DOT
+%token <kn> QC_TOKEN_SEMICOLON
+%token <kn> QC_TOKEN_NO_MORE
+%token <zv> QC_TOKEN_IDENTIFIER
+%token <kn> QC_TOKEN_INTNUM
+%token <kn> QC_TOKEN_FLOATNUM
+%token <kn> QC_TOKEN_ASSIGN_TO_VAR
+%token <kn> QC_TOKEN_TILDE
+
+%type <zv> ident_alias identifier comment
+%type <kn> keyword keyword_label_in_sp
+%%
+
+statement: select
+		| insert
+		| update
+		| delete
+		| truncate
+		| replace
+		| rename
+		| alter
+		| drop
+		| create
+		| comment { zval_dtor(&$1); } error { YYABORT; }
+		;
+
+
+create: comment QC_TOKEN_CREATE QC_TOKEN_TABLE if_not_exists table
+				{
+					PINFO.statement = STATEMENT_CREATE;
+					zval_dtor(&$1);
+					YYACCEPT;
+				}
+
+drop: comment QC_TOKEN_DROP temporary table_or_tables_option if_exists table restrict
+				{
+					PINFO.statement = STATEMENT_DROP;
+					zval_dtor(&$1);
+				}
+
+temporary: QC_TOKEN_TEMPORARY
+		|
+		;
+
+if_exists: QC_TOKEN_IF QC_TOKEN_EXISTS
+		|
+		;
+
+if_not_exists: QC_TOKEN_IF QC_TOKEN_NOT QC_TOKEN_EXISTS
+		|
+		;
+
+
+restrict: QC_TOKEN_RESTRICT
+		| QC_TOKEN_CASCADE
+		| /* deliberately empty */
+		;
+
+
+/* ALTER */
+alter: comment QC_TOKEN_ALTER ignore QC_TOKEN_TABLE table
+				{
+					PINFO.statement = STATEMENT_ALTER;
+					zval_dtor(&$1);
+					YYACCEPT;
+				}
+				
+
+/* RENAME */
+rename: comment QC_TOKEN_RENAME table_or_tables_option table
+				{
+					PINFO.statement = STATEMENT_RENAME;
+					zval_dtor(&$1);
+					YYACCEPT;
+				}
+
+table_or_tables_option: QC_TOKEN_TABLE
+		| QC_TOKEN_TABLES
+		;
+
+
+/* REPLACE */
+replace: comment QC_TOKEN_REPLACE replace_option table
+				{
+					PINFO.statement = STATEMENT_REPLACE;
+					zval_dtor(&$1);
+					YYACCEPT;
+				}
+
+replace_option: low_priority
+		| QC_TOKEN_DELAYED
+		;
+
+
+/* TRUNCATE */
+truncate: comment QC_TOKEN_TRUNCATE table_token table
+				{
+					PINFO.statement = STATEMENT_TRUNCATE;
+					zval_dtor(&$1);
+				}
+
+table_token: QC_TOKEN_TABLE
+		|
+		;
+
+
+/* DELETE */
+delete: comment QC_TOKEN_DELETE delete_options QC_TOKEN_FROM table
+				{
+					PINFO.statement = STATEMENT_DELETE;
+					zval_dtor(&$1);
+					YYACCEPT;
+				}
+
+delete_options: delete_option delete_options
+		|
+		;
+
+delete_option: QC_TOKEN_QUICK
+		| QC_TOKEN_LOW_PRIORITY
+		| QC_TOKEN_IGNORE
+		;
+
+
+/* UPDATE */
+update: comment QC_TOKEN_UPDATE low_priority ignore table QC_TOKEN_SET
+				{
+					PINFO.statement = STATEMENT_UPDATE;
+					zval_dtor(&$1);
+					YYACCEPT;
+				}
+
+low_priority: QC_TOKEN_LOW_PRIORITY
+		|
+		;
+
+
+/* INSERT */
+
+insert: comment QC_TOKEN_INSERT QC_TOKEN_INTO ignore table
+				{
+					PINFO.statement = STATEMENT_INSERT;
+					zval_dtor(&$1);
+					YYACCEPT;
+				}
+
+ignore: QC_TOKEN_IGNORE
+		|
+		;
+
+/* SELECT */
+select: comment QC_TOKEN_SELECT
+				{
+					zval_dtor(&$1);
+					PINFO.statement = STATEMENT_SELECT;
+					PINFO.active_field_list = &PINFO.select_field_list;
+				}
+				query_field_list
+				{
+					PINFO.active_field_list = NULL;
+				}
+				opt_from_clause
+				{
+					if (!PINFO.parse_where) {
+						YYACCEPT;
+					}
+					PINFO.active_field_list = &PINFO.where_field_list;
+				}
+				where_clause
+				{
+					PINFO.active_field_list = NULL;
+					YYACCEPT;			
+				}
+			;
+
+comment: QC_TOKEN_COMMENT
+		| comment QC_TOKEN_COMMENT { zval_dtor(&$2); }
+		| { ZVAL_NULL(&$$); }
+		;
+
+query_field_list: comment QC_TOKEN_STAR { zval_dtor(&$1); }
+		| select_field_list
+		;
+
+select_field_list:  select_field_list_tail QC_TOKEN_COMMA select_field_list 
+		| select_field_list_tail
+		;
+
+select_field_list_tail: comment select_field ident_alias { zval_dtor(&$1); zval_dtor(&$3); }
+
+select_field: field
+		| function_call
+		| QC_TOKEN_INTNUM
+		| QC_TOKEN_STRING
+				{
+					DBG_BLOCK_ENTER("string identifier");
+					if (PINFO.active_field_list) {
+						struct st_mysqlnd_ms_field_info finfo = {0};
+						finfo.persistent = PINFO.persistent;
+						finfo.name = mnd_pestrndup(Z_STRVAL($1), Z_STRLEN($1), finfo.persistent);
+						zend_llist_add_element(PINFO.active_field_list, &finfo);
+					}
+					zval_dtor(&$1);
+					DBG_BLOCK_LEAVE;
+				}
+		;
+
+function_call: field QC_TOKEN_BRACKET_OPEN opt_function_call_parameter_list QC_TOKEN_BRACKET_CLOSE;
+
+opt_function_call_parameter_list: 
+		| function_call_parameter_list
+		;
+
+function_call_parameter_list: function_call_parameter_list QC_TOKEN_COMMA function_call_parameter
+		| function_call_parameter 
+		;
+		
+
+function_call_parameter:;
+
+field: identifier
+				{
+					DBG_BLOCK_ENTER("identifier");
+					if (PINFO.active_field_list) {
+						struct st_mysqlnd_ms_field_info finfo = {0};
+						finfo.persistent = PINFO.persistent;
+						finfo.name = mnd_pestrndup(Z_STRVAL($1), Z_STRLEN($1), finfo.persistent);
+						zend_llist_add_element(PINFO.active_field_list, &finfo);
+					}
+					zval_dtor(&$1);
+					DBG_BLOCK_LEAVE;
+				}
+		| identifier QC_TOKEN_DOT identifier
+				{
+					DBG_BLOCK_ENTER("identifier . identifier");
+					if (PINFO.active_field_list) {
+						struct st_mysqlnd_ms_field_info finfo = {0};
+						finfo.persistent = PINFO.persistent;
+						finfo.table = mnd_pestrndup(Z_STRVAL($1), Z_STRLEN($1), finfo.persistent);
+						finfo.name = mnd_pestrndup(Z_STRVAL($3), Z_STRLEN($3), finfo.persistent);
+						zend_llist_add_element(PINFO.active_field_list, &finfo);
+					}
+					zval_dtor(&$1);
+					zval_dtor(&$3);
+					DBG_BLOCK_LEAVE;
+				}
+		| identifier QC_TOKEN_DOT identifier QC_TOKEN_DOT identifier
+				{
+					DBG_BLOCK_ENTER("identifier . identifier . identifier");
+					if (PINFO.active_field_list) {
+						struct st_mysqlnd_ms_field_info finfo = {0};
+						finfo.persistent = PINFO.persistent;
+						finfo.db = mnd_pestrndup(Z_STRVAL($1), Z_STRLEN($1), finfo.persistent);
+						finfo.table = mnd_pestrndup(Z_STRVAL($3), Z_STRLEN($3), finfo.persistent);
+						finfo.name = mnd_pestrndup(Z_STRVAL($5), Z_STRLEN($5), finfo.persistent);
+						zend_llist_add_element(PINFO.active_field_list, &finfo);
+					}
+					zval_dtor(&$1);
+					zval_dtor(&$3);
+					zval_dtor(&$5);
+					DBG_BLOCK_LEAVE;
+				}
+		;
+
+identifier: QC_TOKEN_IDENTIFIER { $$=$1; }
+		| keyword { ZVAL_STRING(&($$), $1, 1); }
+		;
+		
+
+ident_alias: QC_TOKEN_AS identifier { $$ = $2; }
+		| identifier { $$ = $1; }
+		| { ZVAL_NULL(&$$); }
+		;
+
+query_table: table ident_alias
+				{
+					DBG_BLOCK_ENTER("alias");
+					if (Z_TYPE($2) == IS_STRING) {
+						zend_llist_position tmp_pos;
+						struct st_mysqlnd_ms_table_info * tinfo;
+						if ((tinfo = zend_llist_get_last_ex(&PINFO.table_list, &tmp_pos))) {
+							tinfo->org_table = tinfo->table;
+							tinfo->table = mnd_pestrndup(Z_STRVAL($2), Z_STRLEN($2), tinfo->persistent);
+
+							DBG_INF_FMT("ident_alias type = %d", Z_TYPE($2));				
+						}
+					}
+					zval_dtor(&$2);
+					DBG_BLOCK_LEAVE
+				}
+		;
+
+table: QC_TOKEN_DUAL
+				{
+					struct st_mysqlnd_ms_table_info tinfo = {0};
+					DBG_BLOCK_ENTER("table");
+					tinfo.persistent = PINFO.persistent;
+					tinfo.table = mnd_pestrndup("DUAL", sizeof("DUAL") - 1, tinfo.persistent);
+					zend_llist_add_element(&PINFO.table_list, &tinfo);
+					DBG_INF_FMT("table=%s", tinfo.table);
+					DBG_BLOCK_LEAVE;
+				}
+		| identifier
+				{
+					struct st_mysqlnd_ms_table_info tinfo = {0};
+					DBG_BLOCK_ENTER("table");
+					tinfo.persistent = PINFO.persistent;
+					tinfo.table = mnd_pestrndup(Z_STRVAL($1), Z_STRLEN($1), tinfo.persistent);
+					zend_llist_add_element(&PINFO.table_list, &tinfo);
+					zval_dtor(&$1);
+					DBG_BLOCK_LEAVE;
+				}
+		| identifier QC_TOKEN_DOT identifier
+				{
+					struct st_mysqlnd_ms_table_info tinfo = {0};
+					DBG_BLOCK_ENTER("db.table");
+					tinfo.persistent = PINFO.persistent;
+					tinfo.db = mnd_pestrndup(Z_STRVAL($1), Z_STRLEN($1), tinfo.persistent);
+					tinfo.table = mnd_pestrndup(Z_STRVAL($3), Z_STRLEN($3), tinfo.persistent);
+					zend_llist_add_element(&PINFO.table_list, &tinfo);
+
+					DBG_INF_FMT("table=%s", Z_STRVAL($3));
+
+					zval_dtor(&$1);
+					zval_dtor(&$3);
+					DBG_BLOCK_LEAVE
+				}
+		;
+
+opt_from_clause: QC_TOKEN_FROM query_table_list
+		| 		{
+					YYACCEPT;
+				}
+		;
+
+query_table_list: query_table 
+		| query_table_list QC_TOKEN_COMMA query_table
+		;
+
+where_clause: QC_TOKEN_WHERE where_clause_tail
+		;
+
+
+where_clause_tail: field QC_TOKEN_EQ field_value
+				{
+					zend_llist_position pos;
+					struct st_mysqlnd_ms_field_info * finfo = zend_llist_get_last_ex(PINFO.active_field_list, &pos);
+					if (finfo) {
+						/* gotta be always true */
+						finfo->custom_data = "=";
+					}
+					YYACCEPT;
+				}
+		;
+
+field_value: QC_TOKEN_INTNUM
+		| QC_TOKEN_STRING
+		;
+
+keyword: keyword_label_in_sp
+		| QC_TOKEN_ASCII
+		| QC_TOKEN_BACKUP
+		| QC_TOKEN_BEGIN
+		| QC_TOKEN_BYTE
+		| QC_TOKEN_CACHE
+		| QC_TOKEN_CHARSET
+		| QC_TOKEN_CHECKSUM
+		| QC_TOKEN_CLOSE
+		| QC_TOKEN_COMMIT
+		| QC_TOKEN_CONTAINS
+		| QC_TOKEN_DEALLOCATE
+		| QC_TOKEN_DO
+		| QC_TOKEN_END
+		| QC_TOKEN_EXECUTE
+		| QC_TOKEN_FLUSH
+		| QC_TOKEN_HANDLER
+		| QC_TOKEN_HELP		| QC_TOKEN_HOST
+		| QC_TOKEN_INSTALL
+		| QC_TOKEN_LANGUAGE
+		| QC_TOKEN_NO
+		| QC_TOKEN_OPEN
+		| QC_TOKEN_OPTIONS
+		| QC_TOKEN_OWNER
+		| QC_TOKEN_PARSER
+		| QC_TOKEN_PARTITION
+		| QC_TOKEN_PORT
+		| QC_TOKEN_PREPARE
+		| QC_TOKEN_REMOVE
+		| QC_TOKEN_REPAIR
+		| QC_TOKEN_RESET
+		| QC_TOKEN_RESTORE
+		| QC_TOKEN_ROLLBACK
+		| QC_TOKEN_SAVEPOINT
+		| QC_TOKEN_SECURITY
+		| QC_TOKEN_SERVER
+		| QC_TOKEN_SIGNED
+		| QC_TOKEN_SOCKET
+		| QC_TOKEN_SLAVE
+		| QC_TOKEN_SONAME
+		| QC_TOKEN_START
+		| QC_TOKEN_STOP
+		| QC_TOKEN_TRUNCATE
+		| QC_TOKEN_UNICODE
+		| QC_TOKEN_UNINSTALL
+		| QC_TOKEN_WRAPPER
+		| QC_TOKEN_XA
+		| QC_TOKEN_UPGRADE
+		;
+
+keyword_label_in_sp: QC_TOKEN_ACTION
+		| QC_TOKEN_ADDDATE
+		| QC_TOKEN_AFTER
+		| QC_TOKEN_AGAINST
+		| QC_TOKEN_AGGREGATE
+		| QC_TOKEN_ALGORITHM
+		| QC_TOKEN_ANY
+		| QC_TOKEN_AT
+		| QC_TOKEN_AUTHORS
+		| QC_TOKEN_AUTO_INC
+		| QC_TOKEN_AUTOEXTEND_SIZE
+		| QC_TOKEN_AVG_ROW_LENGTH
+		| QC_TOKEN_AVG
+		| QC_TOKEN_BINLOG
+		| QC_TOKEN_BIT
+		| QC_TOKEN_BLOCK
+		| QC_TOKEN_BOOL
+		| QC_TOKEN_BOOLEAN
+		| QC_TOKEN_BTREE
+		| QC_TOKEN_CASCADED
+		| QC_TOKEN_CHAIN
+		| QC_TOKEN_CHANGED
+		| QC_TOKEN_CIPHER
+		| QC_TOKEN_CLIENT
+		| QC_TOKEN_COALESCE
+		| QC_TOKEN_CODE
+		| QC_TOKEN_COLLATION
+		| QC_TOKEN_COLUMNS
+		| QC_TOKEN_COMMITTED
+		| QC_TOKEN_COMPACT
+		| QC_TOKEN_COMPLETION
+		| QC_TOKEN_COMPRESSED
+		| QC_TOKEN_CONCURRENT
+		| QC_TOKEN_CONNECTION
+		| QC_TOKEN_CONSISTENT
+		| QC_TOKEN_CONTEXT
+		| QC_TOKEN_CONTRIBUTORS
+		| QC_TOKEN_CPU
+		| QC_TOKEN_CUBE
+		| QC_TOKEN_DATA
+		| QC_TOKEN_DATAFILE
+		| QC_TOKEN_DATETIME
+		| QC_TOKEN_DATE
+		| QC_TOKEN_DAY
+		| QC_TOKEN_DEFINER
+		| QC_TOKEN_DELAY_KEY_WRITE
+		| QC_TOKEN_DES_KEY_FILE
+		| QC_TOKEN_DIRECTORY
+		| QC_TOKEN_DISABLE
+		| QC_TOKEN_DISCARD
+		| QC_TOKEN_DISK
+		| QC_TOKEN_DUMPFILE
+		| QC_TOKEN_DUPLICATE
+		| QC_TOKEN_DYNAMIC
+		| QC_TOKEN_ENDS
+		| QC_TOKEN_ENUM
+		| QC_TOKEN_ENGINE
+		| QC_TOKEN_ENGINES
+		| QC_TOKEN_ERRORS
+		| QC_TOKEN_ESCAPE
+		| QC_TOKEN_EVENT
+		| QC_TOKEN_EVENTS
+		| QC_TOKEN_EVERY
+		| QC_TOKEN_EXPANSION
+		| QC_TOKEN_EXTENDED
+		| QC_TOKEN_EXTENT_SIZE
+		| QC_TOKEN_FAULTS
+		| QC_TOKEN_FAST
+		| QC_TOKEN_FOUND
+		| QC_TOKEN_ENABLE
+		| QC_TOKEN_FULL
+		| QC_TOKEN_FILE
+		| QC_TOKEN_FIRST
+		| QC_TOKEN_FIXED
+		| QC_TOKEN_FRAC_SECOND
+		| QC_TOKEN_GEOMETRY
+		| QC_TOKEN_GEOMETRYCOLLECTION
+		| QC_TOKEN_GET_FORMAT
+		| QC_TOKEN_GRANTS
+		| QC_TOKEN_GLOBAL
+		| QC_TOKEN_HASH
+		| QC_TOKEN_HOSTS
+		| QC_TOKEN_HOUR
+		| QC_TOKEN_IDENTIFIED
+		| QC_TOKEN_INVOKER
+		| QC_TOKEN_IMPORT
+		| QC_TOKEN_INDEXES
+		| QC_TOKEN_INITIAL_SIZE
+		| QC_TOKEN_IO
+		| QC_TOKEN_IPC
+		| QC_TOKEN_ISOLATION
+		| QC_TOKEN_ISSUER
+		| QC_TOKEN_INSERT_METHOD
+		| QC_TOKEN_KEY_BLOCK_SIZE
+		| QC_TOKEN_LAST
+		| QC_TOKEN_LEAVES
+		| QC_TOKEN_LESS
+		| QC_TOKEN_LEVEL
+		| QC_TOKEN_LINESTRING
+		| QC_TOKEN_LIST
+		| QC_TOKEN_LOCAL
+		| QC_TOKEN_LOCKS
+		| QC_TOKEN_LOGFILE
+		| QC_TOKEN_LOGS
+		| QC_TOKEN_MAX_ROWS
+		| QC_TOKEN_MASTER
+		| QC_TOKEN_MASTER_HOST
+		| QC_TOKEN_MASTER_PORT
+		| QC_TOKEN_MASTER_LOG_FILE
+		| QC_TOKEN_MASTER_LOG_POS
+		| QC_TOKEN_MASTER_USER
+		| QC_TOKEN_MASTER_PASSWORD
+		| QC_TOKEN_MASTER_SERVER_ID
+		| QC_TOKEN_MASTER_CONNECT_RETRY
+		| QC_TOKEN_MASTER_SSL
+		| QC_TOKEN_MASTER_SSL_CA
+		| QC_TOKEN_MASTER_SSL_CAPATH
+		| QC_TOKEN_MASTER_SSL_CERT
+		| QC_TOKEN_MASTER_SSL_CIPHER
+		| QC_TOKEN_MASTER_SSL_KEY
+		| QC_TOKEN_MAX_CONNECTIONS_PER_HOUR
+		| QC_TOKEN_MAX_QUERIES_PER_HOUR
+		| QC_TOKEN_MAX_SIZE
+		| QC_TOKEN_MAX_UPDATES_PER_HOUR
+		| QC_TOKEN_MAX_USER_CONNECTIONS
+		| QC_TOKEN_MAX_VALUE
+		| QC_TOKEN_MEDIUM
+		| QC_TOKEN_MEMORY
+		| QC_TOKEN_MERGE
+		| QC_TOKEN_MICROSECOND
+		| QC_TOKEN_MIGRATE
+		| QC_TOKEN_MINUTE
+		| QC_TOKEN_MIN_ROWS
+		| QC_TOKEN_MODIFY
+		| QC_TOKEN_MODE
+		| QC_TOKEN_MONTH
+		| QC_TOKEN_MULTILINESTRING
+		| QC_TOKEN_MULTIPOINT
+		| QC_TOKEN_MULTIPOLYGON
+		| QC_TOKEN_MUTEX
+		| QC_TOKEN_NAME
+		| QC_TOKEN_NAMES
+		| QC_TOKEN_NATIONAL
+		| QC_TOKEN_NCHAR
+		| QC_TOKEN_NDBCLUSTER
+		| QC_TOKEN_NEXT
+		| QC_TOKEN_NEW
+		| QC_TOKEN_NO_WAIT
+		| QC_TOKEN_NODEGROUP
+		| QC_TOKEN_NONE
+		| QC_TOKEN_NVARCHAR
+		| QC_TOKEN_OFFSET
+		| QC_TOKEN_OLD_PASSWORD
+		| QC_TOKEN_ONE_SHOT
+		| QC_TOKEN_ONE
+		| QC_TOKEN_PACK_KEYS
+		| QC_TOKEN_PAGE
+		| QC_TOKEN_PARTIAL
+		| QC_TOKEN_PARTITIONING
+		| QC_TOKEN_PARTITIONS
+		| QC_TOKEN_PASSWORD
+		| QC_TOKEN_PHASE
+		| QC_TOKEN_PLUGIN
+		| QC_TOKEN_PLUGINS
+		| QC_TOKEN_POINT
+		| QC_TOKEN_POLYGON
+		| QC_TOKEN_PRESERVE
+		| QC_TOKEN_PREV
+		| QC_TOKEN_PRIVILEGES
+		| QC_TOKEN_PROCESS
+		| QC_TOKEN_PROCESSLIST
+		| QC_TOKEN_PROFILE
+		| QC_TOKEN_PROFILES
+		| QC_TOKEN_QUARTER
+		| QC_TOKEN_QUERY
+		| QC_TOKEN_QUICK
+		| QC_TOKEN_READ_ONLY
+		| QC_TOKEN_REBUILD
+		| QC_TOKEN_RECOVER
+		| QC_TOKEN_REDO_BUFFER_SIZE
+		| QC_TOKEN_REDOFILE
+		| QC_TOKEN_REDUNDANT
+		| QC_TOKEN_RELAY_LOG_FILE
+		| QC_TOKEN_RELAY_LOG_POS
+		| QC_TOKEN_RELAY_THREAD
+		| QC_TOKEN_RELOAD
+		| QC_TOKEN_REORGANIZE
+		| QC_TOKEN_REPEATABLE
+		| QC_TOKEN_REPLICATION
+		| QC_TOKEN_RESOURCES
+		| QC_TOKEN_RESUME
+		| QC_TOKEN_RETURNS
+		| QC_TOKEN_ROLLUP
+		| QC_TOKEN_ROUTINE
+		| QC_TOKEN_ROWS
+		| QC_TOKEN_ROW_FORMAT
+		| QC_TOKEN_ROW
+		| QC_TOKEN_RTREE
+		| QC_TOKEN_SCHEDULE
+		| QC_TOKEN_SECOND
+		| QC_TOKEN_SERIAL
+		| QC_TOKEN_SERIALIZABLE
+		| QC_TOKEN_SESSION
+		| QC_TOKEN_SIMPLE
+		| QC_TOKEN_SHARE
+		| QC_TOKEN_SHUTDOWN
+		| QC_TOKEN_SNAPSHOT
+		| QC_TOKEN_SOUNDS
+		| QC_TOKEN_SOURCE
+		| QC_TOKEN_SQL_CACHE
+		| QC_TOKEN_SQL_BUFFER_RESULT
+		| QC_TOKEN_SQL_NO_CACHE
+		| QC_TOKEN_SQL_THREAD
+		| QC_TOKEN_STARTS
+		| QC_TOKEN_STATUS
+		| QC_TOKEN_STORAGE
+		| QC_TOKEN_STRING { zval_dtor(&$1); $$ = NULL;}
+		| QC_TOKEN_SUBDATE
+		| QC_TOKEN_SUBJECT
+		| QC_TOKEN_SUBPARTITION
+		| QC_TOKEN_SUBPARTITIONS
+		| QC_TOKEN_SUPER
+		| QC_TOKEN_SUSPEND
+		| QC_TOKEN_SWAPS
+		| QC_TOKEN_SWITCHES
+		| QC_TOKEN_TABLES
+		| QC_TOKEN_TABLE_CHECKSUM
+		| QC_TOKEN_TABLESPACE
+		| QC_TOKEN_TEMPORARY
+		| QC_TOKEN_TEMPTABLE
+		| QC_TOKEN_TEXT
+		| QC_TOKEN_THAN
+		| QC_TOKEN_TRANSACTION
+		| QC_TOKEN_TRIGGERS
+		| QC_TOKEN_TIMESTAMP
+		| QC_TOKEN_TIMESTAMP_ADD
+		| QC_TOKEN_TIMESTAMP_DIFF
+		| QC_TOKEN_TIME
+		| QC_TOKEN_TYPES
+		| QC_TOKEN_TYPE
+		| QC_TOKEN_UDF_RETURNS
+		| QC_TOKEN_FUNCTION
+		| QC_TOKEN_UNCOMMITTED
+		| QC_TOKEN_UNDEFINED
+		| QC_TOKEN_UNDO_BUFFER_SIZE
+		| QC_TOKEN_UNDOFILE
+		| QC_TOKEN_UNKNOWN
+		| QC_TOKEN_UNTIL
+		| QC_TOKEN_USER
+		| QC_TOKEN_USE_FRM
+		| QC_TOKEN_VARIABLES
+		| QC_TOKEN_VIEW
+		| QC_TOKEN_VALUE
+		| QC_TOKEN_WARNINGS
+		| QC_TOKEN_WAIT
+		| QC_TOKEN_WEEK
+		| QC_TOKEN_WORK
+		| QC_TOKEN_X509
+		| QC_TOKEN_YEAR
+		;
+
