@@ -9,7 +9,7 @@ Most changes are in global transaction GTID injection implementation (see: http:
 * Server side read consistency \(mysql >= 5.7.6 with --session-track-gtids=OWN_GTID\)
   * Mysql native built-in read consistency 
   * PHP session_id read consistency enforcing
-* Client side write consistency \(mysql >= 5.7.6 with --session-track-gtids=OWN_GTID\)
+* Server side write consistency \(mysql >= 5.7.6 with --session-track-gtids=OWN_GTID\)
   * Multi master write consistency 
   * Multi master write consistency logical partitions
 * Client side read consistency
