@@ -14,7 +14,7 @@ The plugin is capable of selecting MySQL replication nodes automatically that de
 
 In read and write consistency `mymysqlnd_ms` takes the role of context coordinator. Therefore the plugin can and should be configured to use a persistent shared state store. Currently, `mymysqlnd_ms` supports only compatible memcached protocol state store. Read and write session consistency implementation is stricly related to [global transaction IDs](REF:)(from now on GTIDs) that there must always be configured together with qos filter with session consistency. 
 
-#### Server side read consistency
+### Server side read consistency
 **[Requires MySQL >= 5.7.6 with --session-track-gtids=OWN_GTID](https://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html#sysvar_session_track_gtids)**.
 
 A read consistency context is a set of application reads made by a context partecipant that must always at least run against previous writes made by all other context partecipants. The `mymysqlnd_ms` plugin can transparently enforce this type of read consistency: 
