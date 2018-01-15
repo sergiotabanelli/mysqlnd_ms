@@ -50,7 +50,9 @@ if test "$PHP_MYSQLND_MS" && test "$PHP_MYSQLND_MS" != "no"; then
   fi
  
   PHP_SUBST(MYSQLND_MS_SHARED_LIBADD)
-    
+  
+  PHP_ADD_MAKEFILE_FRAGMENT    
+  
   mysqlnd_ms_sources="php_mysqlnd_ms.c mysqlnd_ms.c mysqlnd_ms_switch.c mysqlnd_ms_config_json.c \
                   mf_wcomp.c mysqlnd_query_lexer.c \
                   mysqlnd_ms_filter_random.c mysqlnd_ms_filter_round_robin.c \

@@ -83,4 +83,4 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_limits_async.ini
 ?>
 --EXPECTF--
 
-Catchable fatal error: mysqli::query(): (mysqlnd_ms) Asynchronous queries are not supported in %s on line %d
+%s fatal error: mysqli::query(): (mysqlnd_ms) Asynchronous queries are not supported in %s on line %d

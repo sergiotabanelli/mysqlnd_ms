@@ -47,7 +47,7 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_pick_user_unknown_function.ini
 	  printf("[clean] Cannot unlink ini file 'test_mysqlnd_ms_pick_user_unknown_function.ini'.\n");
 ?>
 --EXPECTF--
-[E_RECOVERABLE_ERROR] mysqli::query(): (mysqlnd_ms) Specified callback (unknown function) is not a valid callback in %s on line %d
+[E_RECOVERABLE_ERROR] mysqli::query(): (mysqlnd_ms) Specified callback is not a valid callback in %s on line %d
 [E_WARNING] mysqli::query(): (mysqlnd_ms) No connection selected by the last filter in %s on line %d
 [002 + 01] [2000] '(mysqlnd_ms) No connection selected by the last filter'
 done!

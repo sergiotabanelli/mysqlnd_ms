@@ -63,9 +63,9 @@ groups_filter_dtor(struct st_mysqlnd_ms_filter_data * pDest TSRMLS_DC)
 
 /* {{{ mysqlnd_ms_filter_groups_ht_dtor */
 void
-mysqlnd_ms_filter_groups_ht_dtor(void * pDest)
+mysqlnd_ms_filter_groups_ht_dtor(_ms_hash_zval_type * pDest)
 {
-	MYSQLND_MS_FILTER_GROUPS_DATA_GROUP * element = pDest? *(MYSQLND_MS_FILTER_GROUPS_DATA_GROUP **) pDest : NULL;
+	MYSQLND_MS_FILTER_GROUPS_DATA_GROUP * element = pDest? _ms_p_zval (MYSQLND_MS_FILTER_GROUPS_DATA_GROUP _ms_p_zval *) _MS_HASH_Z_PTR_P(pDest) : NULL;
 	TSRMLS_FETCH();
 	DBG_ENTER("mysqlnd_ms_filter_groups_ht_dtor");
 
@@ -123,7 +123,7 @@ mysqlnd_ms_groups_filter_ctor(struct st_mysqlnd_ms_config_json_entry * section, 
 					entry_pp && (entry = *entry_pp) && (entry->name_from_config) && (entry->conn);
 					entry_pp = (MYSQLND_MS_LIST_DATA **) zend_llist_get_next_ex(master_connections, &pos)) {
 
-					if (SUCCESS != zend_hash_add(&server_names, entry->name_from_config, strlen(entry->name_from_config) + 1, entry_pp, sizeof(void *), NULL)) {
+					if (SUCCESS != _MS_HASHSTR_SET_ZR_FUNC_PTR(zend_hash_str_add_ptr, &server_names, entry->name_from_config, strlen(entry->name_from_config), (*entry_pp))) {
 						mysqlnd_ms_client_n_php_error(error_info, CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE,
 							E_RECOVERABLE_ERROR TSRMLS_CC,
 							MYSQLND_MS_ERROR_PREFIX " Failed to setup master server list for '%s' filter. Stopping", PICK_GROUPS);
@@ -134,7 +134,7 @@ mysqlnd_ms_groups_filter_ctor(struct st_mysqlnd_ms_config_json_entry * section, 
 					entry_pp && (entry = *entry_pp) && (entry->name_from_config) && (entry->conn);
 					entry_pp = (MYSQLND_MS_LIST_DATA **) zend_llist_get_next_ex(slave_connections, &pos)) {
 
-					if (SUCCESS != zend_hash_add(&server_names, entry->name_from_config, strlen(entry->name_from_config) + 1, entry_pp, sizeof(void *), NULL)) {
+					if (SUCCESS != _MS_HASHSTR_SET_ZR_FUNC_PTR(zend_hash_str_add_ptr, &server_names, entry->name_from_config, strlen(entry->name_from_config), (*entry_pp))) {
 						mysqlnd_ms_client_n_php_error(error_info, CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE,
 							E_RECOVERABLE_ERROR TSRMLS_CC,
 							MYSQLND_MS_ERROR_PREFIX " Failed to setup slave server list for '%s' filter. Stopping", PICK_GROUPS);
@@ -174,7 +174,7 @@ mysqlnd_ms_groups_filter_ctor(struct st_mysqlnd_ms_config_json_entry * section, 
 					/* TODO: dtor needed? Seems not to be the case */
 					zend_hash_init(&node_group->master_context, 4, NULL/*hash*/, NULL/*dtor*/, persistent);
 					zend_hash_init(&node_group->slave_context, 4, NULL/*hash*/, NULL/*dtor*/, persistent);
-					if (SUCCESS != zend_hash_add(&ret->groups, current_group_name, current_group_name_len, &node_group, sizeof(MYSQLND_MS_FILTER_GROUPS_DATA_GROUP *), NULL)) {
+					if (SUCCESS != _MS_HASHSTR_SET_ZR_FUNC_PTR(zend_hash_str_add_ptr, &ret->groups, current_group_name, current_group_name_len, node_group)) {
 						mysqlnd_ms_client_n_php_error(error_info, CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE,
 							E_RECOVERABLE_ERROR TSRMLS_CC,
 							MYSQLND_MS_ERROR_PREFIX " Failed to create node group '%s' for '%s' filter. Stopping", current_group_name, PICK_GROUPS);
@@ -192,9 +192,9 @@ mysqlnd_ms_groups_filter_ctor(struct st_mysqlnd_ms_config_json_entry * section, 
 						do {
 							server_name = mysqlnd_ms_config_json_string_from_section(serversection, NULL, 0, nkey,  &section_exists,  &is_list TSRMLS_CC);
 							if (section_exists && server_name) {
-								server_name_len = strlen(server_name) + 1;
+								server_name_len = strlen(server_name);
 
-								if (SUCCESS != zend_hash_find(&server_names, server_name, server_name_len, (void **)&entry_pp)) {
+								if (SUCCESS != _MS_HASHSTR_GET_ZR_FUNC_PTR(zend_hash_str_find_ptr, &server_names, server_name, server_name_len, entry_pp)) {
 									mysqlnd_ms_client_n_php_error(error_info, CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE,
 									E_RECOVERABLE_ERROR TSRMLS_CC,
 									MYSQLND_MS_ERROR_PREFIX " Unknown master '%s' (section '%s') in '%s' filter configuration. Stopping",
@@ -202,7 +202,7 @@ mysqlnd_ms_groups_filter_ctor(struct st_mysqlnd_ms_config_json_entry * section, 
 									mnd_efree(server_name);
 									continue;
 								}
-								if (SUCCESS != zend_hash_add(&node_group->master_context, server_name, server_name_len, &server_name, sizeof(char *), NULL)) {
+								if (SUCCESS != _MS_HASHSTR_SET_ZR_FUNC_PTR(zend_hash_str_add_ptr, &node_group->master_context, server_name, server_name_len, server_name)) {
 									mysqlnd_ms_client_n_php_error(error_info, CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE,
 										E_RECOVERABLE_ERROR TSRMLS_CC,
 										MYSQLND_MS_ERROR_PREFIX " Failed to add master '%s' to node group '%s' for '%s' filter. Stopping", server_name, current_group_name, PICK_GROUPS);
@@ -239,9 +239,9 @@ mysqlnd_ms_groups_filter_ctor(struct st_mysqlnd_ms_config_json_entry * section, 
 						do {
 							server_name = mysqlnd_ms_config_json_string_from_section(serversection, NULL, 0, nkey,  &section_exists,  &is_list TSRMLS_CC);
 							if (section_exists && server_name) {
-								server_name_len = strlen(server_name) + 1;
+								server_name_len = strlen(server_name);
 
-								if (SUCCESS != zend_hash_find(&server_names, server_name, server_name_len, (void **)&entry_pp)) {
+								if (SUCCESS != _MS_HASHSTR_GET_ZR_FUNC_PTR(zend_hash_str_find_ptr, &server_names, server_name, server_name_len, entry_pp)) {
 									mysqlnd_ms_client_n_php_error(error_info, CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE,
 									E_RECOVERABLE_ERROR TSRMLS_CC,
 									MYSQLND_MS_ERROR_PREFIX " Unknown slave '%s' (section '%s') in '%s' filter configuration. Stopping",
@@ -249,7 +249,7 @@ mysqlnd_ms_groups_filter_ctor(struct st_mysqlnd_ms_config_json_entry * section, 
 									mnd_efree(server_name);
 									continue;
 								}
-								if (SUCCESS != zend_hash_add(&node_group->slave_context, server_name, server_name_len, &server_name, sizeof(char *), NULL)) {
+								if (SUCCESS != _MS_HASHSTR_SET_ZR_FUNC_PTR(zend_hash_str_add_ptr, &node_group->slave_context, server_name, server_name_len, server_name)) {
 									mysqlnd_ms_client_n_php_error(error_info, CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE,
 										E_RECOVERABLE_ERROR TSRMLS_CC,
 										MYSQLND_MS_ERROR_PREFIX " Failed to add slave '%s' to node group '%s' for '%s' filter. Stopping", server_name, current_group_name, PICK_GROUPS);
@@ -292,18 +292,18 @@ mysqlnd_ms_choose_connection_groups(MYSQLND_CONN_DATA * conn, void * f_data, con
 	DBG_ENTER("mysqlnd_ms_choose_connection_groups");
 
 	if (filter_data && (&filter_data->groups) && (query_len > 0)) {
-		MYSQLND_MS_FILTER_GROUPS_DATA_GROUP *node_group, **node_group_pp;
+		MYSQLND_MS_FILTER_GROUPS_DATA_GROUP *node_group, _ms_p_zval *node_group_pp;
 		struct st_ms_token_and_value token = {0};
 		struct st_mysqlnd_query_scanner * scanner;
 		zend_bool found = FALSE;
-		char ** server_name_pp;
+		char ** server_name_pp; // Not used
 
 		scanner = mysqlnd_qp_create_scanner(TSRMLS_C);
 		mysqlnd_qp_set_string(scanner, *query, *query_len TSRMLS_CC);
 		token = mysqlnd_qp_get_token(scanner TSRMLS_CC);
-		DBG_INF_FMT("token=COMMENT? = %d", token.token == QC_TOKEN_COMMENT);
 		while (token.token == QC_TOKEN_COMMENT) {
-			if (SUCCESS == zend_hash_find(&filter_data->groups, Z_STRVAL(token.value), Z_STRLEN(token.value) - 1, (void **)&node_group_pp)) {
+			DBG_INF_FMT("token=COMMENT? = %s(%d)", Z_STRVAL(token.value), Z_STRLEN(token.value));
+			if (SUCCESS == _MS_HASHSTR_GET_ZR_FUNC_PTR(zend_hash_str_find_ptr, &filter_data->groups, Z_STRVAL(token.value), Z_STRLEN(token.value) - 1, node_group_pp)) {
 				DBG_INF_FMT("node_group=%s", Z_STRVAL(token.value));
 				found = TRUE;
 				break;
@@ -319,7 +319,7 @@ mysqlnd_ms_choose_connection_groups(MYSQLND_CONN_DATA * conn, void * f_data, con
 		}
 
 		/* TODO: check if HTs exist? */
-		node_group = *node_group_pp;
+		node_group = _ms_p_zval node_group_pp;
 		DBG_INF_FMT("%d masters, %d slaves in group",
 					zend_hash_num_elements(&node_group->master_context),
 					zend_hash_num_elements(&node_group->slave_context));
@@ -330,7 +330,7 @@ mysqlnd_ms_choose_connection_groups(MYSQLND_CONN_DATA * conn, void * f_data, con
 		*/
 		BEGIN_ITERATE_OVER_SERVER_LIST(element, master_list)
 			if (element && element->name_from_config) {
-				if ((SUCCESS == zend_hash_find(&node_group->master_context, element->name_from_config, strlen(element->name_from_config) + 1, (void **)&server_name_pp))) {
+				if ((SUCCESS == _MS_HASHSTR_GET_ZR_FUNC_PTR(zend_hash_str_find_ptr, &node_group->master_context, element->name_from_config, strlen(element->name_from_config), server_name_pp))) {
 					zend_llist_add_element(selected_masters, &element);
 				}
 			}
@@ -338,7 +338,7 @@ mysqlnd_ms_choose_connection_groups(MYSQLND_CONN_DATA * conn, void * f_data, con
 
 		BEGIN_ITERATE_OVER_SERVER_LIST(element, slave_list)
 			if (element && element->name_from_config) {
-				if ((SUCCESS == zend_hash_find(&node_group->slave_context, element->name_from_config, strlen(element->name_from_config) + 1, (void **)&server_name_pp))) {
+				if ((SUCCESS == _MS_HASHSTR_GET_ZR_FUNC_PTR(zend_hash_str_find_ptr, &node_group->slave_context, element->name_from_config, strlen(element->name_from_config), server_name_pp))) {
 					zend_llist_add_element(selected_slaves, &element);
 				}
 			}

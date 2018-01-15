@@ -20,6 +20,8 @@ include_once("util.inc");
 $sql = mst_get_gtid_sql($db);
 if ($error = mst_mysqli_setup_gtid_table($emulated_master_host_only, $user, $passwd, $db, $emulated_master_port, $emulated_master_socket))
   die(sprintf("SKIP Failed to setup GTID on master, %s\n", $error));
+if ($error = mst_mysqli_setup_gtid_table($emulated_slave_host_only, $user, $passwd, $db, $emulated_slave_port, $emulated_slave_socket))
+  die(sprintf("SKIP Failed to setup GTID on slave, %s\n", $error));
 
 if (!($link = mst_mysqli_connect("myapp", $user, $passwd, $db, $port, $socket)))
 		die(sprintf("SKIP Cannot connect, [%d] %s\n", mysqli_connect_errno(), mysqli_connect_error()));
@@ -35,15 +37,21 @@ $settings = array(
 	"myapp" => array(
 		'master' => array($emulated_master_host),
 		'slave' => array($emulated_slave_host),
-		'filters' => array(
-			"roundrobin" => array(),
-		),
 		'global_transaction_id_injection' => array(
+		 	'type'						=> 1,
 			'on_commit'	 				=> $sql['update'],
+			'fetch_last_gtid'			=> $sql['fetch_last_gtid'],
 			'report_error'				=> true,
 		),
+
+		'lazy_connections' => 1,
 		'trx_stickiness' => 'disabled',
-		'lazy_connections' => 1
+		'filters' => array(
+			"quality_of_service" => array(
+				"session_consistency" => 1,
+			),
+			"roundrobin" => array(),
+		),
 	),
 );
 if ($error = mst_create_config("test_mysqlnd_ms_gtid_ps_autocommit_get_result_mq.ini", $settings))
@@ -168,6 +176,8 @@ mysqlnd_ms.collect_statistics=1
 	require_once("connect.inc");
 	require_once("util.inc");
 	if ($error = mst_mysqli_drop_gtid_table($emulated_master_host_only, $user, $passwd, $db, $emulated_master_port, $emulated_master_socket))
+		printf("[clean] %s\n", $error);
+	if ($error = mst_mysqli_drop_gtid_table($emulated_slave_host_only, $user, $passwd, $db, $emulated_slave_port, $emulated_slave_socket))
 		printf("[clean] %s\n", $error);
 ?>
 --EXPECTF--

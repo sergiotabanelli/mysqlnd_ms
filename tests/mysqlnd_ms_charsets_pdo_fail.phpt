@@ -76,7 +76,7 @@ var_dump($pdo->quote("a"));
 	  printf("[clean] Cannot unlink ini file 'test_mysqlnd_ms_charsets_pdo_fail.ini'.\n");
 ?>
 --EXPECTF--
-Fatal error: Uncaught exception 'PDOException' with message 'SQLSTATE[HY000] [2019] Unknown character set' in %s:%d
+Fatal error: Uncaught %sSQLSTATE[HY000] [2019] Unknown character set%sin %s:%d
 Stack trace:
 #0 %s(%d): PDO->__construct('mysql:host=%s', '%s', '%A')
 #1 {main}

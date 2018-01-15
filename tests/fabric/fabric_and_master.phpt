@@ -31,5 +31,5 @@ $c = new mysqli("testfabric", "root", "");
 unlink("fabric_and_master.json");
 ?>
 --EXPECTF--
-Warning: mysqli::mysqli(): (mysqlnd_ms) Section [master] exists. Ignored for MySQL Fabric based configuration in %s on line %d
+Warning: mysqli::%s(): (mysqlnd_ms) Section [master] exists. Ignored for MySQL Fabric based configuration in %s on line %d
 ===END===

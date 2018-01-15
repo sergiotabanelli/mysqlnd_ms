@@ -32,6 +32,7 @@
 
 #include "mysqlnd_fabric.h"
 #include "mysqlnd_fabric_priv.h"
+#include "mysqlnd_ms.h"
 
 /*
     When allocated we allocate one buffer for all four tables so we have one
@@ -154,10 +155,10 @@ void fabric_set_raw_data(mysqlnd_fabric *fabric, char *data, size_t data_len)
 }
 
 #define DECLARE_FILL_ENTRY_BEGIN(name, target_type) \
-	int name(void *pDest TSRMLS_DC, int num_args, va_list args, zend_hash_key *hash_key) \
+	int name(_ms_hash_zval_type *pDest TSRMLS_DC, int num_args, va_list args, zend_hash_key *hash_key) \
 	{ \
-		zval **data; \
-		HashTable *source = Z_ARRVAL_PP((zval**)pDest); \
+		zval _ms_p_zval * data; \
+		HashTable *source = Z_ARRVAL_P(_ms_p_zval((zval _ms_p_zval *)pDest)); \
 		target_type **target; \
 		zend_bool *success; \
 		\
@@ -179,11 +180,11 @@ void fabric_set_raw_data(mysqlnd_fabric *fabric, char *data, size_t data_len)
 	}
 
 #define CHECK_AND_COPY_STRING(zv, target_item) \
-	zend_hash_get_current_data(source, (void**)&zv); \
-	if (Z_TYPE_PP((zv)) != IS_STRING || Z_STRLEN_PP((zv)) + 1 > sizeof(target_item)) { \
+	_MS_HASH_GET_ZR_FUNC_PTR(zend_hash_get_current_data, source, zv); \
+	if (Z_TYPE_P(_ms_p_zval (zv)) != IS_STRING || Z_STRLEN_P(_ms_p_zval (zv)) + 1 > sizeof(target_item)) { \
 		return ZEND_HASH_APPLY_STOP; \
 	} \
-	memcpy(target_item, Z_STRVAL_PP((zv)), Z_STRLEN_PP((zv)) + 1)
+	memcpy(target_item, Z_STRVAL_P(_ms_p_zval (zv)), Z_STRLEN_P(_ms_p_zval (zv)) + 1)
 
 DECLARE_FILL_ENTRY_BEGIN(fill_shard_table_entry, mysqlnd_fabric_shard_table)
 {
@@ -197,21 +198,21 @@ DECLARE_FILL_ENTRY_BEGIN(fill_shard_table_entry, mysqlnd_fabric_shard_table)
 	CHECK_AND_COPY_STRING(data, (*target)->column_name);
 
 	zend_hash_move_forward(source);
-	zend_hash_get_current_data(source, (void**)&data); \
-	convert_to_long(*data);
-	(*target)->shard_mapping_id = Z_LVAL_PP(data);
+	_MS_HASH_GET_ZR_FUNC_PTR(zend_hash_get_current_data, source, data); \
+	convert_to_long(_ms_p_zval data);
+	(*target)->shard_mapping_id = Z_LVAL_P(_ms_p_zval data);
 } DECLARE_FILL_ENTRY_END()
 
 DECLARE_FILL_ENTRY_BEGIN(fill_shard_mapping_entry, mysqlnd_fabric_shard_mapping)
 {
 	zend_hash_internal_pointer_reset(source);
-	zend_hash_get_current_data(source, (void**)&data);
-	convert_to_long(*data);
-	(*target)->shard_mapping_id = Z_LVAL_PP(data);
+	_MS_HASH_GET_ZR_FUNC_PTR(zend_hash_get_current_data, source, data);
+	convert_to_long(_ms_p_zval data);
+	(*target)->shard_mapping_id = Z_LVAL_P(_ms_p_zval data);
 
 	zend_hash_move_forward(source);
-	zend_hash_get_current_data(source, (void**)&data);
-	if (Z_TYPE_PP(data) != IS_STRING || Z_STRLEN_PP(data) != sizeof("RANGE")-1 || strcmp("RANGE", Z_STRVAL_PP(data))) {
+	_MS_HASH_GET_ZR_FUNC_PTR(zend_hash_get_current_data, source, data);
+	if (Z_TYPE_P(_ms_p_zval data) != IS_STRING || Z_STRLEN_P(_ms_p_zval data) != sizeof("RANGE")-1 || strcmp("RANGE", Z_STRVAL_P(_ms_p_zval data))) {
 		return ZEND_HASH_APPLY_STOP;
 	}
 	(*target)->type_name = RANGE;
@@ -223,19 +224,19 @@ DECLARE_FILL_ENTRY_BEGIN(fill_shard_mapping_entry, mysqlnd_fabric_shard_mapping)
 DECLARE_FILL_ENTRY_BEGIN(fill_shard_index_entry, mysqlnd_fabric_shard_index)
 {
 	zend_hash_internal_pointer_reset(source);
-	zend_hash_get_current_data(source, (void**)&data);
-	convert_to_long(*data);
-	(*target)->lower_bound = Z_LVAL_PP(data);
+	_MS_HASH_GET_ZR_FUNC_PTR(zend_hash_get_current_data, source, data);
+	convert_to_long(_ms_p_zval data);
+	(*target)->lower_bound = Z_LVAL_P(_ms_p_zval data);
 
 	zend_hash_move_forward(source);
-	zend_hash_get_current_data(source, (void**)&data);
-	convert_to_long(*data);
-	(*target)->shard_mapping_id = Z_LVAL_PP(data);
+	_MS_HASH_GET_ZR_FUNC_PTR(zend_hash_get_current_data, source, data);
+	convert_to_long(_ms_p_zval data);
+	(*target)->shard_mapping_id = Z_LVAL_P(_ms_p_zval data);
 
 	zend_hash_move_forward(source);
-	zend_hash_get_current_data(source, (void**)&data);
-	convert_to_long(*data);
-	(*target)->shard_id = Z_LVAL_PP(data);
+	_MS_HASH_GET_ZR_FUNC_PTR(zend_hash_get_current_data, source, data);
+	convert_to_long(_ms_p_zval data);
+	(*target)->shard_id = Z_LVAL_P(_ms_p_zval data);
 
 	zend_hash_move_forward(source);
 	CHECK_AND_COPY_STRING(data, (*target)->group);
@@ -245,25 +246,25 @@ DECLARE_FILL_ENTRY_BEGIN(fill_server_entry, mysqlnd_fabric_server)
 {
 	zend_hash_internal_pointer_reset(source);
 	CHECK_AND_COPY_STRING(data, (*target)->uuid);
-	(*target)->uuid_len = Z_STRLEN_PP(data);
+	(*target)->uuid_len = Z_STRLEN_P(_ms_p_zval data);
 
 	zend_hash_move_forward(source);
 	CHECK_AND_COPY_STRING(data, (*target)->group);
-	(*target)->group_len = Z_STRLEN_PP(data);
+	(*target)->group_len = Z_STRLEN_P(_ms_p_zval data);
 
 	zend_hash_move_forward(source);
 	CHECK_AND_COPY_STRING(data, (*target)->hostname);
-	(*target)->hostname_len = Z_STRLEN_PP(data);
+	(*target)->hostname_len = Z_STRLEN_P(_ms_p_zval data);
 
 	zend_hash_move_forward(source);
-	zend_hash_get_current_data(source, (void**)&data);
-	convert_to_long(*data);
-	(*target)->port = Z_LVAL_PP(data);
+	_MS_HASH_GET_ZR_FUNC_PTR(zend_hash_get_current_data, source, data);
+	convert_to_long(_ms_p_zval data);
+	(*target)->port = Z_LVAL_P(_ms_p_zval data);
 
 	zend_hash_move_forward(source);
-	zend_hash_get_current_data(source, (void**)&data);
-	convert_to_long(*data);
-	switch (Z_LVAL_PP(data)) {
+	_MS_HASH_GET_ZR_FUNC_PTR(zend_hash_get_current_data, source, data);
+	convert_to_long(_ms_p_zval data);
+	switch (Z_LVAL_P(_ms_p_zval data)) {
 	case 0: (*target)->mode = OFFLINE; break;
 	case 1: (*target)->mode = READ_ONLY; break;
 	case 3: (*target)->mode = READ_WRITE; break;
@@ -271,9 +272,9 @@ DECLARE_FILL_ENTRY_BEGIN(fill_server_entry, mysqlnd_fabric_server)
 	}
 
 	zend_hash_move_forward(source);
-	zend_hash_get_current_data(source, (void**)&data);
-	convert_to_long(*data);
-	switch (Z_LVAL_PP(data)) {
+	_MS_HASH_GET_ZR_FUNC_PTR(zend_hash_get_current_data, source, data);
+	convert_to_long(_ms_p_zval data);
+	switch (Z_LVAL_P(_ms_p_zval data)) {
 	case 0: (*target)->role = SPARE; break;
 	case 1: (*target)->role = SCALE; break;
 	case 2: (*target)->role = SECONDARY; break;
@@ -283,15 +284,15 @@ DECLARE_FILL_ENTRY_BEGIN(fill_server_entry, mysqlnd_fabric_server)
 } DECLARE_FILL_ENTRY_END()
 
 void fabric_set_raw_data_from_xmlstr(mysqlnd_fabric *fabric,
-	const char *shard_table_xml, size_t shard_table_len,
-	const char *shard_mapping_xml, size_t shard_mapping_len,
-	const char *shard_index_xml, size_t shard_index_len,
-	const char *server_xml, size_t server_len)
+	zend_string *shard_table_xml,
+	zend_string *shard_mapping_xml,
+	zend_string *shard_index_xml,
+	zend_string *server_xml)
 {
 	zend_function *func_cache = NULL;
 	zval *z_shard_table, *z_shard_mapping, *z_shard_index, *z_server;
 	zval arg;
-	zval *tmp, **tmpp;
+	zval _ms_p_zval tmp, _ms_p_zval *tmpp;
 
 	int shard_table_count;
 	int shard_mapping_count;
@@ -313,77 +314,76 @@ void fabric_set_raw_data_from_xmlstr(mysqlnd_fabric *fabric,
 	ALLOC_INIT_ZVAL(tmp)
 
 	INIT_ZVAL(arg);
-	ZVAL_STRINGL(&arg, shard_table_xml, shard_table_len, 0);
+	ZVAL_STR(&arg, shard_table_xml);
 	zend_call_method_with_1_params(NULL, NULL, &func_cache, "xmlrpc_decode", &tmp, &arg);
-	if (Z_TYPE_P(tmp) != IS_ARRAY) {
-		zval_dtor(tmp);
+	if (Z_TYPE_P(_ms_a_zval tmp) != IS_ARRAY) {
+		zval_dtor(_ms_a_zval tmp);
 		php_error_docref(NULL TSRMLS_CC, E_ERROR, "Failed to decode  XML-RPC response while handling shard_table");
 	}
-	if (zend_hash_index_find(Z_ARRVAL_P(tmp), 3, (void**)&tmpp) == FAILURE) {
-		zval_dtor(tmp);
+	if (_MS_HASH_GET_ZR_FUNC_PTR_1(zend_hash_index_find, Z_ARRVAL_P(_ms_a_zval tmp), 3, tmpp) == FAILURE) {
+		zval_dtor(_ms_a_zval tmp);
 		php_error_docref(NULL TSRMLS_CC, E_ERROR, "Invalid response from XML-RPC while handling shard_table");
 	}
-	z_shard_table = *tmpp;
+	z_shard_table = _ms_p_zval tmpp;
 	Z_ADDREF_P(z_shard_table);
-	zval_dtor(tmp);
+	zval_dtor(_ms_a_zval tmp);
 
 	INIT_ZVAL(arg);
-	ZVAL_STRINGL(&arg, shard_mapping_xml, shard_mapping_len, 0);
+	ZVAL_STR(&arg, shard_mapping_xml);
 	zend_call_method_with_1_params(NULL, NULL, &func_cache, "xmlrpc_decode", &tmp, &arg);
-	if (Z_TYPE_P(tmp) != IS_ARRAY) {
-		zval_dtor(tmp);
+	if (Z_TYPE_P(_ms_a_zval tmp) != IS_ARRAY) {
+		zval_dtor(_ms_a_zval tmp);
 		zval_dtor(z_shard_table);
 		php_error_docref(NULL TSRMLS_CC, E_ERROR, "Failed to decode  XML-RPC response while handling shard_mapping");
 	}
-	if (zend_hash_index_find(Z_ARRVAL_P(tmp), 3, (void**)&tmpp) == FAILURE) {
-		zval_dtor(tmp);
+	if (_MS_HASH_GET_ZR_FUNC_PTR_1(zend_hash_index_find, Z_ARRVAL_P(_ms_a_zval tmp), 3, tmpp) == FAILURE) {
+		zval_dtor(_ms_a_zval tmp);
 		zval_dtor(z_shard_table);
 		php_error_docref(NULL TSRMLS_CC, E_ERROR, "Invalid response from XML-RPC while handling shard_mapping");
 	}
-	z_shard_mapping = *tmpp;
+	z_shard_mapping = _ms_p_zval tmpp;
 	Z_ADDREF_P(z_shard_mapping);
-	zval_dtor(tmp);
+	zval_dtor(_ms_a_zval tmp);
 
 	INIT_ZVAL(arg);
-	ZVAL_STRINGL(&arg, shard_index_xml, shard_index_len, 0);
+	ZVAL_STR(&arg, shard_index_xml);
 	zend_call_method_with_1_params(NULL, NULL, &func_cache, "xmlrpc_decode", &tmp, &arg);
-	zend_call_method_with_1_params(NULL, NULL, &func_cache, "xmlrpc_decode", &tmp, &arg);
-	if (Z_TYPE_P(tmp) != IS_ARRAY) {
-		zval_dtor(tmp);
+	if (Z_TYPE_P(_ms_a_zval tmp) != IS_ARRAY) {
+		zval_dtor(_ms_a_zval tmp);
 		zval_dtor(z_shard_table);
 		zval_dtor(z_shard_mapping);
 		php_error_docref(NULL TSRMLS_CC, E_ERROR, "Failed to decode  XML-RPC response while handling shard_index");
 	}
-	if (zend_hash_index_find(Z_ARRVAL_P(tmp), 3, (void**)&tmpp) == FAILURE) {
-		zval_dtor(tmp);
+	if (_MS_HASH_GET_ZR_FUNC_PTR_1(zend_hash_index_find, Z_ARRVAL_P(_ms_a_zval tmp), 3, tmpp) == FAILURE) {
+		zval_dtor(_ms_a_zval tmp);
 		zval_dtor(z_shard_table);
 		zval_dtor(z_shard_mapping);
 		php_error_docref(NULL TSRMLS_CC, E_ERROR, "Invalid response from XML-RPC while handling shard_index");
 	}
-	z_shard_index = *tmpp;
+	z_shard_index = _ms_p_zval tmpp;
 	Z_ADDREF_P(z_shard_index);
-	zval_dtor(tmp);
+	zval_dtor(_ms_a_zval tmp);
 
 	INIT_ZVAL(arg);
-	ZVAL_STRINGL(&arg, server_xml, server_len, 0);
+	ZVAL_STR(&arg, server_xml);
 	zend_call_method_with_1_params(NULL, NULL, &func_cache, "xmlrpc_decode", &tmp, &arg);
-	if (Z_TYPE_P(tmp) != IS_ARRAY) {
-		zval_dtor(tmp);
+	if (Z_TYPE_P(_ms_a_zval tmp) != IS_ARRAY) {
+		zval_dtor(_ms_a_zval tmp);
 		zval_dtor(z_shard_table);
 		zval_dtor(z_shard_mapping);
 		zval_dtor(z_shard_index);
 		php_error_docref(NULL TSRMLS_CC, E_ERROR, "Failed to decode  XML-RPC response while handling server list");
 	}
-	if (zend_hash_index_find(Z_ARRVAL_P(tmp), 3, (void**)&tmpp) == FAILURE) {
-		zval_dtor(tmp);
+	if (_MS_HASH_GET_ZR_FUNC_PTR_1(zend_hash_index_find, Z_ARRVAL_P(_ms_a_zval tmp), 3, tmpp) == FAILURE) {
+		zval_dtor(_ms_a_zval tmp);
 		zval_dtor(z_shard_table);
 		zval_dtor(z_shard_mapping);
 		zval_dtor(z_shard_index);
 		php_error_docref(NULL TSRMLS_CC, E_ERROR, "Invalid response from XML-RPC while handling server list");
 	}
-	z_server = *tmpp;
+	z_server = _ms_p_zval tmpp;
 	Z_ADDREF_P(z_server);
-	zval_dtor(tmp);
+	_ms_zval_dtor(tmp);
 
 	/* 2. Check all files for their number of elements */
 	shard_table_count = zend_hash_num_elements(Z_ARRVAL_P(z_shard_table));
@@ -452,10 +452,10 @@ void fabric_set_raw_data_from_xmlstr(mysqlnd_fabric *fabric,
 
 	/* 5. clean up */
 cleanup:
-	zval_ptr_dtor(&z_shard_table);
-	zval_ptr_dtor(&z_shard_mapping);
-	zval_ptr_dtor(&z_shard_index);
-	zval_ptr_dtor(&z_server);
+	_ms_zval_ptr_dtor(z_shard_table);
+	_ms_zval_ptr_dtor(z_shard_mapping);
+	_ms_zval_ptr_dtor(z_shard_index);
+	_ms_zval_ptr_dtor(z_server);
 
 	if (success == 0) {
 		php_error_docref(NULL TSRMLS_CC, E_ERROR, "Received invalid data from Fabric");
@@ -467,8 +467,7 @@ cleanup:
 
 void fabric_set_raw_data_from_fabric(mysqlnd_fabric *fabric)
 {
-	char *servers_xml, *shard_index_xml, *shard_mapping_xml, *shard_table_xml;
-	size_t servers_len, shard_index_len, shard_mapping_len, shard_table_len;
+	zend_string *servers_xml, *shard_index_xml, *shard_mapping_xml, *shard_table_xml;
 
 	char request[sizeof(FABRIC_LOOKUP_XML) + 200];
 	size_t request_len;
@@ -477,33 +476,41 @@ void fabric_set_raw_data_from_fabric(mysqlnd_fabric *fabric)
 	         mysqlnd_fabric_host_shuffle(fabric->hosts, fabric->host_count); */
 
 	request_len = sprintf(request, FABRIC_LOOKUP_XML, "dump.servers");
-	servers_xml = mysqlnd_fabric_http(fabric, fabric->hosts->url, request, request_len, &servers_len);
-	if (!servers_len) {
+	servers_xml = mysqlnd_fabric_http(fabric, fabric->hosts->url, request, request_len);
+	if (!servers_xml) {
 		/* TODO: We silently leave here, this will keep the serverlist unchanged in case of error
 		         currently mysqlnd_fabric_http will emitt a warning with an error message */
-		return;
+		goto err;
 	}
 
 	request_len = sprintf(request, FABRIC_LOOKUP_XML, "dump.shard_index");
-	shard_index_xml = mysqlnd_fabric_http(fabric, fabric->hosts->url, request, request_len, &shard_index_len);
-	if (!shard_index_len) {
-		return;
+	shard_index_xml = mysqlnd_fabric_http(fabric, fabric->hosts->url, request, request_len);
+	if (!shard_index_xml) {
+		goto err;
 	}
 
 	request_len = sprintf(request, FABRIC_LOOKUP_XML, "dump.shard_maps");
-	shard_mapping_xml = mysqlnd_fabric_http(fabric, fabric->hosts->url, request, request_len, &shard_mapping_len);
-	if (!shard_mapping_len) {
-		return;
+	shard_mapping_xml = mysqlnd_fabric_http(fabric, fabric->hosts->url, request, request_len);
+	if (!shard_mapping_xml) {
+		goto err;
 	}
 
 	request_len = sprintf(request, FABRIC_LOOKUP_XML, "dump.shard_tables");
-	shard_table_xml = mysqlnd_fabric_http(fabric, fabric->hosts->url, request, request_len, &shard_table_len);
-	if (!shard_table_len) {
-		return;
+	shard_table_xml = mysqlnd_fabric_http(fabric, fabric->hosts->url, request, request_len);
+	if (!shard_table_xml) {
+		goto err;
 	}
 
-    fabric_set_raw_data_from_xmlstr(fabric, shard_table_xml, shard_table_len, shard_mapping_xml, shard_mapping_len,
-			shard_index_xml, shard_index_len, servers_xml, servers_len);
+    fabric_set_raw_data_from_xmlstr(fabric, shard_table_xml, shard_mapping_xml, shard_index_xml, servers_xml);
+err:
+	if (servers_xml)
+		zend_string_release(servers_xml);
+	if (shard_index_xml)
+		zend_string_release(shard_index_xml);
+	if (shard_mapping_xml)
+		zend_string_release(shard_mapping_xml);
+	if (shard_table_xml)
+		zend_string_release(shard_table_xml);
 }
 
 

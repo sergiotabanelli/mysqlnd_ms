@@ -1,5 +1,5 @@
 --TEST--
-Filter QOS, session consistency, MM + RR
+Filter QOS, session consistency, NO Slave
 --SKIPIF--
 <?php
 require_once('skipif.inc');
@@ -36,11 +36,11 @@ $settings = array(
 			),
 		),
 		'slave' => array(
-			"slave1" => array(
+/*			"slave1" => array(
 				'host' 	=> $emulated_slave_host_only,
 				'port' 	=> (int)$emulated_slave_port,
 				'socket' => $emulated_slave_socket,
-			),
+			),*/
 		 ),
 
 		'lazy_connections' => 0,
@@ -90,7 +90,7 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_filter_qos_session_consistency_no_slaves.
 	/* master 1 */
 	mst_mysqli_query(2, $link, "SET @myrole='master 1'");
 	/* slave 1 */
-	mst_mysqli_query(4, $link, "SET @myrole='master 2'", MYSQLND_MS_SLAVE_SWITCH);
+	//mst_mysqli_query(4, $link, "SET @myrole='master 2'", MYSQLND_MS_SLAVE_SWITCH);
 
 	$servers = array();
 
@@ -123,5 +123,5 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_filter_qos_session_consistency_no_slaves.
 	  printf("[clean] Cannot unlink ini file 'test_mysqlnd_ms_filter_qos_session_consistency_no_slaves.ini'.\n");
 ?>
 --EXPECTF--
-master 2 (master-%d) has run 2 queries
+master 1 (master-%d) has run 2 queries
 done!

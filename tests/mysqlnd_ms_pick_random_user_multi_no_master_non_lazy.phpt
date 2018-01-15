@@ -42,7 +42,7 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_pick_random_user_multi_no_master_non_lazy
 			$host, $user, $db, $port, $socket);
 
 	$res = mst_mysqli_query(2, $link, "SELECT 1 FROM DUAL", MYSQLND_MS_MASTER_SWITCH);
-	var_dump($res->fetch_assoc());
+	var_dump($res);
 
 	print "done!";
 ?>
@@ -58,5 +58,5 @@ Warning: mysqli::query(): (mysqlnd_ms) Couldn't find the appropriate master conn
 
 Warning: mysqli::query(): (mysqlnd_ms) No connection selected by the last filter in %s on line %d
 [002] [2000] (mysqlnd_ms) No connection selected by the last filter
-
-Fatal error: Call to a member function fetch_assoc() %s on line %d
+bool(false)
+done!

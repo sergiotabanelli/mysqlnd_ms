@@ -19,7 +19,7 @@ $settings = array(
 				'socket' 	=> $emulated_master_socket,
 			),
 		),
-		'slave' => array("unknown:7033"),
+		'slave' => array("realyunknownrealy:7033"),
 
 		'lazy_connections' => 1,
 		'trx_stickiness' => 'on',

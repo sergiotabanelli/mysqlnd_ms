@@ -40,7 +40,7 @@ extern int mysqlnd_qp_error(const char * format, ...);
 %union {
   zval zv;
   const char * kn; /* keyword_name */
-  smart_str * comment;
+  _ms_smart_type * comment;
 }
 
 %{
@@ -914,7 +914,7 @@ field: identifier
 		;
 
 identifier: QC_TOKEN_IDENTIFIER { $$=$1; }
-		| keyword { ZVAL_STRING(&($$), $1, 1); }
+		| keyword { _MS_ZVAL_STRING(&($$), $1); }
 		;
 		
 

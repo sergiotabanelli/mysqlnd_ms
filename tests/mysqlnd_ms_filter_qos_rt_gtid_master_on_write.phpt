@@ -51,10 +51,17 @@ $settings = array(
 		'lazy_connections' => 0,
 		'master_on_write' => 1,
 		'global_transaction_id_injection' => array(
+		    'type'						=> 1,
 			'on_commit'	 				=> $sql['update'],
 			'fetch_last_gtid'			=> $sql['fetch_last_gtid'],
 			'check_for_gtid'			=> $sql['check_for_gtid'],
 			'report_error'				=> true,
+		),
+		'filters' => array(
+			"quality_of_service" => array(
+				"session_consistency" => 1,
+			),
+			"roundrobin" => array(),
 		),
 
 	),

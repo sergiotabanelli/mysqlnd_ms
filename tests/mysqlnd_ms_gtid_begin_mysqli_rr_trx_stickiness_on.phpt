@@ -22,6 +22,8 @@ include_once("util.inc");
 $sql = mst_get_gtid_sql($db);
 if ($error = mst_mysqli_setup_gtid_table($emulated_master_host_only, $user, $passwd, $db, $emulated_master_port, $emulated_master_socket))
   die(sprintf("SKIP Failed to setup GTID on first master, %s\n", $error));
+if ($error = mst_mysqli_setup_gtid_table($emulated_slave_host_only, $user, $passwd, $db, $emulated_slave_port, $emulated_slave_socket))
+  die(sprintf("SKIP Failed to setup GTID on slave, %s\n", $error));
 
 if ($error = mst_mysqli_setup_gtid_table($master_host_only, $user, $passwd, $db, $master_port, $master_socket))
   die(sprintf("SKIP Failed to setup GTID on second master, %s\n", $error));
@@ -31,16 +33,21 @@ $settings = array(
 	"myapp" => array(
 		'master' => array($emulated_master_host, $master_host),
 		'slave' => array($emulated_slave_host, $emulated_slave_host),
-		'filters' => array(
-			"roundrobin" => array(),
-		),
 		'global_transaction_id_injection' => array(
+		 	'type'						=> 1,
 			'on_commit'	 				=> $sql['update'],
 			'fetch_last_gtid'			=> $sql['fetch_last_gtid'],
 			'report_error'				=> true,
 		),
+
+		'lazy_connections' => 1,
 		'trx_stickiness' => 'on',
-		'lazy_connections' => 1
+		'filters' => array(
+			"quality_of_service" => array(
+				"session_consistency" => 1,
+			),
+			"roundrobin" => array(),
+		),
 	),
 );
 if ($error = mst_create_config("test_mysqlnd_ms_gtid_begin_mysqli_rr_trx_stickiness_on.ini", $settings))
@@ -109,6 +116,8 @@ mysqlnd_ms.collect_statistics=1
 		printf("[002] [%d] %s\n", $link->errno, $link->error);
 
 	$expected['gtid_autocommit_injections_success'] += 2;
+	// With session consistency we need to reset GTID otherwise master0 will be choosen
+	mysqlnd_ms_set_qos($link, MYSQLND_MS_QOS_CONSISTENCY_SESSION,  MYSQLND_MS_QOS_OPTION_GTID, "0");
 
 	/* master 1 */
 	if (!$link->query("DROP TABLE IF EXISTS test") ||
@@ -120,7 +129,7 @@ mysqlnd_ms.collect_statistics=1
 	/* If trx_stickiness is on this will be delayed... */
 	$link->begin_transaction();
 
-	/* triggers start transaction on master0 */
+	/* triggers start transaction on master0, slaves has still gtid set to 0 and will not be choosen  */
 	if (!($stmt = $link->prepare("SELECT COUNT(*) AS _num_rows FROM test")))
 		printf("[003] [%d] %s\n", $link->errno, $link->error);
 
@@ -137,13 +146,19 @@ mysqlnd_ms.collect_statistics=1
 	$expected['gtid_commit_injections_success'] += 1;
 	$stats = mysqlnd_ms_get_stats();
 	compare_stats(7, $stats, $expected);
-
+	
+	// With session consistency we need to reset GTID otherwise master0 will be choosen
+	mysqlnd_ms_set_qos($link, MYSQLND_MS_QOS_CONSISTENCY_SESSION,  MYSQLND_MS_QOS_OPTION_GTID, "0");
+	
 	/* autocommit on master 1 but no ps */
 	if (!$link->query("INSERT INTO test(id) VALUES (1)")) {
 		printf("[008] [%d] %s\n", $link->errno, $link->error);
 	}
 
 	$expected['gtid_autocommit_injections_success'] += 1;
+
+	// With session consistency we need to reset GTID otherwise master0 will be choosen
+	mysqlnd_ms_set_qos($link, MYSQLND_MS_QOS_CONSISTENCY_SESSION,  MYSQLND_MS_QOS_OPTION_GTID, "0");
 
 	/* Delayed START ... */
 	$link->begin_transaction();
@@ -183,7 +198,7 @@ mysqlnd_ms.collect_statistics=1
 	$link->begin_transaction();
 	/* one injection more than we need?! More does not harm much... */
 	$expected['gtid_implicit_commit_injections_success'] += 1;
-	$expected['gtid_autocommit_injections_success'] += 1;
+	$expected['gtid_commit_injections_success'] += 1;
 
 	if (!$link->query("INSERT INTO test(id) VALUES (2)")) {
 		printf("[014] [%d] %s\n", $link->errno, $link->error);
@@ -198,7 +213,7 @@ mysqlnd_ms.collect_statistics=1
 	$row = $res->fetch_assoc();
 	printf("id = %d\n", $row['_id']);
 	$link->commit();
-	$expected['gtid_autocommit_injections_success'] += 1;
+	$expected['gtid_commit_injections_success'] += 1;
 
 	$stats = mysqlnd_ms_get_stats();
 	compare_stats(17, $stats, $expected);
@@ -222,6 +237,8 @@ mysqlnd_ms.collect_statistics=1
 		printf("[clean] %s\n", $error);
 
 	if ($error = mst_mysqli_drop_gtid_table($master_host_only, $user, $passwd, $db, $master_port, $master_socket))
+		printf("[clean] %s\n", $error);
+	if ($error = mst_mysqli_drop_gtid_table($emulated_slave_host_only, $user, $passwd, $db, $emulated_slave_port, $emulated_slave_socket))
 		printf("[clean] %s\n", $error);
 ?>
 --EXPECTF--

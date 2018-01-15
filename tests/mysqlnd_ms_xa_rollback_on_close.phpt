@@ -88,7 +88,7 @@ mysqlnd_ms.collect_statistics=1
 
 	foreach ($links as $xa_id => $link) {
 		mysqlnd_ms_xa_begin($link, 501 + $xa_id);
-		mst_mysqli_query(17, $link, "INSERT INTO test(id) VALUES (5)", MYSQLND_MS_SLAVE_SWITCH);
+		mst_mysqli_query("17-$xa_id", $link, "INSERT INTO test(id) VALUES (5)", MYSQLND_MS_SLAVE_SWITCH);
 		$link->close();
 	}
 	mst_stats_diff(18, mysqlnd_ms_get_stats());

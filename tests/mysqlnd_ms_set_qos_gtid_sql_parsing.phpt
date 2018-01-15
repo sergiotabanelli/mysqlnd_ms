@@ -1,5 +1,5 @@
 --TEST--
-mysqlnd_ms_set_qos(), GTID SQL parsing
+mysqlnd_ms_set_qos(), GTID SQL parsing - This TEST is useless
 --SKIPIF--
 <?php
 if (version_compare(PHP_VERSION, '5.3.99-dev', '<'))
@@ -54,14 +54,19 @@ $settings = array(
 		 ),
 
 		'lazy_connections' => 1,
-
 		'global_transaction_id_injection' => array(
+		    'type'						=> 1,
 			'on_commit'	 				=> $sql['update'],
 			'fetch_last_gtid'			=> $sql['fetch_last_gtid'],
-			'check_for_gtid'			=> $sql['check_for_gtid'] . "\n'#GTID'",
+			'check_for_gtid'			=> "\n'#GTID'",
 			'report_error'				=> true,
 		),
-
+		'filters' => array(
+			"quality_of_service" => array(
+				"session_consistency" => 1,
+			),
+			"roundrobin" => array(),
+		),
 	),
 
 );
@@ -118,10 +123,6 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_set_qos_gtid_sql_parsing.ini
 		printf("[clean] %s\n", $error);
 ?>
 --EXPECTF--
-
-Warning: mysqli::query(): (mysqlnd_ms) SQL error while checking slave for GTID: 1064/'You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''#GTID'' at line 2' in %s on line %d
-
-Warning: mysqli::query(): (mysqlnd_ms) SQL error while checking slave for GTID: 1064/'You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''#GTID'' at line 2' in %s on line %d
 array(1) {
   [0]=>
   array(1) {

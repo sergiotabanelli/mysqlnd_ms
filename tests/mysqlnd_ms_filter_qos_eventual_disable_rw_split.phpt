@@ -55,6 +55,15 @@ mysqlnd_ms.disable_rw_split=1
 
 	function pick_server($connected_host, $query, $master, $slaves, $last_used_connection, $in_transaction) {
 		printf("pick_server('%s', '%s', %d, %d)\n", $connected_host, $query, count($master), count($slaves));
+/*		
+        $dump['connected_host'] = $connected_host;
+		$dump['query'] = $query;
+		$dump['master'] = $master;
+		$dump['slaves'] = $slaves;
+		$dump['last_used_connection'] = $last_used_connection;
+		$dump['in_transaction'] = $in_transaction;
+		var_dump($dump);
+*/		
 		return ($last_used_connection) ? $last_used_connection : $master[0];
 	}
 

@@ -34,7 +34,7 @@ $settings = array(
 		'lazy_connections' => 0,
 		'filters' => array(
 			"node_groups" => array(
-				"\0" => array(
+				" \0" => array( //Empty group name not allowed by zend_hash_add
 					'master' => array('master1'),
 					'slave' => array('slave1'),
 				),
@@ -96,7 +96,7 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_filter_groups_setup_mess.ini
 		var_dump($res->fetch_assoc());
 	}
 
-	$res = mst_mysqli_query(11, $link, "/*\0*/SELECT 11, @myrole AS _role", MYSQLND_MS_MASTER_SWITCH);
+	$res = mst_mysqli_query(11, $link, "/* \0*/SELECT 11, @myrole AS _role", MYSQLND_MS_MASTER_SWITCH);
 	if (!$res) {
 		printf("[012] [%d] %s\n", $link->errno, $link->error);
 	} else {

@@ -17,8 +17,12 @@ $sql = mst_get_gtid_sql($db);
 if ($error = mst_mysqli_drop_gtid_table($emulated_master_host_only, $user, $passwd, $db, $emulated_master_port, $emulated_master_socket))
   die(sprintf("SKIP Failed to drop GTID on master, %s\n", $error));
 
-if ($error = mst_mysqli_drop_gtid_table($emulated_slave_host_only, $user, $passwd, $db, $emulated_slave_port, $emulated_slave_socket))
-  die(sprintf("SKIP Failed to drop GTID on master, %s\n", $error));
+//if ($error = mst_mysqli_drop_gtid_table($emulated_slave_host_only, $user, $passwd, $db, $emulated_slave_port, $emulated_slave_socket))
+ // die(sprintf("SKIP Failed to drop GTID on master, %s\n", $error));
+// We need to setup gtid table on slave otherwise session consistency will not choose slaves
+if ($error = mst_mysqli_setup_gtid_table($emulated_slave_host_only, $user, $passwd, $db, $emulated_slave_port, $emulated_slave_socket))
+  die(sprintf("SKIP Failed to setup GTID on slave, %s\n", $error));
+
 
 $settings = array(
 	"myapp" => array(
@@ -38,13 +42,18 @@ $settings = array(
 		),
 
 		'global_transaction_id_injection' => array(
+		 	'type'						=> 1,
 			'on_commit'	 				=> $sql['update'],
+			'fetch_last_gtid'			=> $sql['fetch_last_gtid'],
 			'report_error'				=> false,
 		),
 
 		'lazy_connections' => 1,
 		'trx_stickiness' => 'disabled',
 		'filters' => array(
+			"quality_of_service" => array(
+				"session_consistency" => 1,
+			),
 			"roundrobin" => array(),
 		),
 	),
@@ -140,12 +149,11 @@ mysqlnd_ms.collect_statistics=1
 	$stats = mysqlnd_ms_get_stats();
 	compare_stats(34, $stats, $expected);
 
-	$link->autocommit(true);
+	$link->autocommit(true); //Implicit commit
+	$expected['gtid_commit_injections_failure']++;
 
-	/* Note: we inject before the original query, thus we see the inection error */
 	mst_mysqli_query(36, $link, "SET MY LIFE ON FIRE");
 	mst_mysqli_query(38, $link, "SET MY LIFE ON FIRE", MYSQLND_MS_MASTER_SWITCH);
-	$expected['gtid_autocommit_injections_failure'] += 2;
 	$stats = mysqlnd_ms_get_stats();
 	compare_stats(40, $stats, $expected);
 
@@ -178,16 +186,34 @@ mysqlnd_ms.collect_statistics=1
 <?php
 	if (!unlink("test_mysqlnd_ms_gtid_report_errors_off.ini"))
 		printf("[clean] Cannot unlink ini file 'test_mysqlnd_ms_gtid_report_errors_off.ini'.\n");
+	require_once("connect.inc");
+	require_once("util.inc");
+	if ($error = mst_mysqli_drop_test_table($emulated_master_host_only, $user, $passwd, $db, $emulated_master_port, $emulated_master_socket))
+		printf("[clean] %s\n", $error);
+
+	if ($error = mst_mysqli_drop_gtid_table($emulated_master_host_only, $user, $passwd, $db, $emulated_master_port, $emulated_master_socket))
+		printf("[clean] %s\n", $error);
+	if ($error = mst_mysqli_drop_gtid_table($emulated_slave_host_only, $user, $passwd, $db, $emulated_slave_port, $emulated_slave_socket))
+		printf("[clean] %s\n", $error);
 ?>
 --EXPECTF--
+Warning: mysqli::query(): (mysqlnd_ms) Error on SQL injection. in %s on line %d
 [013] Slave says 'slave'
 [017] Master says 'master'
 [021] Master says again 'master'
+
+Warning: mysqli::commit(): (mysqlnd_ms) Error on SQL injection. in %s on line %d
 Slave says '1'
 Master says '2'
-[036] [1193] %s
-[038] [1193] %s
-[042] [1193] %s
-[044] [1193] %s
+
+Warning: mysqli::commit(): (mysqlnd_ms) Error on SQL injection. in %s on line %d
+
+Warning: mysqli::autocommit(): (mysqlnd_ms) Error on SQL injection. in %s on line %d
+[036] [1064] %s
+[038] [1064] %s
+[042] [1064] %s
+[044] [1064] %s
+
+Warning: mysqli::commit(): (mysqlnd_ms) Error on SQL injection. in %s on line %d
 [047] [0%A
 done!

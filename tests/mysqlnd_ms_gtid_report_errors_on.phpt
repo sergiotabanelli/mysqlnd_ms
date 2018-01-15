@@ -18,17 +18,14 @@ if ($error = mst_mysqli_setup_gtid_table($emulated_master_host_only, $user, $pas
 	die(sprintf("SKIP Failed to setup GTID on master, %s\n", $error));
 
 
-$link = mst_mysqli_connect($emulated_master_host_only, $user, $passwd, $db, $emulated_master_port, $emulated_master_socket);
-if (mysqli_connect_errno())
-	die(sprintf("SKIP [%d] %s\n", mysqli_connect_errno(), mysqli_connect_error()));
-if (!$link->query($sql['drop']))
-	die(sprintf("SKIP [%d] %s\n", $link->errno, $link->error));
+if ($error = mst_mysqli_drop_gtid_table($emulated_master_host_only, $user, $passwd, $db, $emulated_master_port, $emulated_master_socket))
+  die(sprintf("SKIP Failed to drop GTID on master, %s\n", $error));
 
-$link = mst_mysqli_connect($emulated_slave_host_only, $user, $passwd, $db, $emulated_slave_port, $emulated_slave_socket);
-if (mysqli_connect_errno())
-	die(sprintf("SKIP [%d] %s\n", mysqli_connect_errno(), mysqli_connect_error()));
-if (!$link->query($sql['drop']))
-	die(sprintf("SKIP [%d] %s\n", $link->errno, $link->error));
+//if ($error = mst_mysqli_drop_gtid_table($emulated_slave_host_only, $user, $passwd, $db, $emulated_slave_port, $emulated_slave_socket))
+ // die(sprintf("SKIP Failed to drop GTID on master, %s\n", $error));
+// We need to setup gtid table on slave otherwise session consistency will not choose slaves
+if ($error = mst_mysqli_setup_gtid_table($emulated_slave_host_only, $user, $passwd, $db, $emulated_slave_port, $emulated_slave_socket))
+  die(sprintf("SKIP Failed to setup GTID on slave, %s\n", $error));
 
 $settings = array(
 	"myapp" => array(
@@ -48,13 +45,18 @@ $settings = array(
 		),
 
 		'global_transaction_id_injection' => array(
+		 	'type'						=> 1,
 			'on_commit'	 				=> $sql['update'],
+			'fetch_last_gtid'			=> $sql['fetch_last_gtid'],
 			'report_error'				=> true,
 		),
 
 		'lazy_connections' => 1,
 		'trx_stickiness' => 'disabled',
 		'filters' => array(
+			"quality_of_service" => array(
+				"session_consistency" => 1,
+			),
 			"roundrobin" => array(),
 		),
 	),
@@ -111,7 +113,6 @@ mysqlnd_ms.collect_statistics=1
 
 	$link->autocommit(false);
 
-	/* SET should have not been executed */
 	if (!$res = mst_mysqli_query(10, $link, "SELECT @myrole AS _role"))
 		printf("[012] %d %s\n", $link->errno, $link->error);
 	$row = $res->fetch_assoc();
@@ -158,11 +159,14 @@ mysqlnd_ms.collect_statistics=1
 		$link->rollback();
 	}
 	/* autocommit failed, still in transaction mode */
+	$expected['gtid_commit_injections_failure']++;
+	$stats = mysqlnd_ms_get_stats();
+	compare_stats(37, $stats, $expected);
 
-	/* Note: we inject before the original query, thus we see the inection error */
 	if (!$link->query("SET MY LIFE ON FIRE")) {
 		printf("[036] %d %s\n", $link->errno, $link->error);
 	}
+
 	var_dump(mst_mysqli_query(38, $link, "SET MY LIFE ON FIRE", MYSQLND_MS_MASTER_SWITCH));
 
 	$sql = mst_get_gtid_sql($db);
@@ -175,12 +179,13 @@ mysqlnd_ms.collect_statistics=1
 		$link->rollback();
 	}
 	/* autocommit success */
+	$expected['gtid_commit_injections_success']++;
 
 
 	mst_mysqli_query(42, $link, "SET MY LIFE ON FIRE");
-	$expected['gtid_autocommit_injections_success']++;
+//	$expected['gtid_autocommit_injections_success']++;
 	mst_mysqli_query(44, $link, "SET MY LIFE ON FIRE", MYSQLND_MS_MASTER_SWITCH);
-	$expected['gtid_autocommit_injections_success']++;
+//	$expected['gtid_autocommit_injections_success']++;
 
 	$stats = mysqlnd_ms_get_stats();
 	compare_stats(45, $stats, $expected);
@@ -208,22 +213,31 @@ mysqlnd_ms.collect_statistics=1
 	require_once("util.inc");
 	if ($error = mst_mysqli_drop_gtid_table($emulated_master_host_only, $user, $passwd, $db, $emulated_master_port, $emulated_master_socket))
 		printf("[clean] %s\n", $error);
+	if ($error = mst_mysqli_drop_gtid_table($emulated_slave_host_only, $user, $passwd, $db, $emulated_slave_port, $emulated_slave_socket))
+		printf("[clean] %s\n", $error);
 ?>
 --EXPECTF--
+Warning: mysqli::query(): (mysqlnd_ms) Error on SQL injection. in %s on line %d
 [005] [1146] %s
 [013] Slave says 'slave'
-[017] Master says ''
-[021] Master says again ''
+[017] Master says 'master'
+[021] Master says again 'master'
+
+Warning: mysqli::commit(): (mysqlnd_ms) Error on SQL injection. in %s on line %d
 [024] [1146] %s
 Slave says '1'
 Master says '2'
+
+Warning: mysqli::commit(): (mysqlnd_ms) Error on SQL injection. in %s on line %d
 [033] [1146] %s
+
+Warning: mysqli::autocommit(): (mysqlnd_ms) Error on SQL injection. in %s on line %d
 [035] [1146] %s
-[036] 1193 %s
-[038] [1193] %s
+[036] 1064 %s
+[038] [1064] %s
 bool(false)
-[042] [1193] %s
-[044] [1193] %s
-[048] [1193] %s
-[050] [1193] %s
+[042] [1064] %s
+[044] [1064] %s
+[048] [1064] %s
+[050] [1064] %s
 done!

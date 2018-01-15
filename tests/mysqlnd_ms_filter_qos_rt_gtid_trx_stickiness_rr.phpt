@@ -51,6 +51,7 @@ $settings = array(
 		'lazy_connections' => 0,
 		'trx_stickiness' => 'on',
 		'global_transaction_id_injection' => array(
+			'type'						=> 1,
 			'on_commit'	 				=> $sql['update'],
 			'fetch_last_gtid'			=> $sql['fetch_last_gtid'],
 			'check_for_gtid'			=> $sql['check_for_gtid'],

@@ -15,6 +15,20 @@
 		2005 => true,
 	);
 
+	$mst_idx = 0;
+
+	function mst_offset($offset = NULL) {
+		global $mst_idx;
+		if (is_int($offset))  {
+			$mst_idx = $offset;
+			return $mst_idx;
+		} else if (is_null($offset)) {
+			return ++$mst_idx;
+		} else {
+			return $offset;
+		}
+	}
+	
 	function mst_is_slave_of($slave_host, $slave_port, $slave_socket, $master_host, $master_port, $master_socket, $user, $passwd, $db) {
 		/* Used for skipping tests if master and slave are part of a replication setup
 			and replication could cause false-positives */
@@ -61,15 +75,17 @@
 	}
 
 	function mst_mysqli_verbose_query($offset, $link, $query, $switch = NULL, $quiet = false, $expect_connect_warning = false, $ignore_error = false) {
-		printf("[%03d + 01] Query '%s'\n", $offset, $query);
+		$oprf = is_numeric($offset) ? "%03d" : "%s";
+		printf("[$oprf + 01] Query '%s'\n", $offset, $query);
 			$ret = mst_mysqli_query($offset, $link, $query, $switch = NULL, $quiet = false, $expect_connect_warning = false, $ignore_error = false);
-		printf("[%03d + 02] Thread '%d'\n", $offset, $link->thread_id);
+		printf("[$oprf + 02] Thread '%d'\n", $offset, $link->thread_id);
 		return $ret;
 	}
 
 	function mst_mysqli_query($offset, $link, $query, $switch = NULL, $quiet = false, $expect_connect_warning = false, $ignore_error = false, $weak_connect_warning = false) {
 		global $mst_connect_errno_codes;
 
+		$oprf = is_numeric($offset) ? "%03d" : "%s";
 		$query = "/*$offset*/$query";
 
 		if ($switch)
@@ -100,7 +116,7 @@
 					$found = strpos($haystack, "php_network_getaddresses: getaddrinfo failed");
 				}
 				if (!$found) {
-					printf("[%03d] Cannot find the expected connect warning, got '%s'\n", $offset, $haystack);
+					printf("[$oprf] Cannot find the expected connect warning, got '%s'\n", $offset, $haystack);
 				}
 			}
 
@@ -111,7 +127,7 @@
 		if (!$ret && !$ignore_error && $link->errno) {
 			if (isset($mst_connect_errno_codes[$link->errno]))
 				printf("Connect error, ");
-			printf("[%03d] [%d] %s\n", $offset, $link->errno, $link->error);
+			printf("[$oprf] [%d] %s\n", $offset, $link->errno, $link->error);
 		}
 
 		return $ret;
@@ -120,7 +136,8 @@
 
 	function mst_mysqli_real_query($offset, $link, $query, $switch = NULL, $quiet = false, $expect_connect_warning = false, $ignore_error = false) {
 		global $mst_connect_errno_codes;
-
+		$oprf = is_numeric($offset) ? "%03d" : "%s";
+		
 		$query = "/*$offset*/$query";
 
 		if ($switch)
@@ -143,7 +160,7 @@
 					}
 				}
 				if (!$found) {
-					printf("[%03d] Cannot find expect connect warning, got '%s'\n", $offset, $haystack);
+					printf("[$oprf] Cannot find expect connect warning, got '%s'\n", $offset, $haystack);
 				}
 			}
 
@@ -154,7 +171,7 @@
 		if (!$ret && !$ignore_error && $link->errno) {
 			if (isset($mst_connect_errno_codes[$link->errno]))
 				printf("Connect error, ");
-			printf("[%03d] [%d] %s\n", $offset, $link->errno, $link->error);
+			printf("[$oprf] [%d] %s\n", $offset, $link->errno, $link->error);
 		}
 
 		return $ret;
@@ -303,20 +320,22 @@
 	}
 
 	function mst_mysqli_fetch_id($offset, $res) {
+		$oprf = is_numeric($offset) ? "%03d" : "%s";
 		if (!$res) {
-			printf("[%03d] No result\n", $offset);
+			printf("[$oprf] No result\n", $offset);
 			return;
 		}
 		$row = $res->fetch_assoc();
-		printf("[%03d] _id = '%s'\n", $offset, $row['_id']);
+		printf("[$oprf] _id = '%s'\n", $offset, $row['_id']);
 	}
 
 	function mst_mysqli_server_supports_query($offset, $sql, $host, $user, $passwd, $db, $port, $socket) {
+		$oprf = is_numeric($offset) ? "%03d" : "%s";
 		$link = mst_mysqli_connect($host, $user, $passwd, $db, $port, $socket);
 		if (mysqli_connect_errno()) {
-			printf("[%03d] [%d] %s\n", $offset, mysqli_connect_errno(), mysqli_connect_error());
+			printf("[$oprf] [%d] %s\n", $offset, mysqli_connect_errno(), mysqli_connect_error());
 		}
-		printf("[%03d] Testing server support of '%s'\n", $offset, $sql);
+		printf("[$oprf] Testing server support of '%s'\n", $offset, $sql);
 		return $link->query($sql);
 	}
 
@@ -333,28 +352,30 @@
 	}
 
  	function _mst_mysqli_init_emulated_id($offset, $host, $user, $passwd, $db, $port, $socket, $role) {
-		$link = mst_mysqli_connect($host, $user, $passwd, $db, $port, $socket);
+		$oprf = is_numeric($offset) ? "%03d" : "%s";
+ 		$link = mst_mysqli_connect($host, $user, $passwd, $db, $port, $socket);
 		if (mysqli_connect_errno()) {
-			return sprintf("[%03d] [%d] %s\n", $offset, mysqli_connect_errno(), mysqli_connect_error());
+			return sprintf("[$oprf] [%d] %s\n", $offset, mysqli_connect_errno(), mysqli_connect_error());
 		}
 
 		if (!$link->query("DROP TABLE IF EXISTS _mysqlnd_ms_roles") ||
 			!$link->query("CREATE TABLE _mysqlnd_ms_roles(role VARCHAR(255) NOT NULL)") ||
 			!$link->query(sprintf("INSERT INTO _mysqlnd_ms_roles(role) values ('%s')", $link->real_escape_string($role)))) {
-			return sprintf("[%03d] [%d] %s\n", $offset, $link->errno, $link->error);
+			return sprintf("[$oprf] [%d] %s\n", $offset, $link->errno, $link->error);
 		}
 
 		return true;
 	}
 
 	function mst_mysqli_drop_emulated_id($host, $user, $passwd, $db, $port, $socket) {
+		$oprf = is_numeric($offset) ? "%03d" : "%s";
 		$link = mst_mysqli_connect($host, $user, $passwd, $db, $port, $socket);
 		if (mysqli_connect_errno()) {
-			return sprintf("[%03d] [%d] %s\n", $offset, mysqli_connect_errno(), mysqli_connect_error());
+			return sprintf("[$oprf] [%d] %s\n", $offset, mysqli_connect_errno(), mysqli_connect_error());
 		}
 
 		if (!$link->query("DROP TABLE IF EXISTS _mysqlnd_ms_roles")) {
-			return sprintf("[%03d] [%d] %s\n", $offset, $link->errno, $link->error);
+			return sprintf("[$oprf] [%d] %s\n", $offset, $link->errno, $link->error);
 		}
 
 		return true;
@@ -363,18 +384,19 @@
 
 	function mst_mysqli_get_emulated_id($offset, $link, $include_thread_id = true) {
 
+		$oprf = is_numeric($offset) ? "%03d" : "%s";
 		$thread_id = $link->thread_id;
 		if (0 == $thread_id)
 			return NULL;
 
 		$query = sprintf("/*%s*//*%d*//*util.inc*/SELECT role FROM _mysqlnd_ms_roles", MYSQLND_MS_LAST_USED_SWITCH, $offset);
 		if (!($res = $link->query($query))) {
-			printf("[%03d] [%d] %s\n", $offset, $link->errno, $link->error);
+			printf("[$oprf] [%d] %s\n", $offset, $link->errno, $link->error);
 			return NULL;
 		}
 
 		if ($res->num_rows > 1) {
-			printf("[%03d] _mysqlnd_ms_roles holds more than one row\n", $offset);
+			printf("[$oprf] _mysqlnd_ms_roles holds more than one row\n", $offset);
 			return NULL;
 		}
 
@@ -387,7 +409,276 @@
 		return ($include_thread_id) ? sprintf("%s-%d", $row['role'], $link->thread_id) : $row['role'];
 	}
 
+	function mst_get_gtid_memcached($mst_gtid_db) {
+		return array(
+				'drop' 					=> 'DROP TABLE IF EXISTS ' . $mst_gtid_db . '.memcached',
+				'create'				=> 'CREATE TABLE ' . $mst_gtid_db . '.memcached(  id char(50) NOT NULL,
+											trx_id varchar(255) NOT NULL,
+  											flags int(11) NOT NULL,
+  											cas bigint(20) NOT NULL,
+  											expiry int(11) NOT NULL,
+  											PRIMARY KEY (`id`)) ENGINE=InnoDB',
+				'insert_container'		=> "INSERT INTO `innodb_memcache`.`containers` 
+											(`name`, `db_schema`, `db_table`, `key_columns`, `value_columns`, `flags`, `cas_column`, `expire_time_column`,`unique_idx_name_on_key`) 
+											VALUES ('default', '$mst_gtid_db', 'memcached', 'id', 'trx_id', 'flags','cas','expiry','PRIMARY')",
+				'delete_container'		=> "DELETE FROM `innodb_memcache`.`containers` WHERE `db_schema` = '$mst_gtid_db' AND `db_table` = 'memcached'",
+				'select'				=> 'SELECT m.trx_id AS trx_id FROM ' . $mst_gtid_db . '.memcached m',
+				'selectw'				=> "SELECT mm.trx_id AS trx_id FROM $mst_gtid_db.memcached m JOIN $mst_gtid_db.memcached mm ON mm.id = CONCAT(m.id, ':', m.trx_id)",
+				'fetch_last_gtid'		=> 'SELECT @@GLOBAL.GTID_EXECUTED AS trx_id FROM DUAL',
+				'wait_for_gtid'			=> "SELECT WAIT_FOR_EXECUTED_GTID_SET('#GTID', 2) AS timeout FROM DUAL",
+				'update'				=> "UPDATE $mst_gtid_db.memcached SET trx_id = trx_id + 1 WHERE id = '#ID'",
+				'set'					=> "UPDATE $mst_gtid_db.memcached SET trx_id = '#GTID'",
+				'insert'				=> "INSERT INTO $mst_gtid_db.memcached (id, trx_id) VALUES('#ID','#GTID')", 
+				'insertw'				=> "INSERT INTO $mst_gtid_db.memcached (id, trx_id) SELECT CONCAT(id,':', trx_id) AS id, '#GTID' AS trx_id FROM $mst_gtid_db.memcached WHERE id = '#ID'", 
+				'delete'				=> "DELETE FROM $mst_gtid_db.memcached", 
+				'global_key'			=> "gtid",
+				'global_wkey'			=> "wgtid",
+				'session_key'			=> "#SID",
+/*				'global_key'			=> "@@$mst_gtid_db.gtid",
+				'global_wkey'			=> "@@$mst_gtid_db.wgtid",
+				'session_key'			=> "@@$mst_gtid_db.#SID",*/
+		);
+	}
+	
+	function mst_mysqli_drop_gtid_memcached($host, $user, $passwd, $db, $port, $socket, $reload = true) {
+		$link = mst_mysqli_connect($host, $user, $passwd, $db, $port, $socket);
+		if (mysqli_connect_errno()) {
+			return sprintf("[%d] %s\n", mysqli_connect_errno(), mysqli_connect_error());
+		}
+	
+		$sql = mst_get_gtid_memcached($db);
+		if (!$link->query($sql['drop']) || !$link->query($sql['delete_container']) || ($reload && 
+				(($link->query("UNINSTALL PLUGIN daemon_memcached") && false) || !$link->query("INSTALL PLUGIN daemon_memcached soname 'libmemcached.so'"))))
+			return sprintf("[%d] %s\n", $link->errno, $link->error);
+		return NULL;					
+	}
+	
+	function mst_mysqli_setup_gtid_memcached($host, $user, $passwd, $db, $port, $socket) {
+	
+		$link = mst_mysqli_connect($host, $user, $passwd, $db, $port, $socket);
+		if (mysqli_connect_errno()) {
+			return sprintf("[%d] %s\n", mysqli_connect_errno(), mysqli_connect_error());
+		}
 
+		if ($err =  mst_mysqli_drop_gtid_memcached($host, $user, $passwd, $db, $port, $socket, false))
+			return $err;
+		
+		$sql = mst_get_gtid_memcached($db);
+		if (!$link->query($sql['create']) || !$link->query($sql['insert_container']) || 
+				($link->query("UNINSTALL PLUGIN daemon_memcached") && false) || !$link->query("INSTALL PLUGIN daemon_memcached soname 'libmemcached.so'"))
+			return sprintf("[%d] %s\n", $link->errno, $link->error);
+		return NULL;
+	}
+
+	function mst_mysqli_delete_gtid_memcached($offset, $link, $db, $where = NULL) {
+		$sql = mst_get_gtid_memcached($db);
+		$oprf = is_numeric($offset) ? "%03d" : "%s";
+		if ($where) 
+			$query = sprintf("/*%d*/%s WHERE %s", $offset, $sql['delete'], $where);
+		else
+			$query = sprintf("/*%d*/%s", $offset, $sql['delete']);
+		if (!($res = $link->query($query))) {
+			printf("[$oprf] [%d] %s\n", $offset, $link->errno, $link->error);
+			return NULL;
+		}
+		return $res;
+	}
+
+	function mst_mysqli_set_gtid_memcached($offset, $link, $db, $gtid, $where = NULL) {
+		$oprf = is_numeric($offset) ? "%03d" : "%s";
+		$sql = mst_get_gtid_memcached($db);
+		if ($where)
+			$query = sprintf("/*%d*/%s WHERE %s", $offset, $sql['set'], $where);
+		else
+			$query = sprintf("/*%d*/%s", $offset, $sql['set']);
+		$query = str_replace('#GTID', $gtid, $query);		
+		if (!($res = $link->query($query))) {
+			printf("[$oprf [%d] %s\n", $offset, $link->errno, $link->error);
+			return NULL;
+		}
+		return $res;
+	}
+	
+	function mst_mysqli_wait_gtid_memcached($offset, $link, $db, $gtid) {
+		$oprf = is_numeric($offset) ? "%03d" : "%s";
+		$sql = mst_get_gtid_memcached($db);
+	
+		$query = str_replace('#GTID', $gtid, $sql['wait_for_gtid']);
+		$query = sprintf("/*%d*/%s", $offset, $query);
+		if (!($res = $link->query($query))) {
+			printf("[$oprf] [%d] %s\n", $offset, $link->errno, $link->error);
+			return false;
+		}
+		$row = $res->fetch_assoc();
+		if (!$row)
+			return false;
+		
+		return ('0' == reset($row)) ? true : false;
+	}
+	
+	function mst_mysqli_fetch_gtid_memcached($offset, $link, $db, $where = NULL) {
+		$oprf = is_numeric($offset) ? "%03d" : "%s";
+		$sql = mst_get_gtid_memcached($db);
+		if ($where) 
+			$query = sprintf("/*%d*/%s WHERE %s", $offset, $sql['select'], $where);
+		else
+			$query = sprintf("/*%d*/%s", $offset, $sql['select']);
+		if (!($res = $link->query($query))) {
+			printf("[$oprf] [%d] %s\n", $offset, $link->errno, $link->error);
+			return NULL;
+		}
+		$row = $res->fetch_all();
+		if (count($row) > 1) {
+			printf("[$oprf] Found more than one row on memcached repository\n", $offset);
+			return NULL;
+		}
+		return reset($row[0]);
+	}
+
+	function mst_mysqli_fetch_wgtid_memcached($offset, $link, $db, $where) {
+		$oprf = is_numeric($offset) ? "%03d" : "%s";
+		$sql = mst_get_gtid_memcached($db);
+		if ($where) 
+			$query = sprintf("/*%d*/%s WHERE %s", $offset, $sql['selectw'], $where);
+		else
+			$query = sprintf("/*%d*/%s", $offset, $sql['selectw']);
+		if (!($res = $link->query($query))) {
+			printf("[$oprf] [%d] %s\n", $offset, $link->errno, $link->error);
+			return NULL;
+		}
+		$row = $res->fetch_all();
+		if (count($row) > 1) {
+			printf("[$oprf] Found more than one row on memcached repository\n", $offset);
+			return NULL;
+		}
+//		printf("Row wgtid [%s]", reset($row[0]));
+		$ret = explode('?', reset($row[0]));
+		return $ret;
+	}
+
+	function mst_mysqli_insert_gtid_memcached($offset, $link, $id, $gtid, $db) {
+		$oprf = is_numeric($offset) ? "%03d" : "%s";
+		$sql = mst_get_gtid_memcached($db);
+		$query = sprintf("/*%d*/%s", $offset, $sql['insert']);
+		$query = str_replace('#GTID', $gtid, $query);
+		$query = str_replace('#ID', $id, $query);
+		if (!($res = $link->query($query))) {
+			printf("[$oprf] [%d] %s\n", $offset, $link->errno, $link->error);
+			return NULL;
+		}
+		return $res;
+	}
+	
+	function mst_mysqli_insert_wgtid_memcached($offset, $link, $id, $gtid, $db) {
+		$oprf = is_numeric($offset) ? "%03d" : "%s";
+		$sql = mst_get_gtid_memcached($db);
+		$query = sprintf("/*%d*/%s", $offset, $sql['insertw']);
+		$query = str_replace('#GTID', $gtid, $query);
+		$query = str_replace('#ID', $id, $query);
+		if (!($res = $link->query($query))) {
+			printf("[$oprf] [%d] %s\n", $offset, $link->errno, $link->error);
+			return NULL;
+		}
+		return $res;
+	}
+	
+	function mst_mysqli_increment_wgtid_memcached($offset, $link, $id, $db) {
+		$oprf = is_numeric($offset) ? "%03d" : "%s";
+		$sql = mst_get_gtid_memcached($db);
+		$query = sprintf("/*%d*/%s", $offset, $sql['update']);
+		$query = str_replace('#ID', $id, $query);
+		if (!($res = $link->query($query))) {
+			printf("[$oprf] [%d] %s\n", $offset, $link->errno, $link->error);
+			return NULL;
+		}
+		return mst_mysqli_fetch_wgtid_memcached("$offset:1", $link, $db);
+	}
+	
+	function mst_mysqli_create_gtid_test_table($host, $user, $passwd, $db, $port, $socket, $tablename = "gtid_test") {
+		$link = mst_mysqli_connect($host, $user, $passwd, $db, $port, $socket);
+		if (mysqli_connect_errno()) {
+			return sprintf("[%d] %s\n", mysqli_connect_errno(), mysqli_connect_error());
+		}
+	
+		if (!$link->query(sprintf("DROP TABLE IF EXISTS %s", $link->real_escape_string($tablename))) ||
+				!$link->query(sprintf("CREATE TABLE %s(id VARCHAR(255) NOT NULL, PRIMARY KEY (id)) ENGINE=InnoDB", $link->real_escape_string($tablename))))
+			return sprintf("[%d] %s\n", $link->errno, $link->error);
+	
+		return '';
+	}
+	
+	function mst_mysqli_drop_gtid_test_table($host, $user, $passwd, $db, $port, $socket, $tablename = "gtid_test") {
+		$link = mst_mysqli_connect($host, $user, $passwd, $db, $port, $socket);
+		if (mysqli_connect_errno()) {
+			return sprintf("[%d] %s\n", mysqli_connect_errno(), mysqli_connect_error());
+		}
+		if (!$link->query(sprintf("DROP TABLE IF EXISTS %s", $link->real_escape_string($tablename))))
+			return sprintf("[%d] %s\n", $link->errno, $link->error);
+	
+		return '';
+	}
+
+	function mst_fork_gtid_lock_insert($offset, $link, $link1, $lock=1, $switch = NULL) {
+
+		mst_mysqli_query($offset, $link, "SET @myrole = CONCAT(@myrole,'-lp$lock:',GET_LOCK('p$lock',0))", $switch);
+		
+		$res = mst_mysqli_query("$offset:1", $link, "SELECT @myrole AS _role FROM DUAL", MYSQLND_MS_LAST_USED_SWITCH);
+		var_dump($res->fetch_assoc());
+		
+		$pid = pcntl_fork();
+		if ($pid == -1) {
+			printf("[$offset] could not fork");
+			return NULL;
+		} else if ($pid) {
+			return $pid;
+		} else {
+			// we are the children
+			mst_mysqli_query("$offset:2", $link1, "INSERT INTO gtid_test(id) VALUES(CONCAT(@myrole,'-lp$lock:',GET_LOCK('p$lock',60)))");
+			$res = mst_mysqli_query("$offset:3", $link1, "SELECT id FROM gtid_test WHERE id LIKE '%-lp$lock:%' AND RELEASE_LOCK('p$lock')", MYSQLND_MS_LAST_USED_SWITCH);
+			var_dump($res->fetch_assoc());
+			die;
+		}
+	}
+	
+	function mst_fork_gtid_lock_set($offset, $link, $link1, $lock=1, $switch = NULL, $child = NULL) {
+
+		mst_mysqli_query($offset, $link, "SET @myrole = CONCAT(IFNULL(@myrole,'norole'),'-lp$lock:',GET_LOCK('p$lock',0))", $switch);
+		
+		$res = mst_mysqli_query("$offset:1", $link, "SELECT @myrole AS _role FROM DUAL", MYSQLND_MS_LAST_USED_SWITCH);
+		var_dump($res->fetch_assoc());
+		
+		$pid = pcntl_fork();
+		if ($pid == -1) {
+			printf("[$offset] could not fork");
+			return NULL;
+		} else if ($pid) {
+			sleep(1); // wait for child execute query;
+			return $pid;
+		} else {
+			// we are the children
+			if (!$child) {
+				mst_mysqli_query("$offset:2", $link1, "SET @myrole = CONCAT(@myrole,'-lc$lock:',GET_LOCK('p$lock',60))");
+				$res = mst_mysqli_query("$offset:3", $link1, "SELECT @myrole AS _role FROM DUAL WHERE RELEASE_LOCK('p$lock')", MYSQLND_MS_LAST_USED_SWITCH);
+				var_dump($res->fetch_assoc());
+			} else {
+				$child("p$lock");
+			}
+			die;
+		}
+	}
+	
+	function mst_fork_gtid_release($offset, $link, $link1, $pid, $lock=1, $switch = NULL) {
+		if ($link1) {
+			mst_mysqli_query("$offset", $link1, "SET @myrole = CONCAT(@myrole,'-lp$lock')", $switch);
+			$res = mst_mysqli_query("$offset:1", $link1, "SELECT @myrole AS _role FROM DUAL", MYSQLND_MS_LAST_USED_SWITCH);
+			var_dump($res->fetch_assoc());
+		}
+		mst_mysqli_query("$offset:2", $link, "SET @myrole = CONCAT(@myrole,'-rp$lock:',RELEASE_LOCK('p$lock'))", $switch);
+		$res = mst_mysqli_query("$offset:3", $link, "SELECT @myrole AS _role FROM DUAL", MYSQLND_MS_LAST_USED_SWITCH);
+		var_dump($res->fetch_assoc());
+		pcntl_waitpid($pid, $status);
+	}
+	
 	function mst_get_gtid_sql($mst_gtid_db) {
 	  return array(
 		'drop' 					=> 'DROP TABLE IF EXISTS ' . $mst_gtid_db . '.trx',
@@ -438,11 +729,12 @@
 	}
 
 	function mst_mysqli_fetch_gtid($offset, $link, $db) {
+		$oprf = is_numeric($offset) ? "%03d" : "%s";
 		$sql = mst_get_gtid_sql($db);
 
 		$query = sprintf("/*%d*/%s", $offset, $sql['select']);
 		if (!($res = $link->query($query))) {
-			printf("[%03d] [%d] %s\n", $offset, $link->errno, $link->error);
+			printf("[$oprf] [%d] %s\n", $offset, $link->errno, $link->error);
 			return NULL;
 		}
 		$row = $res->fetch_row();
@@ -473,6 +765,48 @@
 		return ('ON' == $row['Value']) ? true : false;
 	}
 
+	function mst_mysqli_server_supports_session_track_gtid($host, $user, $passwd, $db, $port, $socket) {
+
+		$link = mst_mysqli_connect($host, $user, $passwd, $db, $port, $socket);
+		if (mysqli_connect_errno()) {
+			return sprintf("[%d] %s\n", mysqli_connect_errno(), mysqli_connect_error());
+		}
+
+		if ($link->server_version < 50706) {
+			return false;
+		}
+
+		if (!($res = $link->query("SHOW GLOBAL VARIABLES LIKE 'SESSION_TRACK_GTIDS'"))) {
+			return false;
+		}
+		$row = $res->fetch_assoc();
+		if (!$row)
+			return false;
+
+		return ('OWN_GTID' == $row['Value']) ? true : false;
+	}
+	
+	function mst_mysqli_server_supports_memcached_plugin($host, $user, $passwd, $db, $port, $socket) {
+
+		$link = mst_mysqli_connect($host, $user, $passwd, $db, $port, $socket);
+		if (mysqli_connect_errno()) {
+			return sprintf("[%d] %s\n", mysqli_connect_errno(), mysqli_connect_error());
+		}
+
+		if ($link->server_version < 50600) {
+			return false;
+		}
+
+		if (!($res = $link->query("SELECT COUNT(*) as _num FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME = 'daemon_memcached' AND PLUGIN_STATUS = 'ACTIVE'"))) {
+			return false;
+		}
+		$row = $res->fetch_assoc();
+		if (!$row)
+			return false;
+
+		return (1 == $row['_num']) ? true : false;
+	}
+	
 	function mst_mysqli_get_slave_lag($host, $user, $passwd, $db, $port, $socket) {
 
 		$link = mst_mysqli_connect($host, $user, $passwd, $db, $port, $socket);
@@ -647,13 +981,14 @@
 
 	function mst_stats_diff($offset, $now) {
 		static $before = NULL;
+		$oprf = is_numeric($offset) ? "%03d" : "%s";
 		if ($before == NULL) {
 			$before = $now;
 			return;
 		}
 		foreach ($now as $k => $v) {
 			if (isset($before[$k]) && ($before[$k] != $v)) {
-				printf("[%03d] %s: %s -> %s\n", $offset, $k, $before[$k], $v);
+				printf("[$oprf] %s: %s -> %s\n", $offset, $k, $before[$k], $v);
 			}
 		}
 		$before = $now;

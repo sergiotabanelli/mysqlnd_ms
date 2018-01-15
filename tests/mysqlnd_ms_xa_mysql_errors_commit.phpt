@@ -120,14 +120,18 @@ mysqlnd_ms.collect_statistics=1
 	/*
 	global table should have an entry for xa id but there shall be no participants
 	*/
-	$res = mst_mysqli_query(7, $link_store,
-		sprintf("SELECT COUNT(*) AS _num, state, intend, modified, started, timeout FROM mysqlnd_ms_xa_trx WHERE gtrid = '%d'",
+	$res = mst_mysqli_query(6, $link_store,
+		sprintf("SELECT COUNT(*) AS _num FROM mysqlnd_ms_xa_trx WHERE gtrid = '%d'",
 			$xa_id));
 	$global_trx = $res->fetch_assoc();
 	if ($global_trx['_num'] != 1) {
 		printf("[008] Expecting one entry, found %d for gtrid = %d. Test update required?",
 			$global_trx['_num'], $xa_id);
 	}
+	$res = mst_mysqli_query(7, $link_store,
+		sprintf("SELECT state, intend, modified, started, timeout FROM mysqlnd_ms_xa_trx WHERE gtrid = '%d'",
+			$xa_id));
+	$global_trx = $res->fetch_assoc();
 
 	if (($global_trx['state'] != 'XA_NON_EXISTING') || ($global_trx['state'] != $global_trx['intend'])) {
 		printf("[009] Expecting state and intend = 'XA_NON_EXISTING', got state = '%s', intend = '%s'\n",
@@ -160,7 +164,7 @@ mysqlnd_ms.collect_statistics=1
 
 	/* Global table shall be eq... */
 	$res = mst_mysqli_query(15, $link_store,
-		sprintf("SELECT COUNT(*) AS _num, state, intend, modified, started, timeout FROM mysqlnd_ms_xa_trx WHERE gtrid = '%d'",
+		sprintf("SELECT state, intend, modified, started, timeout FROM mysqlnd_ms_xa_trx WHERE gtrid = '%d'",
 			$xa_id));
 
 	$global_trx_new = $res->fetch_assoc();

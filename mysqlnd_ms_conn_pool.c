@@ -35,9 +35,9 @@
 
 /* {{{ mysqlnd_ms_pool_all_list_dtor */
 void
-mysqlnd_ms_pool_all_list_dtor(void * pDest)
+mysqlnd_ms_pool_all_list_dtor(_ms_hash_zval_type * pDest)
 {
-	MYSQLND_MS_POOL_ENTRY * element = pDest? *(MYSQLND_MS_POOL_ENTRY **) pDest : NULL;
+	MYSQLND_MS_POOL_ENTRY * element = pDest? _ms_p_zval (MYSQLND_MS_POOL_ENTRY _ms_p_zval *) _MS_HASH_Z_PTR_P(pDest) : NULL;
 	TSRMLS_FETCH();
 
 	DBG_ENTER("mysqlnd_ms_pool_all_list_dtor");
@@ -129,7 +129,12 @@ mysqlnd_ms_pool_cmd_dtor(void * pDest)
 #if MYSQLND_VERSION_ID >= 50009
 			case POOL_CMD_SET_AUTOCOMMIT:
 				DBG_INF_FMT("pool_cmd=%p SET_AUTOCOMMIT", element->data);
-
+				{
+					MYSQLND_MS_POOL_CMD_SET_AUTOCOMMIT  * cmd_data = (MYSQLND_MS_POOL_CMD_SET_AUTOCOMMIT *)element->data;
+					if (cmd_data)
+						mnd_pefree(cmd_data, element->persistent);
+					element->data = NULL;
+				}
 				break;
 #endif
 			case POOL_CMD_SSL_SET:
@@ -171,7 +176,7 @@ static enum_func_status
 pool_flush_active(MYSQLND_MS_POOL * pool TSRMLS_DC)
 {
 	MYSQLND_MS_LIST_DATA * el;
-	MYSQLND_MS_POOL_ENTRY ** pool_element = NULL;
+	MYSQLND_MS_POOL_ENTRY _ms_p_zval * pool_element = NULL;
 	enum_func_status ret = PASS;
 
 	DBG_ENTER("mysqlnd_ms::pool_flush_active");
@@ -183,8 +188,8 @@ pool_flush_active(MYSQLND_MS_POOL * pool TSRMLS_DC)
 
 	BEGIN_ITERATE_OVER_SERVER_LIST(el, &(pool->data.active_master_list))
 	{
-		if (SUCCESS == zend_hash_find(&(pool->data.master_list), el->pool_hash_key.c, el->pool_hash_key.len, (void**)&pool_element)) {
-			(*pool_element)->active = FALSE;
+		if (SUCCESS == _MS_HASHSTR_GET_ZR_FUNC_PTR(zend_hash_str_find_ptr, &(pool->data.master_list), el->pool_hash_key.c, el->pool_hash_key.len - 1, pool_element)) {
+			(_ms_p_zval pool_element)->active = FALSE;
 		} else {
 			ret = FAIL;
 			DBG_INF_FMT("Pool master list is inconsistent, key=%s", el->pool_hash_key.c);
@@ -196,8 +201,8 @@ pool_flush_active(MYSQLND_MS_POOL * pool TSRMLS_DC)
 
 	BEGIN_ITERATE_OVER_SERVER_LIST(el, &(pool->data.active_slave_list))
 	{
-		if (SUCCESS == zend_hash_find(&(pool->data.slave_list), el->pool_hash_key.c, el->pool_hash_key.len, (void**)&pool_element)) {
-			(*pool_element)->active = FALSE;
+		if (SUCCESS == _MS_HASHSTR_GET_ZR_FUNC_PTR(zend_hash_str_find_ptr, &(pool->data.slave_list), el->pool_hash_key.c, el->pool_hash_key.len - 1, pool_element)) {
+			(_ms_p_zval pool_element)->active = FALSE;
 		} else {
 			ret = FAIL;
 			DBG_INF_FMT("Pool slave list is inconsistent, key=%s", el->pool_hash_key.c);
@@ -212,12 +217,11 @@ pool_flush_active(MYSQLND_MS_POOL * pool TSRMLS_DC)
 /* }}} */
 
 
-/* {{{ pool_clear_all_ht_apply_func */
 static int
-pool_clear_all_ht_apply_func(void *pDest, void * argument TSRMLS_DC)
+pool_clear_all_ht_apply_func(_ms_hash_zval_type *pDest, void * argument TSRMLS_DC)
 {
 	int ret;
-	MYSQLND_MS_POOL_ENTRY * pool_element = (MYSQLND_MS_POOL_ENTRY *)pDest;
+	MYSQLND_MS_POOL_ENTRY * pool_element = (MYSQLND_MS_POOL_ENTRY *) _MS_HASH_Z_PTR_P(pDest);
 
 	if (pool_element->ref_counter > 1) {
 		(*(unsigned int *)argument)++;
@@ -260,7 +264,7 @@ pool_clear_all(MYSQLND_MS_POOL * pool, unsigned int * referenced TSRMLS_DC)
 
 /* {{{ pool_get_conn_hash_key */
 static void
-pool_get_conn_hash_key(smart_str * hash_key,
+pool_get_conn_hash_key(_ms_smart_type * hash_key,
 						const char * const unique_name_from_config,
 						const char * const host,
 						const char * const user,
@@ -274,45 +278,55 @@ pool_get_conn_hash_key(smart_str * hash_key,
 	/* TODO: Check whether we could use MYSQLND_MS_LIST_DATA * as a hash key.
 	 * This may be quite tricky when we ask a question like "do we already have a
 	 * connection to server A open or do we need to create a new MYSQLND_MS_LIST_DATA * object
-	 * with a new connection Hence, to get started, trying this approach without the
+	 * with a new connection" Hence, to get started, trying this approach without the
 	 * pointer address first. It has shortcomings too as it requires a unique name.
 	 * We need to get started...
 	 */
+	// BEGIN HACK
+	// An hack to simplify write consistency
+	_ms_smart_method(appendc, hash_key, GTID_RUNNING_MARKER);
+	_ms_smart_method(appendc, hash_key, '|');
+	// END HACK
 	if (unique_name_from_config) {
-		smart_str_appendl(hash_key, unique_name_from_config, strlen(unique_name_from_config));
+		_ms_smart_method(appendl, hash_key, unique_name_from_config, strlen(unique_name_from_config));
 	}
-	smart_str_appendc(hash_key, '|');
+	_ms_smart_method(appendc, hash_key, '|');
 	if (host) {
-		smart_str_appendl(hash_key, host, strlen(host));
+		_ms_smart_method(appendl, hash_key, host, strlen(host));
 	}
-	smart_str_appendc(hash_key, '|');
+	_ms_smart_method(appendc, hash_key, '|');
 	if (user) {
-		smart_str_appendl(hash_key, user, strlen(user));
+		_ms_smart_method(appendl, hash_key, user, strlen(user));
 	}
+	// BEGIN HACK
+	// Hash key can be stored in memcached server so avoid easy password guess
 	/*
 	  We add an additional char to create a combo that is not easily found in passwords.
 	  This way a password with only `|` won't create similar hash key to password without `|`
 	*/
+	/*
 	smart_str_appendc(hash_key, '|');
 	smart_str_appendc(hash_key, '^');
 	if (passwd && passwd_len) {
 		smart_str_appendl(hash_key, passwd, passwd_len);
 	}
 	smart_str_appendc(hash_key, '^');
-	smart_str_appendc(hash_key, '|');
+	*/
+	// END HACK
+	_ms_smart_method(appendc, hash_key, '|');
 	if (socket) {
-		smart_str_appendl(hash_key, socket, strlen(socket));
+		_ms_smart_method(appendl, hash_key, socket, strlen(socket));
 	}
-	smart_str_appendc(hash_key, '|');
-	smart_str_append_unsigned(hash_key, port);
-	smart_str_appendc(hash_key, '|');
+	_ms_smart_method(appendc, hash_key, '|');
+	_ms_smart_method(append_unsigned, hash_key, port);
+	_ms_smart_method(appendc, hash_key, '|');
 	if (db && db_len) {
-		smart_str_appendl(hash_key, db, db_len);
+		_ms_smart_method(appendl, hash_key, db, db_len);
 	}
-	smart_str_appendc(hash_key, '|');
-	smart_str_append_unsigned(hash_key, connect_flags);
-	smart_str_appendc(hash_key, '|');
-	smart_str_appendc(hash_key, '\0');
+	_ms_smart_method(appendc, hash_key, '|');
+	_ms_smart_method(append_unsigned, hash_key, connect_flags);
+	_ms_smart_method(appendc, hash_key, '|');
+	_ms_smart_method(appendc, hash_key, '\0');
 }
 /* }}} */
 
@@ -327,19 +341,19 @@ pool_init_pool_hash_key(MYSQLND_MS_LIST_DATA * data)
 
 	/* Note, accessing "private" MS_LIST_DATA contents */
 	if (data->pool_hash_key.len) {
-		smart_str_free(&(data->pool_hash_key));
+		_ms_smart_method(free, &(data->pool_hash_key));
 	}
 	pool_get_conn_hash_key(&(data->pool_hash_key),
 							data->name_from_config,
-							data->host, data->user,	data->passwd, data->passwd_len,
-							data->port, data->socket, data->db, data->db_len,
+							MYSQLND_MS_CONN_STRING(data->host), MYSQLND_MS_CONN_STRING(data->user),	MYSQLND_MS_CONN_STRING(data->passwd), MYSQLND_MS_CONN_STRING_LEN(data->passwd),
+							data->port, MYSQLND_MS_CONN_STRING(data->socket), MYSQLND_MS_CONN_STRING(data->db), MYSQLND_MS_CONN_STRING_LEN(data->db),
 							data->connect_flags, data->persistent);
 }
 /* }}} */
 
 /* {{{ pool_add_slave */
 static enum_func_status
-pool_add_slave(MYSQLND_MS_POOL * pool, smart_str * hash_key,
+pool_add_slave(MYSQLND_MS_POOL * pool, _ms_smart_type * hash_key,
 			   MYSQLND_MS_LIST_DATA * data, zend_bool persistent TSRMLS_DC)
 {
 	enum_func_status ret = PASS;
@@ -375,7 +389,7 @@ pool_add_slave(MYSQLND_MS_POOL * pool, smart_str * hash_key,
 		pool_element->ref_counter = 1;
 		pool_element->removed = FALSE;
 
-		if (SUCCESS != zend_hash_add(&(pool->data.slave_list), hash_key->c, hash_key->len, &pool_element, sizeof(MYSQLND_MS_POOL_ENTRY *), NULL)) {
+		if (SUCCESS != _MS_HASHSTR_SET_ZR_FUNC_PTR(zend_hash_str_add_ptr, &(pool->data.slave_list), hash_key->c, hash_key->len - 1, pool_element)) {
 			DBG_INF_FMT("Failed adding, duplicate hash key, added twice?");
 			ret = FAIL;
 		}
@@ -392,7 +406,7 @@ pool_add_slave(MYSQLND_MS_POOL * pool, smart_str * hash_key,
 
 /* {{{ pool_add_master */
 static enum_func_status
-pool_add_master(MYSQLND_MS_POOL * pool, smart_str * hash_key,
+pool_add_master(MYSQLND_MS_POOL * pool, _ms_smart_type * hash_key,
 				MYSQLND_MS_LIST_DATA * data, zend_bool persistent TSRMLS_DC)
 {
 	enum_func_status ret = PASS;
@@ -430,7 +444,7 @@ pool_add_master(MYSQLND_MS_POOL * pool, smart_str * hash_key,
 		pool_element->ref_counter = 1;
 		pool_element->removed = FALSE;
 
-		if (SUCCESS != zend_hash_add(&(pool->data.master_list), hash_key->c, hash_key->len, &pool_element, sizeof(MYSQLND_MS_POOL_ENTRY *), NULL)) {
+		if (SUCCESS != _MS_HASHSTR_SET_ZR_FUNC_PTR(zend_hash_str_add_ptr, &(pool->data.master_list), hash_key->c, hash_key->len - 1, pool_element)) {
 			DBG_INF_FMT("Failed adding, duplicate hash key, added twice?");
 			ret = FAIL;
 		}
@@ -447,13 +461,13 @@ pool_add_master(MYSQLND_MS_POOL * pool, smart_str * hash_key,
 
 /* {{{ pool_connection_exists */
 static zend_bool
-pool_connection_exists(MYSQLND_MS_POOL * pool, smart_str * hash_key,
+pool_connection_exists(MYSQLND_MS_POOL * pool, _ms_smart_type * hash_key,
 					   MYSQLND_MS_LIST_DATA ** data,
 					   zend_bool * is_master, zend_bool * is_active,
 					   zend_bool * is_removed TSRMLS_DC)
 {
 	zend_bool ret = FALSE;
-	MYSQLND_MS_POOL_ENTRY ** pool_element;
+	MYSQLND_MS_POOL_ENTRY _ms_p_zval * pool_element;
 
 	DBG_ENTER("mysqlnd_ms::pool_connection_exists");
 	DBG_INF_FMT("pool=%p  hash_key=%p  is_master=%p  is_active=%p  is_removed=%p", pool, hash_key, is_master, is_active, is_removed);
@@ -471,19 +485,19 @@ pool_connection_exists(MYSQLND_MS_POOL * pool, smart_str * hash_key,
 		DBG_RETURN(FAIL);	
 	}
 
-	if (SUCCESS == zend_hash_find(&(pool->data.master_list), hash_key->c, hash_key->len, (void**)&pool_element)) {
+	if (SUCCESS == _MS_HASHSTR_GET_ZR_FUNC_PTR(zend_hash_str_find_ptr, &(pool->data.master_list), hash_key->c, hash_key->len - 1, pool_element)) {
 		*is_master = TRUE;
-		*is_active = (*pool_element)->active;
-		*is_removed = (*pool_element)->removed;
-		*data = (*pool_element)->data;
+		*is_active = (_ms_p_zval pool_element)->active;
+		*is_removed = (_ms_p_zval pool_element)->removed;
+		*data = (_ms_p_zval pool_element)->data;
 		ret = TRUE;
-		DBG_INF_FMT("element=%p list=%p is_master=%d", *pool_element, &(pool->data.master_list), *is_master);
-	} else if (SUCCESS == zend_hash_find(&(pool->data.slave_list), hash_key->c, hash_key->len, (void**)&pool_element)) {
+		DBG_INF_FMT("element=%p list=%p is_master=%d", _ms_p_zval pool_element, &(pool->data.master_list), *is_master);
+	} else if (SUCCESS == _MS_HASHSTR_GET_ZR_FUNC_PTR(zend_hash_str_find_ptr, &(pool->data.slave_list), hash_key->c, hash_key->len - 1, pool_element)) {
 		*is_master = FALSE;
-		*is_active = (*pool_element)->active;
-		*is_removed = (*pool_element)->removed;
-		*data = (*pool_element)->data;
-		DBG_INF_FMT("element=%p list=%p is_master=%d", *pool_element, &(pool->data.slave_list), *is_master);
+		*is_active = (_ms_p_zval pool_element)->active;
+		*is_removed = (_ms_p_zval pool_element)->removed;
+		*data = (_ms_p_zval pool_element)->data;
+		DBG_INF_FMT("element=%p list=%p is_master=%d", _ms_p_zval pool_element, &(pool->data.slave_list), *is_master);
 		ret = TRUE;
 	}
 
@@ -494,10 +508,10 @@ pool_connection_exists(MYSQLND_MS_POOL * pool, smart_str * hash_key,
 
 /* {{{ pool_connection_reactivate */
 static enum_func_status
-pool_connection_reactivate(MYSQLND_MS_POOL * pool, smart_str * hash_key, zend_bool is_master TSRMLS_DC)
+pool_connection_reactivate(MYSQLND_MS_POOL * pool, _ms_smart_type * hash_key, zend_bool is_master TSRMLS_DC)
 {
 	enum_func_status ret = FAIL;
-	MYSQLND_MS_POOL_ENTRY ** pool_element;
+	MYSQLND_MS_POOL_ENTRY _ms_p_zval * pool_element;
 	enum_mysqlnd_ms_collected_stats stat;
 	HashTable * ht;
 	zend_llist * list;
@@ -518,15 +532,15 @@ pool_connection_reactivate(MYSQLND_MS_POOL * pool, smart_str * hash_key, zend_bo
 	list = (is_master) ? &(pool->data.active_master_list) : &(pool->data.active_slave_list);
 	stat = (is_master) ? MS_STAT_POOL_MASTERS_ACTIVE : MS_STAT_POOL_SLAVES_ACTIVE;
 
-	if (SUCCESS == zend_hash_find(ht, hash_key->c, hash_key->len, (void**)&pool_element)) {
-		DBG_INF_FMT("element=%p is_active=%d is_removed=%d", *pool_element, (*pool_element)->active, (*pool_element)->removed);
-		if (!(*pool_element)->active && !(*pool_element)->removed) {
+	if (SUCCESS == _MS_HASHSTR_GET_ZR_FUNC_PTR(zend_hash_str_find_ptr, ht, hash_key->c, hash_key->len - 1, pool_element)) {
+		DBG_INF_FMT("element=%p is_active=%d is_removed=%d", _ms_p_zval pool_element, (_ms_p_zval pool_element)->active, (_ms_p_zval pool_element)->removed);
+		if (!(_ms_p_zval pool_element)->active && !(_ms_p_zval pool_element)->removed) {
 			ret = PASS;
-			(*pool_element)->active = TRUE;
-			(*pool_element)->activation_counter++;
+			(_ms_p_zval pool_element)->active = TRUE;
+			(_ms_p_zval pool_element)->activation_counter++;
 
-			zend_llist_add_element(list, &(*pool_element)->data);
-			DBG_INF_FMT("reactivating list=%p, list_count=%d, is_master=%d", *pool_element, list, zend_llist_count(list), is_master);
+			zend_llist_add_element(list, &(_ms_p_zval pool_element)->data);
+			DBG_INF_FMT("reactivating list=%p, list_count=%d, is_master=%d", _ms_p_zval pool_element, list, zend_llist_count(list), is_master);
 			MYSQLND_MS_INC_STATISTIC_W_VALUE(stat, zend_llist_count(list));
 		}
 	} else {
@@ -540,10 +554,10 @@ pool_connection_reactivate(MYSQLND_MS_POOL * pool, smart_str * hash_key, zend_bo
 
 /* {{{ pool_register_replace_listener */
 static enum_func_status
-pool_connection_remove(MYSQLND_MS_POOL * pool, smart_str * hash_key, zend_bool is_master TSRMLS_DC)
+pool_connection_remove(MYSQLND_MS_POOL * pool, _ms_smart_type * hash_key, zend_bool is_master TSRMLS_DC)
 {
 	enum_func_status ret = FAIL;
-	MYSQLND_MS_POOL_ENTRY ** pool_element;
+	MYSQLND_MS_POOL_ENTRY _ms_p_zval * pool_element;
 	HashTable * ht;
 
 	DBG_ENTER("mysqlnd_ms::pool_connection_remove");
@@ -561,14 +575,14 @@ pool_connection_remove(MYSQLND_MS_POOL * pool, smart_str * hash_key, zend_bool i
 
 	ht = (is_master) ? &(pool->data.master_list) : &(pool->data.slave_list);
 
-	if (SUCCESS == zend_hash_find(ht, hash_key->c, hash_key->len, (void**)&pool_element)) {
-		DBG_INF_FMT("element=%p is_active=%d is_removed=%d ref_counter=%d", *pool_element, (*pool_element)->active, (*pool_element)->removed, (*pool_element)->ref_counter);
-		if (!(*pool_element)->active && !(*pool_element)->removed) {
-			if (1 == (*pool_element)->ref_counter) {
-				ret = (SUCCESS == zend_hash_del(ht, hash_key->c, hash_key->len)) ? PASS : FAIL;
+	if (SUCCESS == _MS_HASHSTR_GET_ZR_FUNC_PTR(zend_hash_str_find_ptr, ht, hash_key->c, hash_key->len - 1, pool_element)) {
+		DBG_INF_FMT("element=%p is_active=%d is_removed=%d ref_counter=%d", _ms_p_zval pool_element, (_ms_p_zval pool_element)->active, (_ms_p_zval pool_element)->removed, (_ms_p_zval pool_element)->ref_counter);
+		if (!(_ms_p_zval pool_element)->active && !(_ms_p_zval pool_element)->removed) {
+			if (1 == (_ms_p_zval pool_element)->ref_counter) {
+				ret = (SUCCESS == zend_hash_str_del(ht, hash_key->c, hash_key->len)) ? PASS : FAIL;
 			} else {
 				ret = PASS;
-				(*pool_element)->removed = TRUE;
+				(_ms_p_zval pool_element)->removed = TRUE;
 			}
 		}
 	} else {
@@ -642,7 +656,7 @@ static enum_func_status
 pool_add_reference(MYSQLND_MS_POOL * pool, MYSQLND_CONN_DATA * const conn TSRMLS_DC)
 {
 	enum_func_status ret = FAIL;
-	MYSQLND_MS_POOL_ENTRY ** pool_element;
+	MYSQLND_MS_POOL_ENTRY _ms_p_zval * pool_element;
 	HashTable * ht[2];
 	unsigned int i;
 	DBG_ENTER("mysqlnd_ms::pool_add_reference");
@@ -661,15 +675,14 @@ pool_add_reference(MYSQLND_MS_POOL * pool, MYSQLND_CONN_DATA * const conn TSRMLS
 
 	for (i = 0; i < 2; i++) {
 		/* XXX: Do we need to use the internal hash pointer instead of external one? */
-		for (
-				zend_hash_internal_pointer_reset(ht[i]);
-			 	(zend_hash_has_more_elements(ht[i]) == SUCCESS) && (zend_hash_get_current_data(ht[i], (void**)&pool_element) == SUCCESS);
+		for (zend_hash_internal_pointer_reset(ht[i]);
+			 	(zend_hash_has_more_elements(ht[i]) == SUCCESS) && (_MS_HASH_GET_ZR_FUNC_PTR(zend_hash_get_current_data_ptr, ht[i], pool_element) == SUCCESS);
 				zend_hash_move_forward(ht[i])
 			)
 		{
-			if ((*pool_element)->data->conn == conn) {
-				(*pool_element)->ref_counter++;
-				DBG_INF_FMT("%s ref_counter=%d", (0 == i) ? "master" : "slave", (*pool_element)->ref_counter);
+			if ((_ms_p_zval pool_element)->data->conn == conn) {
+				(_ms_p_zval pool_element)->ref_counter++;
+				DBG_INF_FMT("%s ref_counter=%d", (0 == i) ? "master" : "slave", (_ms_p_zval pool_element)->ref_counter);
 				ret = SUCCESS;
 				DBG_RETURN(ret);
 			}
@@ -686,7 +699,7 @@ static enum_func_status
 pool_free_reference(MYSQLND_MS_POOL * pool, MYSQLND_CONN_DATA * const conn TSRMLS_DC)
 {
 	enum_func_status ret = FAIL;
-	MYSQLND_MS_POOL_ENTRY ** pool_element;
+	MYSQLND_MS_POOL_ENTRY _ms_p_zval * pool_element;
 	HashTable * ht[2];
 	unsigned int i;
 	DBG_ENTER("mysqlnd_ms::pool_free_reference");
@@ -707,14 +720,14 @@ pool_free_reference(MYSQLND_MS_POOL * pool, MYSQLND_CONN_DATA * const conn TSRML
 		/* XXX: Do we need to use the internal hash pointer instead of external one? */
 		for (
 				zend_hash_internal_pointer_reset(ht[i]);
-			 	(zend_hash_has_more_elements(ht[i]) == SUCCESS) && (zend_hash_get_current_data(ht[i], (void**)&pool_element) == SUCCESS);
+			 	(zend_hash_has_more_elements(ht[i]) == SUCCESS) && (_MS_HASH_GET_ZR_FUNC_PTR(zend_hash_get_current_data_ptr, ht[i], pool_element) == SUCCESS);
 				zend_hash_move_forward(ht[i])
 			)
 		{
 			ret = PASS;
-			if ((*pool_element)->ref_counter > 1) {
-				(*pool_element)->ref_counter--;
-				DBG_INF_FMT("%s ref_counter=%d", (0 == i) ? "master" : "slave", (*pool_element)->ref_counter);
+			if ((_ms_p_zval pool_element)->ref_counter > 1) {
+				(_ms_p_zval pool_element)->ref_counter--;
+				DBG_INF_FMT("%s ref_counter=%d", (0 == i) ? "master" : "slave", (_ms_p_zval pool_element)->ref_counter);
 			} else {
 				DBG_INF_FMT("%s double free", (0 == i) ? "master" : "slave");
 			}
@@ -932,7 +945,7 @@ pool_dispatch_set_server_option(MYSQLND_MS_POOL * pool, func_mysqlnd_conn_data__
 /* }}} */
 
 static
-zend_bool pool_client_option_is_char(enum_mysqlnd_option option) {
+zend_bool pool_client_option_is_char(enum_mysqlnd_client_option option) {
 
 	zend_bool ret = TRUE;
 
@@ -961,7 +974,7 @@ zend_bool pool_client_option_is_char(enum_mysqlnd_option option) {
 
 /* {{{ buffer_search_client_option */
 static
-zend_bool buffer_search_client_option(MYSQLND_MS_POOL_CMD * pool_cmd, void * arg1, void * arg2 TSRMLS_DC)
+zend_bool buffer_search_client_option(const MYSQLND_MS_POOL_CMD * pool_cmd, void * arg1, void * arg2 TSRMLS_DC)
 {
 	MYSQLND_MS_POOL_CMD_SET_CLIENT_OPTION  * cmd_data;
 	DBG_ENTER("buffer_search_client_option");
@@ -972,7 +985,7 @@ zend_bool buffer_search_client_option(MYSQLND_MS_POOL_CMD * pool_cmd, void * arg
 
 	cmd_data = (MYSQLND_MS_POOL_CMD_SET_CLIENT_OPTION  *)pool_cmd->data;
 	if ((pool_cmd->cmd == POOL_CMD_SET_CLIENT_OPTION) &&
-		(cmd_data->option == *(enum_mysqlnd_option *)arg1)) {
+		(cmd_data->option == *(enum_mysqlnd_client_option *)arg1)) {
 
 		/*
 		* FIXME: We keep the buffered commands in a list.
@@ -1021,7 +1034,7 @@ zend_bool buffer_search_client_option(MYSQLND_MS_POOL_CMD * pool_cmd, void * arg
 /* {{{ pool_dispatch_set_client_option */
 static enum_func_status
 pool_dispatch_set_client_option(MYSQLND_MS_POOL * pool, func_mysqlnd_conn_data__set_client_option cb,
-								enum_mysqlnd_option option,	const char * const value TSRMLS_DC)
+		enum_mysqlnd_client_option option,	const char * const value TSRMLS_DC)
 {
 	enum_func_status ret = PASS;
 	MYSQLND_MS_POOL_CMD_SET_CLIENT_OPTION  * cmd_data;

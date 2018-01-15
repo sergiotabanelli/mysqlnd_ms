@@ -107,4 +107,4 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_settings_host_credentials_invalid.ini
 	  printf("[clean] Cannot unlink ini file 'test_mysqlnd_ms_settings_host_credentials_invalid.ini'.\n");
 ?>
 --EXPECTF--
-Catchable fatal error: mysqli_real_connect(): (mysqlnd_ms) Invalid value for connect_flags '-1' . Stopping in %s on line %d
+%s fatal error: mysqli_real_connect(): (mysqlnd_ms) Invalid value for connect_flags '-1' . Stopping in %s on line %d

@@ -127,7 +127,7 @@ static int mysqlnd_fabric_fill_server_from_value(xmlNodePtr node, mysqlnd_fabric
 	return 0;
 }
 
-mysqlnd_fabric_server *mysqlnd_fabric_parse_xml(mysqlnd_fabric *fabric, char *xmlstr, int xmlstr_len)
+mysqlnd_fabric_server *mysqlnd_fabric_parse_xml(mysqlnd_fabric *fabric, const char *xmlstr, int xmlstr_len)
 {
 	mysqlnd_fabric_server *retval;
 	xmlDocPtr doc;

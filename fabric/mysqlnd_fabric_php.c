@@ -24,45 +24,43 @@
 #include "main/spprintf.h"
 #include "main/php_streams.h"
 
+#include "mysqlnd_ms.h"
 #include "mysqlnd_fabric.h"
 #include "mysqlnd_fabric_priv.h"
 
-char *mysqlnd_fabric_http(mysqlnd_fabric *fabric, char *url, char *request_body, size_t request_body_len, size_t *response_len)
+zend_string *mysqlnd_fabric_http(mysqlnd_fabric *fabric, char *url, char *request_body, size_t request_body_len)
 {
-    char *retval;
+	_MS_STR_DECL(ret);
 	zval method, content, header;
 	php_stream_context *ctxt;
 	php_stream *stream = NULL;
 	TSRMLS_FETCH();
 	
-	ZVAL_STRINGL(&method, "POST", sizeof("POST")-1, 0);
-	ZVAL_STRINGL(&content, request_body, request_body_len, 0);
-	ZVAL_STRINGL(&header, "Content-type: text/xml", sizeof("Content-type: text/xml")-1, 0);
-	
+	_MS_ZVAL_STRINGL(&method, "POST", sizeof("POST")-1);
+	_MS_ZVAL_STRINGL(&content, request_body, request_body_len);
+	_MS_ZVAL_STRINGL(&header, "Content-type: text/xml", sizeof("Content-type: text/xml")-1);
 	/* prevent anybody from freeing these */
-	Z_SET_ISREF(method);
+/*	Z_SET_ISREF(method);
 	Z_SET_ISREF(content);
 	Z_SET_ISREF(header);
 	Z_SET_REFCOUNT(method, 2);
 	Z_SET_REFCOUNT(content, 2);
-	Z_SET_REFCOUNT(header, 2);
+	Z_SET_REFCOUNT(header, 2); */
 	
 	ctxt = php_stream_context_alloc(TSRMLS_C);
 	php_stream_context_set_option(ctxt, "http", "method", &method);
 	php_stream_context_set_option(ctxt, "http", "content", &content);
 	php_stream_context_set_option(ctxt, "http", "header", &header);
-
     /* TODO: Switch to quiet mode? */
 	stream = php_stream_open_wrapper_ex(url, "rb", REPORT_ERRORS, NULL, ctxt);
-	if (!stream) {
-		*response_len = 0;
-		return NULL;
+	if (stream) {
+		_MS_STR_L_FUNC_PS_1(php_stream_copy_to_mem, stream, ret, PHP_STREAM_COPY_ALL, 0);
+	    php_stream_close(stream);
 	}
 	
-	*response_len = php_stream_copy_to_mem(stream, &retval, PHP_STREAM_COPY_ALL, 0);
-    php_stream_close(stream);
-  
-	return retval;
+    zval_dtor(&method);zval_dtor(&content);zval_dtor(&header);
+    php_stream_context_free(ctxt);
+    _MS_RETURN_ZSTR(ret, 0);
 }
 
 /*

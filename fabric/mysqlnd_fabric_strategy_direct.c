@@ -59,18 +59,18 @@ static void mysqlnd_fabric_host_shuffle(mysqlnd_fabric_rpc_host *a, size_t n)
 static mysqlnd_fabric_server *mysqlnd_fabric_direct_do_request(mysqlnd_fabric *fabric, char *req, size_t req_len)
 {
 	size_t len = 0;
-	char *response;
+	zend_string *response;
 	mysqlnd_fabric_rpc_host *server;
 
 	mysqlnd_fabric_host_shuffle(fabric->hosts, fabric->host_count);
 	for (server = fabric->hosts; !len && server < fabric->hosts  + fabric->host_count; server++) {
 		/* TODO: Switch to quiet mode */
-        response = mysqlnd_fabric_http(fabric, server->url, req, req_len, &len);
+        response = mysqlnd_fabric_http(fabric, server->url, req, req_len);
 	};
 
 	efree(req);
 
-	return mysqlnd_fabric_parse_xml(fabric, response, len);
+	return mysqlnd_fabric_parse_xml(fabric, response->val, response->len);
 }
 
 static mysqlnd_fabric_server *mysqlnd_fabric_direct_get_group_servers(mysqlnd_fabric *fabric, const char *group)

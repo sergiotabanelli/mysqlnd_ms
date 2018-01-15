@@ -28,4 +28,4 @@ $c = new mysqli("testfabric", "root", "");
 unlink("fabric_no_hosts_in_confg.json");
 ?>
 --EXPECTF--
-Fatal error: mysqli::mysqli(): (mysqlnd_ms) Section [hosts] doesn't exist for host. This is needed for MySQL Fabric in %s on line %d
+Fatal error: mysqli::%s(): (mysqlnd_ms) Section [hosts] doesn't exist. This is needed for MySQL Fabric in %s on line %d

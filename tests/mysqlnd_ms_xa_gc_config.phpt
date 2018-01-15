@@ -167,7 +167,7 @@ foreach ($settings as $host => $setting) {
 	$setting['xa'] = array_merge($setting['xa'], array('state_store' =>
 			array(
 				'participant_localhost_ip' => '127.0.0.1',
-				'mysql' =>
+				'mysql' => 
 					array(
 						'host' => $emulated_master_host_only,
 						'user' => $user,
@@ -201,7 +201,6 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_xa_gc_config.ini
 	require_once("util.inc");
 
 	set_error_handler('mst_error_handler');
-
 
 	if (!($link = mst_mysqli_connect("max_retries_type", $user, $passwd, $db, $port, $socket)))
 		printf("[001] [%d] '%s'\n", mysqli_connect_errno(), mysqli_connect_error());

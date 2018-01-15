@@ -78,33 +78,33 @@
 
 /* {{{ mysqlnd_ms_xa_state_to_string */
 void
-mysqlnd_ms_xa_state_to_string(enum mysqlnd_ms_xa_state state, smart_str * str)
+mysqlnd_ms_xa_state_to_string(enum mysqlnd_ms_xa_state state, _ms_smart_type * str)
 {
 	switch (state) {
 		case XA_NON_EXISTING:
-			smart_str_appendl(str, "XA_NON_EXISTING" , sizeof("XA_NON_EXISTING") - 1);
+			_ms_smart_method(appendl, str, "XA_NON_EXISTING" , sizeof("XA_NON_EXISTING") - 1);
 			break;
 		case XA_ACTIVE:
-			smart_str_appendl(str, "XA_ACTIVE", sizeof("XA_ACTIVE") - 1);
+			_ms_smart_method(appendl, str, "XA_ACTIVE", sizeof("XA_ACTIVE") - 1);
 			break;
 		case XA_IDLE:
-			smart_str_appendl(str, "XA_IDLE", sizeof("XA_IDLE") - 1);
+			_ms_smart_method(appendl, str, "XA_IDLE", sizeof("XA_IDLE") - 1);
 			break;
 		case XA_PREPARED:
-			smart_str_appendl(str, "XA_PREPARED", sizeof("XA_PREPARED") - 1);
+			_ms_smart_method(appendl, str, "XA_PREPARED", sizeof("XA_PREPARED") - 1);
 			break;
 		case XA_COMMIT:
-			smart_str_appendl(str, "XA_COMMIT", sizeof("XA_COMMIT") - 1);
+			_ms_smart_method(appendl, str, "XA_COMMIT", sizeof("XA_COMMIT") - 1);
 			break;
 		case XA_ROLLBACK:
-			smart_str_appendl(str, "XA_ROLLBACK", sizeof("XA_ROLLBACK") - 1);
+			_ms_smart_method(appendl, str, "XA_ROLLBACK", sizeof("XA_ROLLBACK") - 1);
 			break;
 		default:
 			/* forgotten option? */
 			assert(0);
 			break;
 	}
-	smart_str_0(str);
+	_ms_smart_method(0, str);
 }
 /* }}} */
 
@@ -135,6 +135,7 @@ void mysqlnd_ms_load_xa_config(struct st_mysqlnd_ms_config_json_entry * main_sec
 
 				/* store is part of the GC struct */
 				xa_trx->gc = mnd_pecalloc(1, sizeof(MYSQLND_MS_XA_GC), TRUE /* persistent */);
+//				if (FALSE) {
 				if (xa_trx->gc) {
 					xa_trx->gc->gc_max_retries = 5;
 					xa_trx->gc->gc_probability = 5;
@@ -159,7 +160,7 @@ void mysqlnd_ms_load_xa_config(struct st_mysqlnd_ms_config_json_entry * main_sec
 						xa_trx->gc->store.load_config(state_store_section, xa_trx->gc->store.data, error_info, TRUE TSRMLS_CC);
 					}
 				}
-
+//				}
 			} else {
 				mysqlnd_ms_client_n_php_error(error_info, CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, E_RECOVERABLE_ERROR TSRMLS_CC,
 											  MYSQLND_MS_ERROR_PREFIX " Currently '" SECT_XA_STORE_MYSQL
@@ -169,8 +170,10 @@ void mysqlnd_ms_load_xa_config(struct st_mysqlnd_ms_config_json_entry * main_sec
 			}
 			if (xa_trx->gc) {
 				/* register in global list of garbage collection settings, if no GC has been registered for the host (= cluster/config section) already */
-				if (!zend_hash_exists(&MYSQLND_MS_G(xa_state_stores), xa_trx->host, xa_trx->host_len + 1)) {
-					if (zend_hash_add(&MYSQLND_MS_G(xa_state_stores), xa_trx->host, xa_trx->host_len + 1, &xa_trx->gc, sizeof(MYSQLND_MS_XA_GC *), NULL)) {
+				MYSQLND_MS_XA_GC _ms_p_zval * hentry_pp = NULL;
+				if (SUCCESS != _MS_HASHSTR_GET_ZR_FUNC_PTR(zend_hash_str_find_ptr, &MYSQLND_MS_G(xa_state_stores), xa_trx->host, xa_trx->host_len, hentry_pp)) {
+//				if (!zend_hash_str_exists(&MYSQLND_MS_G(xa_state_stores), xa_trx->host, xa_trx->host_len + 1)) {
+					if (_MS_HASHSTR_SET_ZR_FUNC_PTR(zend_hash_str_add_ptr, &MYSQLND_MS_G(xa_state_stores), xa_trx->host, xa_trx->host_len, xa_trx->gc)) {
 						mysqlnd_ms_client_n_php_error(error_info, CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, E_RECOVERABLE_ERROR TSRMLS_CC,
 												MYSQLND_MS_ERROR_PREFIX " Failed to setup garbage collection %s", xa_trx->host);
 							xa_trx->gc->store.dtor(&(xa_trx->gc->store.data), TRUE TSRMLS_CC);
@@ -365,23 +368,20 @@ mysqlnd_ms_xa_participant_change_state(MYSQLND_CONN_DATA * proxy_conn, MYSQLND_M
 	enum_func_status ret = FAIL;
 	MS_DECLARE_AND_LOAD_CONN_DATA(participant_conn_data, participant->conn);
 	MS_DECLARE_AND_LOAD_CONN_DATA(proxy_conn_data, proxy_conn);
-	MYSQLND_ERROR_INFO tmp_error_info = { {'\0'}, {'\0'}, 0, NULL }, org_error_info;
+	MYSQLND_ERROR_INFO tmp_error_info = { {'\0'}, {'\0'}, 0, NULL };
 	MYSQLND_ERROR_INFO * error_info = MYSQLND_MS_XA_PROXY_ERROR_INFO(proxy_conn, *proxy_conn_data);
 
 	DBG_ENTER("mysqlnd_ms_xa_participant_change_state");
+	_ms_mysqlnd_error_info_init(&tmp_error_info);
 
 	if (!report_error) {
-		org_error_info = *error_info;
-		*error_info = tmp_error_info;
+		/* preserve current error */
+		SET_CLIENT_ERROR(_ms_a_ei tmp_error_info, error_info->error_no, error_info->sqlstate, error_info->error);
 	}
 
 	(*participant_conn_data)->skip_ms_calls = TRUE;
 	ret = MS_CALL_ORIGINAL_CONN_DATA_METHOD(query)(participant->conn, (const char *)sql, sql_len TSRMLS_CC);
 	(*participant_conn_data)->skip_ms_calls = FALSE;
-
-	if (!report_error) {
-		*error_info = org_error_info;
-	}
 
 	if (PASS == ret) {
 		if ((*proxy_conn_data)->xa_trx->gc) {
@@ -402,12 +402,19 @@ mysqlnd_ms_xa_participant_change_state(MYSQLND_CONN_DATA * proxy_conn, MYSQLND_M
 																		participant,
 																		&MYSQLND_MS_ERROR_INFO(participant->conn) TSRMLS_CC);
 		}
+		if (report_error && !tmp_error_info.error_no)
+			COPY_CLIENT_ERROR(_ms_p_ei error_info, MYSQLND_MS_ERROR_INFO(participant->conn));
+
 	}
 
 	if (PASS != ret) {
 		DBG_INF_FMT("conn="MYSQLND_LLU_SPEC", id=%d (%p) state=%d failed to change to state=%d",
 			participant->conn->thread_id, participant->id, participant->conn, participant->state, to);
 	}
+	if (!report_error) {
+		SET_CLIENT_ERROR(_ms_p_ei error_info, tmp_error_info.error_no, tmp_error_info.sqlstate, tmp_error_info.error);
+	}
+	_ms_mysqlnd_error_info_free_contents(&tmp_error_info);
 
 	DBG_RETURN(ret);
 }
@@ -426,9 +433,10 @@ mysqlnd_ms_xa_participants_change_state(MYSQLND_CONN_DATA * proxy_conn,
 	MYSQLND_ERROR_INFO * error_info = MYSQLND_MS_XA_PROXY_ERROR_INFO(proxy_conn, *proxy_conn_data);
 
 	DBG_ENTER("mysqlnd_ms_xa_participants_change_state");
+	_ms_mysqlnd_error_info_init(&tmp_error_info);
 	if (!report_error) {
 		/* preserve current error */
-		SET_CLIENT_ERROR(tmp_error_info, error_info->error_no, error_info->sqlstate, error_info->error);
+		SET_CLIENT_ERROR(_ms_a_ei tmp_error_info, error_info->error_no, error_info->sqlstate, error_info->error);
 	}
 
 	BEGIN_ITERATE_OVER_PARTICIPANT_LIST(participant, &(*proxy_conn_data)->xa_trx->participants)
@@ -453,12 +461,12 @@ mysqlnd_ms_xa_participants_change_state(MYSQLND_CONN_DATA * proxy_conn,
 				} else {
 					ret = ok;
 					if (report_error && !tmp_error_info.error_no) {
-						SET_CLIENT_ERROR(tmp_error_info, error_info->error_no, error_info->sqlstate, error_info->error);
+						SET_CLIENT_ERROR(_ms_a_ei tmp_error_info, error_info->error_no, error_info->sqlstate, error_info->error);
 					}
 				}
 
 			} else {
-				smart_str state_to = { 0, 0, 0 };
+				_ms_smart_type state_to = { 0, 0, 0 };
 				mysqlnd_ms_xa_state_to_string(to, &state_to);
 
 				if ((*proxy_conn_data)->xa_trx->gc) {
@@ -484,15 +492,15 @@ mysqlnd_ms_xa_participants_change_state(MYSQLND_CONN_DATA * proxy_conn,
 						(MYSQLND_MS_ERROR_INFO(participant->conn).error)
 					);
 				}
-				smart_str_free(&state_to);
+				_ms_smart_method(free, &state_to);
 			}
 		}
 	END_ITERATE_OVER_PARTICIPANT_LIST
 
 	if (tmp_error_info.error_no) {
-		SET_CLIENT_ERROR(*error_info, tmp_error_info.error_no, tmp_error_info.sqlstate, tmp_error_info.error);
+		SET_CLIENT_ERROR(_ms_p_ei error_info, tmp_error_info.error_no, tmp_error_info.sqlstate, tmp_error_info.error);
 	}
-
+	_ms_mysqlnd_error_info_free_contents(&tmp_error_info);
 	DBG_RETURN(ret);
 }
 
@@ -507,7 +515,7 @@ mysqlnd_ms_xa_monitor_begin(MYSQLND_CONN_DATA * proxy_conn, MYSQLND_MS_CONN_DATA
 	MYSQLND_ERROR_INFO * error_info = MYSQLND_MS_XA_PROXY_ERROR_INFO(proxy_conn, proxy_conn_data);
 	DBG_ENTER("mysqlnd_ms_xa_monitor_begin");
 
-	SET_EMPTY_ERROR(*error_info);
+	SET_EMPTY_ERROR(_ms_p_ei error_info);
 
 	if (!proxy_conn_data->xa_trx) {
 		/* Something is very wrong */
@@ -645,7 +653,7 @@ mysqlnd_ms_xa_monitor_direct_commit(MYSQLND_CONN_DATA * proxy_conn, MYSQLND_MS_C
 
 	DBG_ENTER("mysqlnd_ms_xa_monitor_direct_commit");
 
-	SET_EMPTY_ERROR(*error_info);
+	SET_EMPTY_ERROR(_ms_p_ei error_info);
 
 	/* TODO XA: bark */
 	if (!proxy_conn_data->xa_trx) {
@@ -838,7 +846,7 @@ mysqlnd_ms_xa_monitor_direct_rollback(MYSQLND_CONN_DATA * proxy_conn, MYSQLND_MS
 
 	DBG_ENTER("mysqlnd_ms_xa_monitor_direct_rollback");
 
-	SET_EMPTY_ERROR(*error_info);
+	SET_EMPTY_ERROR(_ms_p_ei error_info);
 
 	/* TODO XA: bark */
 	if (!proxy_conn_data->xa_trx) {
@@ -945,7 +953,7 @@ mysqlnd_ms_xa_gc_one(MYSQLND_CONN_DATA * proxy_conn, MYSQLND_MS_CONN_DATA * prox
 	DBG_ENTER("mysqlnd_ms_xa_gc_one");
 	DBG_INF_FMT("ignore_max_retries=%d", ignore_max_retries);
 
-	SET_EMPTY_ERROR(*error_info);
+	SET_EMPTY_ERROR(_ms_p_ei error_info);
 
 	if (!proxy_conn_data->xa_trx) {
 		/* Something is very wfrong */
@@ -979,7 +987,7 @@ mysqlnd_ms_xa_gc_all(MYSQLND_CONN_DATA * proxy_conn, MYSQLND_MS_CONN_DATA * prox
 	DBG_ENTER("mysqlnd_ms_xa_gc_all");
 	DBG_INF_FMT("ignore_max_retries=%d", ignore_max_retries);
 
-	SET_EMPTY_ERROR(*error_info);
+	SET_EMPTY_ERROR(_ms_p_ei error_info);
 
 	if (!proxy_conn_data->xa_trx) {
 		/* Something is very wrong */
@@ -1077,10 +1085,10 @@ mysqlnd_ms_xa_proxy_conn_free(MYSQLND_MS_CONN_DATA * proxy_conn_data, zend_bool 
 /* {{{ mysqlnd_ms_xa_gc_hash_dtor
  Free GC hash list entries
  */
-void
-mysqlnd_ms_xa_gc_hash_dtor(void *pDest) {
+void mysqlnd_ms_xa_gc_hash_dtor(_ms_hash_zval_type * pDest) {
 	unsigned long rnd_idx;
-	MYSQLND_MS_XA_GC * gc = *(MYSQLND_MS_XA_GC **)pDest;
+	MYSQLND_MS_XA_GC * gc =  pDest ? _ms_p_zval (MYSQLND_MS_XA_GC _ms_p_zval *) _MS_HASH_Z_PTR_P(pDest) : NULL;
+	DBG_ENTER("mysqlnd_ms_xa_gc_hash_dtor");
 
 	TSRMLS_FETCH();
 
@@ -1093,7 +1101,9 @@ mysqlnd_ms_xa_gc_hash_dtor(void *pDest) {
 
 		gc->store.dtor(&(gc->store.data), TRUE TSRMLS_CC);
 		mnd_pefree(gc, TRUE);
+		gc->store.data = NULL;
 	}
+	DBG_VOID_RETURN;
 }
 
 /* {{{ mysqlnd_ms_xa_add_participant */

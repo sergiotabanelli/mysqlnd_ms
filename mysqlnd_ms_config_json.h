@@ -42,6 +42,12 @@ PHP_MYSQLND_MS_API struct st_mysqlnd_ms_json_config * mysqlnd_ms_config_json_ini
 PHP_MYSQLND_MS_API void mysqlnd_ms_config_json_free(struct st_mysqlnd_ms_json_config * cfg TSRMLS_DC);
 PHP_MYSQLND_MS_API enum_func_status mysqlnd_ms_config_json_load_configuration(struct st_mysqlnd_ms_json_config * cfg TSRMLS_DC);
 
+// BEGIN HACK
+PHP_MYSQLND_MS_API enum_func_status mysqlnd_ms_config_json_load_configuration_aux(char * json_file_name, struct st_mysqlnd_ms_config_json_entry **section, zend_bool cfg TSRMLS_DC);
+PHP_MYSQLND_MS_API struct st_mysqlnd_ms_config_json_entry * mysqlnd_ms_config_json_load_host_configuration(const char * host TSRMLS_DC);
+void mysqlnd_ms_config_json_section_dtor(void * data);
+// END HACK
+
 PHP_MYSQLND_MS_API zend_bool mysqlnd_ms_config_json_section_exists(struct st_mysqlnd_ms_json_config * cfg, const char * section, size_t section_len, ulong nkey, zend_bool use_lock TSRMLS_DC);
 PHP_MYSQLND_MS_API zend_bool mysqlnd_ms_config_json_sub_section_exists(struct st_mysqlnd_ms_config_json_entry * main_section, const char * section, size_t section_len, ulong nkey TSRMLS_DC);
 

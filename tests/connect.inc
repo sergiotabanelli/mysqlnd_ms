@@ -78,6 +78,9 @@
 		$emulated_slave_host_only = substr($emulated_slave_host, 0, $pos);
 	}
 
+	/* Memcached setting */
+	$memcached_port_add_hack = getenv("MYSQL_TEST_MEMCACHED_PORT_ADD_HACK") ? getenv("MYSQL_TEST_MEMCACHED_PORT_ADD_HACK") : 7905;
+	
 	/* Development setting: test experimal features and/or feature requests that never worked before? */
 	$TEST_EXPERIMENTAL = (in_array(getenv("MYSQL_TEST_EXPERIMENTAL"), array(0, 1))) ?
 				((1 == getenv("MYSQL_TEST_EXPERIMENTAL")) ? true : false) :

@@ -30,8 +30,9 @@
 #ifndef mnd_emalloc
 #include "ext/mysqlnd/mysqlnd_alloc.h"
 #endif
-#if PHP_VERSION_ID >= 50400
 #include "ext/mysqlnd/mysqlnd_ext_plugin.h"
+#if PHP_VERSION_ID >= 70100
+#include "ext/mysqlnd/mysqlnd_connection.h"
 #endif
 
 #ifdef MYSQLND_MS_HAVE_MYSQLND_QC
@@ -45,22 +46,31 @@
 
 
 // BEGIN HACK
+
+static enum_func_status
+mysqlnd_ms_qos_server_has_gtid(MYSQLND_CONN_DATA * conn, MYSQLND_MS_CONN_DATA ** conn_data, char *sql, size_t sql_len,
+								unsigned int wait_time,
+								MYSQLND_ERROR_INFO * tmp_error_info TSRMLS_DC);
+
 /* {{{ mysqlnd_ms_section_filters_set_gtid_qos */
 enum_func_status
 mysqlnd_ms_section_filters_set_gtid_qos(MYSQLND_CONN_DATA * conn, char * gtid, size_t gtid_len TSRMLS_DC)
 {
-  	MYSQLND_MS_CONN_DATA ** conn_data;
+	MS_DECLARE_AND_LOAD_CONN_DATA(conn_data, conn);
 	enum_func_status ret = FAIL;
 	DBG_ENTER("mysqlnd_ms_section_filters_set_gtid_qos");
 	DBG_INF_FMT("set gtid %s", gtid);
-	conn_data = (MYSQLND_MS_CONN_DATA **) mysqlnd_plugin_get_plugin_connection_data_data(conn, mysqlnd_ms_plugin_id);
 	if (conn_data && *conn_data) {
 		struct mysqlnd_ms_lb_strategies * stgy = &(*conn_data)->stgy;
 		zend_llist * filters = stgy->filters;
 		MYSQLND_MS_FILTER_QOS_DATA * qos_filter = NULL;
 		MYSQLND_MS_FILTER_DATA * filter, ** filter_pp;
 		zend_llist_position	pos;
-
+		if (conn != (*conn_data)->proxy_conn) {
+			MS_LOAD_CONN_DATA(conn_data, (*conn_data)->proxy_conn);
+			stgy = &(*conn_data)->stgy;
+			filters = stgy->filters;
+		}
 		for (filter_pp = (MYSQLND_MS_FILTER_DATA **) zend_llist_get_first_ex(filters, &pos);
 			 filter_pp && (filter = *filter_pp) && (!qos_filter);
 			  (filter_pp = (MYSQLND_MS_FILTER_DATA **) zend_llist_get_next_ex(filters, &pos)))
@@ -70,15 +80,17 @@ mysqlnd_ms_section_filters_set_gtid_qos(MYSQLND_CONN_DATA * conn, char * gtid, s
 			}
 		}
 		if (qos_filter && qos_filter->consistency == CONSISTENCY_SESSION) {
-			if (qos_filter->option_data.gtid_len) {
-				efree(qos_filter->option_data.gtid);
-				qos_filter->option_data.gtid_len = 0;
-				qos_filter->option_data.gtid = NULL;
+			if (gtid && gtid_len) {
+				if (qos_filter->option_data.gtid_len) {
+					efree(qos_filter->option_data.gtid);
+					qos_filter->option_data.gtid_len = 0;
+					qos_filter->option_data.gtid = NULL;
+				}
+				qos_filter->option_data.gtid_len = gtid_len;
+				qos_filter->option_data.gtid = estrndup(gtid, gtid_len);
+				qos_filter->option = QOS_OPTION_GTID;
+				DBG_INF_FMT("set qos gtid %s", qos_filter->option_data.gtid);
 			}
-			qos_filter->option_data.gtid_len = gtid_len;
-			qos_filter->option_data.gtid = estrndup(gtid, gtid_len);
-			qos_filter->option = QOS_OPTION_GTID;
-			DBG_INF_FMT("set qos gtid %s", qos_filter->option_data.gtid);
 			ret = PASS;
 		}
 	}
@@ -111,7 +123,7 @@ mysqlnd_ms_section_filters_is_gtid_qos(MYSQLND_CONN_DATA * conn TSRMLS_DC)
   	MYSQLND_MS_CONN_DATA ** conn_data;
 	enum_func_status ret = FAIL;
 	DBG_ENTER("mysqlnd_ms_section_filters_is_gtid_qos");
-	conn_data = (MYSQLND_MS_CONN_DATA **) mysqlnd_plugin_get_plugin_connection_data_data(conn, mysqlnd_ms_plugin_id);
+	conn_data = (MYSQLND_MS_CONN_DATA **) _ms_mysqlnd_plugin_get_plugin_connection_data_data(conn, mysqlnd_ms_plugin_id);
 	if (conn_data && *conn_data) {
 		struct mysqlnd_ms_lb_strategies * stgy = &(*conn_data)->stgy;
 		zend_llist * filters = stgy->filters;
@@ -132,27 +144,6 @@ mysqlnd_ms_section_filters_is_gtid_qos(MYSQLND_CONN_DATA * conn TSRMLS_DC)
 		}
 	}
 	DBG_RETURN(ret);
-}
-/* }}} */
-
-/* {{{ mysqlnd_ms_qos_chk_last_gtid */
-static enum_func_status
-mysqlnd_ms_qos_chk_last_gtid(char *last_gtid, size_t last_gtid_len,
-								char *gtid, size_t gtid_len TSRMLS_DC)
-{
-	DBG_ENTER("mysqlnd_ms_qos_chk_last_gtid");
-	if (last_gtid && last_gtid_len == gtid_len && memcmp(last_gtid, gtid, gtid_len) == 0) {
-		DBG_RETURN(PASS);
-	} else if (gtid && gtid_len && last_gtid && last_gtid_len) {
-		uintmax_t ngtid = strtoumax(gtid, NULL, 10);
-		uintmax_t lgtid = strtoumax(last_gtid, NULL, 10);
-		DBG_INF_FMT("Last %" PRIu64 " Check %" PRIu64 "", lgtid, ngtid);
-		if (((ngtid == UINTMAX_MAX || lgtid == UINTMAX_MAX) && errno == ERANGE) || ngtid > lgtid) {
-			DBG_RETURN(FAIL);
-		}
-		DBG_RETURN(PASS);
-	}
-	DBG_RETURN(FAIL);
 }
 /* }}} */
 
@@ -325,8 +316,8 @@ mysqlnd_ms_qos_server_has_gtid(MYSQLND_CONN_DATA * conn, MYSQLND_MS_CONN_DATA **
 		MS_TIME_SET(run_time);
 	}
 	do {
-		if ((PASS == MS_CALL_ORIGINAL_CONN_DATA_METHOD(send_query)(conn, sql, sql_len TSRMLS_CC)) &&
-			(PASS ==  MS_CALL_ORIGINAL_CONN_DATA_METHOD(reap_query)(conn TSRMLS_CC)) &&
+		if ((PASS == MS_CALL_ORIGINAL_CONN_DATA_METHOD(send_query)(conn, sql, sql_len _MS_SEND_QUERY_AD_EXT TSRMLS_CC)) &&
+			(PASS ==  MS_CALL_ORIGINAL_CONN_DATA_METHOD(reap_query)(conn  _MS_REAP_QUERY_AD_EXT TSRMLS_CC)) &&
 #if PHP_VERSION_ID < 50600
 			(res = MS_CALL_ORIGINAL_CONN_DATA_METHOD(store_result)(conn TSRMLS_CC))
 #else
@@ -381,35 +372,17 @@ mysqlnd_ms_qos_server_has_gtid(MYSQLND_CONN_DATA * conn, MYSQLND_MS_CONN_DATA **
 
 /* {{{ mysqlnd_ms_qos_server_get_lag_stage1 */
 enum_func_status
-mysqlnd_ms_qos_server_get_lag_stage1(MYSQLND_CONN_DATA * conn, MYSQLND_MS_CONN_DATA ** conn_data,
-									 MYSQLND_ERROR_INFO * tmp_error_info TSRMLS_DC)
+mysqlnd_ms_qos_server_get_lag_stage1(MYSQLND_CONN_DATA * conn, MYSQLND_MS_CONN_DATA ** conn_data TSRMLS_DC)
 {
 	enum_func_status ret;
-#if MYSQLND_VERSION_ID >= 50010
-	MYSQLND_ERROR_INFO * org_error_info;
-#else
-	MYSQLND_ERROR_INFO org_error_info;
-#endif
 
 	DBG_ENTER("mysqlnd_ms_qos_server_get_lag_stage1");
 
-	/* hide errors from user */
-	org_error_info = conn->error_info;
-#if MYSQLND_VERSION_ID >= 50010
-	conn->error_info = tmp_error_info;
-#else
-	SET_EMPTY_ERROR(conn->error_info);
-#endif
 	(*conn_data)->skip_ms_calls = TRUE;
 
-	ret = MS_CALL_ORIGINAL_CONN_DATA_METHOD(send_query)(conn, SHOW_SS_QUERY , sizeof(SHOW_SS_QUERY) - 1 TSRMLS_CC);
+	ret = MS_CALL_ORIGINAL_CONN_DATA_METHOD(send_query)(conn, SHOW_SS_QUERY , sizeof(SHOW_SS_QUERY) - 1  _MS_SEND_QUERY_AD_EXT TSRMLS_CC);
 
 	(*conn_data)->skip_ms_calls = FALSE;
-
-#if MYSQLND_VERSION_ID < 50010
-	*tmp_error_info = conn->error_info;
-#endif
-	conn->error_info = org_error_info;
 
 	DBG_RETURN(ret);
 }
@@ -418,29 +391,16 @@ mysqlnd_ms_qos_server_get_lag_stage1(MYSQLND_CONN_DATA * conn, MYSQLND_MS_CONN_D
 
 /* {{{ mysqlnd_ms_qos_get_lag_stage2 */
 static long
-mysqlnd_ms_qos_server_get_lag_stage2(MYSQLND_CONN_DATA * conn, MYSQLND_MS_CONN_DATA ** conn_data,
-									 MYSQLND_ERROR_INFO * tmp_error_info TSRMLS_DC)
+mysqlnd_ms_qos_server_get_lag_stage2(MYSQLND_CONN_DATA * conn, MYSQLND_MS_CONN_DATA ** conn_data TSRMLS_DC)
 {
 	MYSQLND_RES * res = NULL;
 	long lag = -1L;
-#if MYSQLND_VERSION_ID >= 50010
-	MYSQLND_ERROR_INFO * org_error_info;
-#else
-	MYSQLND_ERROR_INFO org_error_info;
-#endif
 
 	DBG_ENTER("mysqlnd_ms_qos_server_get_lag_stage2");
 
-	/* hide errors from user */
-	org_error_info = conn->error_info;
-#if MYSQLND_VERSION_ID >= 50010
-	conn->error_info = tmp_error_info;
-#else
-	SET_EMPTY_ERROR(conn->error_info);
-#endif
 	(*conn_data)->skip_ms_calls = TRUE;
 
-	if ((PASS == MS_CALL_ORIGINAL_CONN_DATA_METHOD(reap_query)(conn TSRMLS_CC)) &&
+	if ((PASS == MS_CALL_ORIGINAL_CONN_DATA_METHOD(reap_query)(conn  _MS_REAP_QUERY_AD_EXT TSRMLS_CC)) &&
 #if PHP_VERSION_ID < 50600
 		(res = MS_CALL_ORIGINAL_CONN_DATA_METHOD(store_result)(conn TSRMLS_CC))
 #else
@@ -448,59 +408,55 @@ mysqlnd_ms_qos_server_get_lag_stage2(MYSQLND_CONN_DATA * conn, MYSQLND_MS_CONN_D
 #endif
 	)
 	{
-		zval * row;
-		zval ** seconds_behind_master;
-		zval ** io_running;
-		zval ** sql_running;
+		zval _ms_p_zval row;
+		zval _ms_p_zval * seconds_behind_master;
+		zval _ms_p_zval * io_running;
+		zval _ms_p_zval * sql_running;
 
 		MAKE_STD_ZVAL(row);
-		mysqlnd_fetch_into(res, MYSQLND_FETCH_ASSOC, row, MYSQLND_MYSQL);
-		if (Z_TYPE_P(row) == IS_ARRAY) {
+		mysqlnd_fetch_into(res, MYSQLND_FETCH_ASSOC, _ms_a_zval row, MYSQLND_MYSQL);
+		if (Z_TYPE_P(_ms_a_zval row) == IS_ARRAY) {
 			/* TODO: make test incasesensitive */
-			if (FAILURE == zend_hash_find(Z_ARRVAL_P(row), "Slave_IO_Running", sizeof("Slave_IO_Running"), (void**)&io_running)) {
-				SET_CLIENT_ERROR((*tmp_error_info),  CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, "Failed to extract Slave_IO_Running");
+			if (FAILURE == _MS_HASHSTR_GET_ZR_FUNC_PTR(zend_hash_str_find, Z_ARRVAL_P(_ms_a_zval row), "Slave_IO_Running", sizeof("Slave_IO_Running") - 1, io_running)) {
+				SET_CLIENT_ERROR((_ms_p_ei conn->error_info),  CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, "Failed to extract Slave_IO_Running");
 				goto getlagsqlerror;
 			}
 
-			if ((Z_TYPE_PP(io_running) != IS_STRING) ||
-				(0 != strncasecmp(Z_STRVAL_PP(io_running), "Yes", Z_STRLEN_PP(io_running))))
+			if ((Z_TYPE_P(_ms_p_zval io_running) != IS_STRING) ||
+				(0 != strncasecmp(Z_STRVAL_P(_ms_p_zval io_running), "Yes", Z_STRLEN_P(_ms_p_zval io_running))))
 			{
-				SET_CLIENT_ERROR((*tmp_error_info),  CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, "Slave_IO_Running is not 'Yes'");
+				SET_CLIENT_ERROR((_ms_p_ei conn->error_info),  CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, "Slave_IO_Running is not 'Yes'");
 				goto getlagsqlerror;
 			}
 
-			if (FAILURE == zend_hash_find(Z_ARRVAL_P(row), "Slave_SQL_Running", sizeof("Slave_SQL_Running"), (void**)&sql_running))
+			if (FAILURE == _MS_HASHSTR_GET_ZR_FUNC_PTR(zend_hash_str_find, Z_ARRVAL_P(_ms_a_zval row), "Slave_SQL_Running", sizeof("Slave_SQL_Running") - 1, sql_running))
 			{
-				SET_CLIENT_ERROR((*tmp_error_info),  CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, "Failed to extract Slave_SQL_Running");
+				SET_CLIENT_ERROR((_ms_p_ei conn->error_info),  CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, "Failed to extract Slave_SQL_Running");
 				goto getlagsqlerror;
 			}
 
-			if ((Z_TYPE_PP(io_running) != IS_STRING) ||
-				(0 != strncasecmp(Z_STRVAL_PP(sql_running), "Yes", Z_STRLEN_PP(sql_running))))
+			if ((Z_TYPE_P(_ms_p_zval io_running) != IS_STRING) ||
+				(0 != strncasecmp(Z_STRVAL_P(_ms_p_zval sql_running), "Yes", Z_STRLEN_P(_ms_p_zval sql_running))))
 			{
-				SET_CLIENT_ERROR((*tmp_error_info),  CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, "Slave_SQL_Running is not 'Yes'");
+				SET_CLIENT_ERROR((_ms_p_ei conn->error_info),  CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, "Slave_SQL_Running is not 'Yes'");
 				goto getlagsqlerror;
 			}
 
-			if (FAILURE == zend_hash_find(Z_ARRVAL_P(row), "Seconds_Behind_Master", sizeof("Seconds_Behind_Master"), (void**)&seconds_behind_master))
+			if (FAILURE == _MS_HASHSTR_GET_ZR_FUNC_PTR(zend_hash_str_find, Z_ARRVAL_P(_ms_a_zval row), "Seconds_Behind_Master", sizeof("Seconds_Behind_Master") - 1, seconds_behind_master))
 			{
-				SET_CLIENT_ERROR((*tmp_error_info),  CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, "Failed to extract Seconds_Behind_Master");
+				SET_CLIENT_ERROR((_ms_p_ei conn->error_info),  CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, "Failed to extract Seconds_Behind_Master");
 				goto getlagsqlerror;
 			}
 
-			lag = Z_LVAL_PP(seconds_behind_master);
+			lag = Z_LVAL_P(_ms_p_zval seconds_behind_master);
 		}
 
 getlagsqlerror:
-		zval_ptr_dtor(&row);
+		_ms_zval_ptr_dtor(_ms_a_zval row);
 	}
 
 	(*conn_data)->skip_ms_calls = FALSE;
 
-#if MYSQLND_VERSION_ID < 50010
-	*tmp_error_info = conn->error_info;
-#endif
-	conn->error_info = org_error_info;
 
 	if (res) {
 		res->m.free_result(res, FALSE TSRMLS_CC);
@@ -558,8 +514,7 @@ mysqlnd_ms_qos_which_server(const char * query, size_t query_len, struct mysqlnd
 		default:
 			break;
 	}
-
-	DBG_RETURN(which_server);
+ 	DBG_RETURN(which_server);
 }
 /* }}} */
 
@@ -584,6 +539,7 @@ mysqlnd_ms_choose_connection_qos(MYSQLND_CONN_DATA * conn, void * f_data, const 
 
 	switch (filter_data->consistency) {
 		case CONSISTENCY_SESSION:
+//BEGIN HACK
 			/*
 			  For now...
 				 We may be able to use selected slaves which have replicated
@@ -596,6 +552,7 @@ mysqlnd_ms_choose_connection_qos(MYSQLND_CONN_DATA * conn, void * f_data, const 
 				 all slaves which have replicated the latest updates on the
 				 table in question.
 			*/
+/*
 			if ((QOS_OPTION_GTID == filter_data->option) && (USE_MASTER != mysqlnd_ms_qos_which_server(*query, *query_len, stgy TSRMLS_CC)))
 			{
 				smart_str sql = {0, 0, 0};
@@ -607,8 +564,8 @@ mysqlnd_ms_choose_connection_qos(MYSQLND_CONN_DATA * conn, void * f_data, const 
 					if (!conn_data || !*conn_data) {
 						continue;
 					}
-//BEGIN HACK
-/*					if ((*conn_data)->global_trx.check_for_gtid && (CONN_GET_STATE(connection) != CONN_QUIT_SENT) &&
+
+					if ((*conn_data)->global_trx.check_for_gtid && (CONN_GET_STATE(connection) != CONN_QUIT_SENT) &&
 						(
 							(CONN_GET_STATE(connection) > CONN_ALLOCED) ||
 							(PASS == mysqlnd_ms_lazy_connect(element, TRUE TSRMLS_CC)
@@ -645,90 +602,6 @@ mysqlnd_ms_choose_connection_qos(MYSQLND_CONN_DATA * conn, void * f_data, const 
 					if (exit_loop) {
 						break;
 					}
-*/
-					{
-						char * gtid = filter_data->option_data.gtid;
-						size_t gtid_len = filter_data->option_data.gtid_len;
-						if (mysqlnd_ms_qos_chk_last_gtid((*conn_data)->global_trx.last_gtid, (*conn_data)->global_trx.last_gtid_len, gtid, gtid_len) == PASS) {
-							DBG_INF_FMT("Gtid %s already checked, valid slave %s %s", (*conn_data)->global_trx.last_gtid, element->host, gtid);
-							zend_llist_add_element(selected_slaves, &element);
-							continue;
-						}
-						if ((*conn_data)->global_trx.last_gtid) {
-							mnd_pefree((*conn_data)->global_trx.last_gtid, conn->persistent);
-							(*conn_data)->global_trx.last_gtid = NULL;
-							(*conn_data)->global_trx.last_gtid_len = (size_t)0;
-						}
-						if ((*conn_data)->global_trx.memcached_key_len == 0 && (*conn_data)->global_trx.check_for_gtid && (CONN_GET_STATE(connection) != CONN_QUIT_SENT) &&
-							(
-								(CONN_GET_STATE(connection) > CONN_ALLOCED) ||
-								(PASS == mysqlnd_ms_lazy_connect(element, TRUE TSRMLS_CC)
-							)))
-						{
-
-							DBG_INF_FMT("Checking SQL slave connection "MYSQLND_LLU_SPEC"", connection->thread_id);
-
-							if (!sql.c) {
-								char * pos = strstr((*conn_data)->global_trx.check_for_gtid, "#GTID");
-								if (pos) {
-									smart_str_appendl(&sql, (*conn_data)->global_trx.check_for_gtid,
-													  pos - ((*conn_data)->global_trx.check_for_gtid));
-									smart_str_appends(&sql, filter_data->option_data.gtid);
-									smart_str_appends(&sql, (*conn_data)->global_trx.check_for_gtid + (pos - ((*conn_data)->global_trx.check_for_gtid)) + sizeof("#GTID") - 1);
-									smart_str_appendc(&sql, '\0');
-								} else {
-									mysqlnd_ms_client_n_php_error(NULL, CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, E_WARNING TSRMLS_CC,
-											MYSQLND_MS_ERROR_PREFIX " Failed parse SQL for checking GTID. Cannot find #GTID placeholder");
-									break;
-								}
-							}
-							if (sql.c) {
-								MYSQLND_ERROR_INFO tmp_error_info;
-								memset(&tmp_error_info, 0, sizeof(MYSQLND_ERROR_INFO));
-								if (PASS == mysqlnd_ms_qos_server_has_gtid(connection, conn_data, sql.c, sql.len - 1, (*conn_data)->global_trx.wait_for_gtid_timeout,  &tmp_error_info TSRMLS_CC)) {
-									DBG_INF_FMT("Add valid slave %s", element->host);
-									zend_llist_add_element(selected_slaves, &element);
-									(*conn_data)->global_trx.last_gtid = mnd_pestrndup(gtid, gtid_len, conn->persistent);
-									(*conn_data)->global_trx.last_gtid_len = gtid_len;
-								} else {
-									if (tmp_error_info.error_no) {
-										mysqlnd_ms_client_n_php_error(NULL, CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, E_WARNING TSRMLS_CC,
-												MYSQLND_MS_ERROR_PREFIX " SQL error while checking slave for GTID: %d/'%s'",
-												tmp_error_info.error_no, tmp_error_info.error);
-									}
-								}
-							}
-						}
-#ifndef PHP_WIN32
-						if ((*conn_data)->global_trx.memcached_key_len > 0) {
-							DBG_INF_FMT("Checking Memcached slave connection "MYSQLND_LLU_SPEC"", connection->thread_id);
-							memcached_st *memc = (*conn_data)->global_trx.memc;
-							if (memc) {
-								memcached_return_t rc;
-								uint32_t flags;
-								char * last_gtid = NULL;
-								size_t last_gtid_len = 0;
-								last_gtid = memcached_get(memc, (*conn_data)->global_trx.memcached_key, (*conn_data)->global_trx.memcached_key_len, &last_gtid_len, &flags, &rc);
-								if (rc == MEMCACHED_SUCCESS) {
-									if (mysqlnd_ms_qos_chk_last_gtid(last_gtid, last_gtid_len, gtid, gtid_len) == PASS) {
-										DBG_INF_FMT("Add valid slave %s gtid %s for query %s", element->host, last_gtid, *query);
-										zend_llist_add_element(selected_slaves, &element);
-										(*conn_data)->global_trx.last_gtid = mnd_pestrndup(last_gtid, last_gtid_len, conn->persistent);
-										(*conn_data)->global_trx.last_gtid_len = last_gtid_len;
-									} else {
-										DBG_INF_FMT("Not a valid slave %s gtid %s for query %s", element->host, last_gtid, *query);
-									}
-								} else {
-									DBG_INF_FMT("Memcached error %d", rc);
-								}
-								if (last_gtid) free(last_gtid);
-							} else {
-								DBG_INF("no Memcached connection");
-							}
-						}
-#endif
-					}
-//END HACK
 
 				END_ITERATE_OVER_SERVER_LIST;
 
@@ -739,21 +612,56 @@ mysqlnd_ms_choose_connection_qos(MYSQLND_CONN_DATA * conn, void * f_data, const 
 				END_ITERATE_OVER_SERVER_LIST;
 				break;
 			}
-			// BEGIN HACK
-/*
- * Fall to strong consistency has no sense,
- * if yuo need strong consistency when no gtid is set
- * then set strong consistency by config file and
- * set gtid session consistency programmatically as usual
- */
-			else if ((QOS_OPTION_GTID != filter_data->option)  && (USE_MASTER != mysqlnd_ms_qos_which_server(*query, *query_len, stgy TSRMLS_CC))) {
-				DBG_INF("No gtid writes add all slaves");
-				BEGIN_ITERATE_OVER_SERVER_LIST(element, slave_list)
-					zend_llist_add_element(selected_slaves, &element);
-				END_ITERATE_OVER_SERVER_LIST;
+			DBG_INF("fall-through from session consistency");
+*/
+			{
+				MS_DECLARE_AND_LOAD_CONN_DATA(conn_data, conn);
+//				if ((*conn_data)->global_trx.type != GTID_NONE && QOS_OPTION_GTID == filter_data->option) {
+				if ((*conn_data)->global_trx.type != GTID_NONE && (*conn_data)->global_trx.is_prepare == FALSE) {
+					enum enum_which_server which_server = mysqlnd_ms_qos_which_server(*query, *query_len, stgy TSRMLS_CC);
+					if (which_server == USE_MASTER || which_server == USE_SLAVE) {
+						zend_bool is_write = (USE_MASTER == which_server) ||
+								((*conn_data)->stgy.trx_stickiness_strategy != TRX_STICKINESS_STRATEGY_DISABLED && (*conn_data)->stgy.in_transaction && ((*conn_data)->stgy.trx_stickiness_strategy == TRX_STICKINESS_STRATEGY_MASTER || (*conn_data)->stgy.trx_read_only == FALSE));
+						(*conn_data)->global_trx.m->gtid_filter(conn, filter_data->option_data.gtid, *query, *query_len, slave_list, master_list, selected_slaves, selected_masters, is_write TSRMLS_CC);
+						if ((zend_llist_count(selected_masters) + zend_llist_count(selected_slaves)) <= 0) {
+							php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Something wrong no valid selection");
+							if ((*conn_data)->global_trx.race_avoid_strategy & GTID_RACE_AVOID_ADD_ERROR) {
+								DBG_INF_FMT("Race avoid: add error marker %s", MEMCACHED_ERROR_KEY);
+								(*conn_data)->global_trx.m->gtid_trace(conn, MEMCACHED_ERROR_KEY, sizeof(MEMCACHED_ERROR_KEY) - 1, 0, *query, *query_len TSRMLS_CC);
+							}
+							if ((*conn_data)->global_trx.race_avoid_strategy & GTID_RACE_AVOID_ADD_ACTIVE) {
+								DBG_INF("Race avoid: add active servers");
+								(*conn_data)->global_trx.m->gtid_race_add_active(conn, master_list, selected_masters, is_write TSRMLS_CC);
+								if ((USE_SLAVE == which_server)) {
+									(*conn_data)->global_trx.m->gtid_race_add_active(conn, slave_list, selected_slaves, FALSE TSRMLS_CC);
+								}
+							}
+						}
+						break;
+					} else { //Someone other than me will provide ?
+						zend_bool forced;
+						(*conn_data)->global_trx.injectable_query = mysqlnd_ms_query_is_injectable_query(*query, *query_len, &forced TSRMLS_CC);
+						DBG_INF_FMT("Something forced: no master or slave %u add all slaves", which_server);
+						BEGIN_ITERATE_OVER_SERVER_LIST(element, slave_list)
+							zend_llist_add_element(selected_slaves, &element);
+						END_ITERATE_OVER_SERVER_LIST;
+					}
+				}
+	/*
+	 * Fall to strong consistency has no sense,
+	 * if yuo need strong consistency when no gtid is set
+	 * then set strong consistency by config file and
+	 * set gtid session consistency programmatically as usual
+	 */
+				else if (USE_MASTER != mysqlnd_ms_qos_which_server(*query, *query_len, stgy TSRMLS_CC)) {
+					DBG_INF("No gtid writes add all slaves");
+					BEGIN_ITERATE_OVER_SERVER_LIST(element, slave_list)
+						zend_llist_add_element(selected_slaves, &element);
+					END_ITERATE_OVER_SERVER_LIST;
+				}
+				DBG_INF("fall-through from session consistency");
 			}
 			// END HACK
-			DBG_INF("fall-through from session consistency");
 		case CONSISTENCY_STRONG:
 			/*
 			For now and forever...
@@ -818,40 +726,35 @@ mysqlnd_ms_choose_connection_qos(MYSQLND_CONN_DATA * conn, void * f_data, const 
 							continue;
 						}
 
-						if ((CONN_GET_STATE(connection) != CONN_QUIT_SENT) &&
+						if ((_MS_CONN_GET_STATE(connection) != CONN_QUIT_SENT) &&
 							(
-								(CONN_GET_STATE(connection) > CONN_ALLOCED) ||
+								(_MS_CONN_GET_STATE(connection) > CONN_ALLOCED) ||
 								(PASS == mysqlnd_ms_lazy_connect(element, TRUE TSRMLS_CC))
 							))
 						{
-							MYSQLND_ERROR_INFO tmp_error_info = {{'\0'}, {'\0'}, 0};
-
 							DBG_INF_FMT("Checking slave connection "MYSQLND_LLU_SPEC"", connection->thread_id);
-							tmp_error_info.error_no = 0;
 
-							if (PASS == mysqlnd_ms_qos_server_get_lag_stage1(connection, conn_data, &tmp_error_info TSRMLS_CC)) {
+							if (PASS == mysqlnd_ms_qos_server_get_lag_stage1(connection, conn_data TSRMLS_CC)) {
 								zend_llist_add_element(&stage1_slaves, &element);
-							} else if (tmp_error_info.error_no) {
+							} else if (connection->error_info->error_no) {
 								mysqlnd_ms_client_n_php_error(NULL, CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, E_WARNING TSRMLS_CC,
 										MYSQLND_MS_ERROR_PREFIX " SQL error while checking slave for lag: %d/'%s'",
-										tmp_error_info.error_no, tmp_error_info.error);
+										connection->error_info->error_no, connection->error_info->error);
 							}
 						}
 					END_ITERATE_OVER_SERVER_LIST;
 					/* Stage 2 - Now, after all servers have something to do, try to fetch the result, in the same order */
 					BEGIN_ITERATE_OVER_SERVER_LIST(element, &stage1_slaves)
 						long lag;
-						MYSQLND_ERROR_INFO tmp_error_info;
 						MYSQLND_CONN_DATA * connection = element->conn;
 						MS_DECLARE_AND_LOAD_CONN_DATA(conn_data, connection);
 
-						memset(&tmp_error_info, 0, sizeof(MYSQLND_ERROR_INFO));
 
-						lag = mysqlnd_ms_qos_server_get_lag_stage2(connection, conn_data, &tmp_error_info TSRMLS_CC);
-						if (tmp_error_info.error_no) {
+						lag = mysqlnd_ms_qos_server_get_lag_stage2(connection, conn_data TSRMLS_CC);
+						if (connection->error_info->error_no) {
 							mysqlnd_ms_client_n_php_error(NULL, CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, E_WARNING TSRMLS_CC,
 												MYSQLND_MS_ERROR_PREFIX " SQL error while checking slave for lag (%d): %d/'%s'",
-												lag, tmp_error_info.error_no, tmp_error_info.error);
+												lag, connection->error_info->error_no, connection->error_info->error);
 							continue;
 						}
 
@@ -931,7 +834,7 @@ mysqlnd_ms_section_filters_prepend_qos(MYSQLND * proxy_conn,
 
 	DBG_ENTER("mysqlnd_ms_section_filters_prepend_qos");
 
-	conn_data = (MYSQLND_MS_CONN_DATA **) mysqlnd_plugin_get_plugin_connection_data_data(proxy_conn->data, mysqlnd_ms_plugin_id);
+	conn_data = (MYSQLND_MS_CONN_DATA **) _ms_mysqlnd_plugin_get_plugin_connection_data_data(proxy_conn->data, mysqlnd_ms_plugin_id);
 	DBG_INF_FMT("conn_data=%p *conn_data=%p", conn_data, conn_data? *conn_data : NULL);
 
 	if (conn_data && *conn_data) {

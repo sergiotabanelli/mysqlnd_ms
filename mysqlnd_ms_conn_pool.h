@@ -27,13 +27,6 @@
 #ifndef SMART_STR_PREALLOC
 #define SMART_STR_PREALLOC 256
 #endif
-#include "ext/standard/php_smart_str.h"
-#include "Zend/zend_llist.h"
-#include "Zend/zend_hash.h"
-
-#ifdef ZTS
-#include "TSRM.h"
-#endif
 
 #include "php.h"
 #include "ext/standard/info.h"
@@ -42,7 +35,7 @@
 #include "ext/mysqlnd/mysqlnd_debug.h"
 #include "ext/mysqlnd/mysqlnd_priv.h"
 
-#include "mysqlnd_ms_enum_n_def.h"
+#include "mysqlnd_ms.h"
 
 
 /* Buffered commands for conection state alignment */
@@ -86,7 +79,7 @@ typedef struct st_mysqlnd_pool_cmd_set_server_option
 typedef struct st_mysqlnd_pool_cmd_set_client_option
 {
 	func_mysqlnd_conn_data__set_client_option cb;
-	enum_mysqlnd_option option;
+	enum_mysqlnd_client_option option;
 	char * value;
 	unsigned int value_int;
 } MYSQLND_MS_POOL_CMD_SET_CLIENT_OPTION;
@@ -146,7 +139,7 @@ typedef struct st_mysqlnd_pool
 		zend_bool persistent;
 
 		/* Dtor from MS for master and slave list entries */
-		dtor_func_t ms_list_data_dtor;
+		llist_dtor_func_t ms_list_data_dtor;
 
 		zend_llist replace_listener;
 
@@ -200,7 +193,7 @@ typedef struct st_mysqlnd_pool
 	 * we risk identical hash keys if the same server is used for multiple roles.
 	 * The latter is not forbidden. In fact, it is a feature heavily used by the tests.
 	 */
-	void (*get_conn_hash_key)(smart_str * hash_key /* out */,
+	void (*get_conn_hash_key)(_ms_smart_type * hash_key /* out */,
 							const char * const unique_name_from_config,
 							const char * const host,
 							const char * const user,
@@ -213,13 +206,13 @@ typedef struct st_mysqlnd_pool
 
 	/* Add connections to the pool */
 	enum_func_status (*add_slave)(struct st_mysqlnd_pool * pool,
-								  smart_str * hash_key,
+			                      _ms_smart_type * hash_key,
 								  MYSQLND_MS_LIST_DATA * data,
 								  zend_bool persistent
 								  TSRMLS_DC);
 
 	enum_func_status (*add_master)(struct st_mysqlnd_pool * pool,
-								   smart_str * hash_key,
+			                       _ms_smart_type * hash_key,
 								   MYSQLND_MS_LIST_DATA * data,
 								   zend_bool persistent
 								   TSRMLS_DC);
@@ -229,7 +222,7 @@ typedef struct st_mysqlnd_pool
 	 * A connection can be reactivated if is_active = FALSE, is_removed = FALSE
 	 */
 	zend_bool (*connection_exists)(struct st_mysqlnd_pool * pool,
-								   smart_str * hash_key,
+			                       _ms_smart_type * hash_key,
 								   MYSQLND_MS_LIST_DATA **data,
 								   zend_bool * is_master,
 								   zend_bool * is_active,
@@ -249,7 +242,7 @@ typedef struct st_mysqlnd_pool
 	 * Note: roles (master/slave) cannot change - saw no need, change if you like...
 	 */
 	enum_func_status (*connection_reactivate)(struct st_mysqlnd_pool * pool,
-									  		  smart_str * hash_key,
+			                                  _ms_smart_type * hash_key,
 											  zend_bool is_master
 											  TSRMLS_DC);
 
@@ -267,7 +260,7 @@ typedef struct st_mysqlnd_pool
 	 * can be actually removed prior to giving up.
 	 */
 	enum_func_status (*connection_remove)(struct st_mysqlnd_pool * pool,
-										  smart_str * hash_key,
+			                              _ms_smart_type * hash_key,
 										  zend_bool is_master
 										  TSRMLS_DC);
 
@@ -326,7 +319,11 @@ typedef struct st_mysqlnd_pool
 
 	enum_func_status (*dispatch_set_client_option)(struct st_mysqlnd_pool *pool,
 												func_mysqlnd_conn_data__set_client_option cb,
+#if PHP_VERSION_ID < 70100
 												enum_mysqlnd_option option,
+#else
+												enum_mysqlnd_client_option option,
+#endif
 												const char * const value TSRMLS_DC);
 
 	enum_func_status (*dispatch_change_user)(struct st_mysqlnd_pool * pool,
@@ -373,7 +370,7 @@ typedef struct st_mysqlnd_pool_listener
 } MYSQLND_MS_POOL_LISTENER;
 
 
-MYSQLND_MS_POOL * mysqlnd_ms_pool_ctor(dtor_func_t ms_list_data_dtor, zend_bool persistent TSRMLS_DC);
+MYSQLND_MS_POOL * mysqlnd_ms_pool_ctor(llist_dtor_func_t ms_list_data_dtor, zend_bool persistent TSRMLS_DC);
 
 typedef struct st_mysqlnd_pool_entry
 {
@@ -381,7 +378,7 @@ typedef struct st_mysqlnd_pool_entry
 	MYSQLND_MS_LIST_DATA * data;
 	/* dtor the MS core provides to free LIST_DATA member */
 	/* TODO: can we simplify the pointer logic, one level less? */
-	dtor_func_t ms_list_data_dtor;
+	llist_dtor_func_t ms_list_data_dtor;
 
 	/* Private entries that make the pool logic itself */
 

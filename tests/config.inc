@@ -4,21 +4,26 @@
 	and gives no acceess to original environment :(. If it would at least
 	preserve and overwrite only selected ones ...
 	*/
-
+	$baseport = 20393;
+	$mport = $baseport;
+	$sport = $baseport+1;
+	$emport = $baseport+2;
+	$esport = $baseport+3;
+	
 	putenv("MYSQL_TEST_HOST=127.0.0.1");
-	putenv("MYSQL_TEST_PORT=3306");
+	putenv("MYSQL_TEST_PORT=$emport");
 	putenv("MYSQL_TEST_USER=root");
-	putenv("MYSQL_TEST_PASSWD=root");
+	putenv("MYSQL_TEST_PASSWD=msandbox");
 	putenv("MYSQL_TEST_DB=test");
 	putenv("MYSQL_TEST_ENGINE=InnoDB");
-	putenv("MYSQL_TEST_SOCKET=/tmp/mysql.sock");
-
+	putenv("MYSQL_TEST_MEMCACHED_PORT_ADD_HACK=7905");
+	
 	putenv("MYSQL_TEST_SKIP_CONNECT_FAILURE=1");
 	putenv("MYSQL_TEST_CONNECT_FLAGS=0");
 	putenv("MYSQL_TEST_EXPERIMENTAL=0");
 
 	/* Whether to run Fabric related tests */
-	putenv("MYSQL_TEST_FABRIC=1");
+	putenv("MYSQL_TEST_FABRIC=0");
 	/* MySQL Fabric */
 	putenv("MYSQL_TEST_FABRIC_HOST=127.0.0.1");
 	putenv("MYSQL_TEST_FABRIC_PORT=8080");
@@ -42,9 +47,9 @@
 	*/
 
 	/* emulated master - standalone MySQL, not part of a replication cluster */
-	putenv("MYSQL_TEST_EMULATED_MASTER_HOST=". getenv("MYSQL_TEST_HOST"));
+	putenv("MYSQL_TEST_EMULATED_MASTER_HOST=127.0.0.1:$emport");
 	/* emulated slave - standalone MySQL, not part of a replication cluster */
-	putenv("MYSQL_TEST_EMULATED_SLAVE_HOST=127.0.0.1:3307");
+	putenv("MYSQL_TEST_EMULATED_SLAVE_HOST=127.0.0.1:$esport");
 
 	/*
 	Some tests require real replication cluster.
@@ -56,11 +61,7 @@
 	*/
 
 	/* master - master of a replication cluster */
-	putenv("MYSQL_TEST_MASTER_HOST=127.0.0.1:11515");
+	putenv("MYSQL_TEST_MASTER_HOST=127.0.0.1:$mport");
 	/* slave - slave of the replication cluster using the above master */
-	putenv("MYSQL_TEST_SLAVE_HOST=127.0.0.1:11516");
-	/* master - master of a replication cluster */
-	putenv("MYSQL_TEST_MASTER_HOST=127.0.0.1:15650");
-	/* slave - slave of the replication cluster using the above master */
-	putenv("MYSQL_TEST_SLAVE_HOST=127.0.0.1:15651");
+	putenv("MYSQL_TEST_SLAVE_HOST=127.0.0.1:$sport");
 ?>

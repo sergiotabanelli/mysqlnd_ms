@@ -20,6 +20,7 @@
 
 #ifndef MYSQLND_FABRIC_PRIV_H
 #define MYSQLND_FABRIC_PRIV_H
+#include "mysqlnd_ms.h"
 
 /* Staying close to mysqlnd here for now, may change later */
 #define SET_EMPTY_FABRIC_ERROR(fabric) \
@@ -112,8 +113,8 @@ struct struct_mysqlnd_fabric {
 };
 
 
-char *mysqlnd_fabric_http(mysqlnd_fabric *fabric, char *url, char *request_body, size_t request_body_len, size_t *response_len);
-mysqlnd_fabric_server *mysqlnd_fabric_parse_xml(mysqlnd_fabric *fabric, char *xmlstr, int xmlstr_len);
+zend_string *mysqlnd_fabric_http(mysqlnd_fabric *fabric, char *url, char *request_body, size_t request_body_len);
+mysqlnd_fabric_server *mysqlnd_fabric_parse_xml(mysqlnd_fabric *fabric, const char *xmlstr, int xmlstr_len);
 
 #endif	/* MYSQLND_FABRIC_PRIV_H */
 

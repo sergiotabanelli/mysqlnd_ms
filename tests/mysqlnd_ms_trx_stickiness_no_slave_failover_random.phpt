@@ -12,7 +12,7 @@ _skipif_check_extensions(array("mysqli"));
 
 $settings = array(
 	"myapp" => array(
-		'master' => array($emulated_master_host, "unknown:6033", $emulated_master_host),
+		'master' => array($emulated_master_host, "realyunknownrealy:6033", $emulated_master_host),
 		'slave' => array(),
 		'trx_stickiness' => 'on',
 		'pick' => array("random"),

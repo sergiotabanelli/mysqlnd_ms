@@ -105,7 +105,7 @@ mysqlnd_ms.multi_master=1
 string(15) "6 - first slave"
 [007] [1054] %s
 string(15) "8 - first slave"
-[014] [1193] %s
+[014] [1064] %s
 string(7) "master1"
 string(7) "master2"
 [018] [1054] %s

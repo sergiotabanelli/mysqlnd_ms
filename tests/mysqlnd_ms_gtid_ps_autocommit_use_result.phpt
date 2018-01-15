@@ -16,6 +16,8 @@ include_once("util.inc");
 $sql = mst_get_gtid_sql($db);
 if ($error = mst_mysqli_setup_gtid_table($emulated_master_host_only, $user, $passwd, $db, $emulated_master_port, $emulated_master_socket))
   die(sprintf("SKIP Failed to setup GTID on master, %s\n", $error));
+if ($error = mst_mysqli_setup_gtid_table($emulated_slave_host_only, $user, $passwd, $db, $emulated_slave_port, $emulated_slave_socket))
+  die(sprintf("SKIP Failed to setup GTID on slave, %s\n", $error));
 
 $settings = array(
 	"myapp" => array(
@@ -25,11 +27,20 @@ $settings = array(
 			"roundrobin" => array(),
 		),
 		'global_transaction_id_injection' => array(
+		 	'type'						=> 1,
 			'on_commit'	 				=> $sql['update'],
+			'fetch_last_gtid'			=> $sql['fetch_last_gtid'],
 			'report_error'				=> true,
 		),
+
+		'lazy_connections' => 1,
 		'trx_stickiness' => 'disabled',
-		'lazy_connections' => 1
+		'filters' => array(
+			"quality_of_service" => array(
+				"session_consistency" => 1,
+			),
+			"random" => array(),
+		),
 	),
 );
 if ($error = mst_create_config("test_mysqlnd_ms_gtid_ps_autocommit_use_result.ini", $settings))
@@ -140,8 +151,7 @@ mysqlnd_ms.collect_statistics=1
 	if (!$stmt->execute())
 		printf("[020] [%d] %s\n", $stmt->errno, $stmt->error);
 
-	/* commands out of sync, injection prior execute failed */
-	$expected['gtid_autocommit_injections_failure']++;
+	$expected['gtid_autocommit_injections_success']++;
 	$stats = mysqlnd_ms_get_stats();
 	compare_stats(21, $stats, $expected);
 
@@ -160,8 +170,6 @@ mysqlnd_ms.collect_statistics=1
 	if (!$stmt->execute())
 		printf("[025] [%d] %s\n", $stmt->errno, $stmt->error);
 
-	/* injection is done before execute */
-	$expected['gtid_autocommit_injections_success']++;
 	$stats = mysqlnd_ms_get_stats();
 	compare_stats(25, $stats, $expected);
 
@@ -179,11 +187,12 @@ mysqlnd_ms.collect_statistics=1
 
 	if ($error = mst_mysqli_drop_gtid_table($emulated_master_host_only, $user, $passwd, $db, $emulated_master_port, $emulated_master_socket))
 		printf("[clean] %s\n", $error);
+	if ($error = mst_mysqli_drop_gtid_table($emulated_slave_host_only, $user, $passwd, $db, $emulated_slave_port, $emulated_slave_socket))
+		printf("[clean] %s\n", $error);
 ?>
 --EXPECTF--
 Rows 0
 Rows 1
-[020] [2014] %s
 [022] Clean line...
 Rows 2
 [025] [1146] %s

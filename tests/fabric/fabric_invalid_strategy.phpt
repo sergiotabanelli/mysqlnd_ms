@@ -30,5 +30,7 @@ $c = new mysqli("testfabric", "root", "");
 unlink("fabric_invalid_strategy.json");
 ?>
 --EXPECTF--
-Warning: mysqli::mysqli(): (mysqlnd_ms) Unknown MySQL Fabric strategy invalid fabric strategy selected, falling back to default dump in %s on line %d
-===END===
+Warning: mysqli::%s(): (mysqlnd_ms) Unknown MySQL Fabric strategy invalid fabric strategy selected, falling back to default dump in %s on line %d
+
+Fatal error: mysqli::%s(): (mysqlnd_ms) Section [hosts] doesn't exist. This is needed for MySQL Fabric in %s on line %d
+

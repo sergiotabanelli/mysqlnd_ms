@@ -31,10 +31,7 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_settings_ini_file_faulty.ini
 	if (!($link = mst_mysqli_connect("myapp", $user, $passwd, $db, $port, $socket)))
 		printf("[001] [%d] %s\n", mysqli_connect_errno(), mysqli_connect_error());
 
-	if (!($res = $link->query("SELECT 1 FROM DUAL")))
-		printf("[002] [%d] %s\n", $link->errno, $link->error);
-
-	var_dump($res->fetch_assoc());
+	var_dump($link);
 
 	print "done!";
 ?>
@@ -46,5 +43,5 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_settings_ini_file_faulty.ini
 --EXPECTF--
 %A
 [001] [%d] %s
-
-Fatal error: Call to a member function query() %s on line %d
+bool(false)
+done!

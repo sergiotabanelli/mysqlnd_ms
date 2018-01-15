@@ -60,7 +60,7 @@ int mysqlnd_qp_error(const char *format, ...);
 	/* can't use `yylval` here because `yylval` is initialized by flex to `yylval_param` later */
 	zval * token_value = &yylval_param->zv;
 	const char ** kn = &(yylval_param->kn);
-	smart_str ** comment = &(yylval_param->comment);
+	_ms_smart_type ** comment = &(yylval_param->comment);
 	DBG_ENTER("my_lex_routine");
 %}
 
@@ -649,15 +649,15 @@ int mysqlnd_qp_error(const char *format, ...);
 
 	/* Normal strings */
 '(\\.|''|[^'\n])*' |
-\"(\\.|\"\"|[^"\n])*\"			{ ZVAL_STRINGL(token_value, yytext, yyleng, 1); DBG_INF("QC_TOKEN_STRING");	DBG_RETURN(QC_TOKEN_STRING); }
+\"(\\.|\"\"|[^"\n])*\"			{ _MS_ZVAL_STRINGL(token_value, yytext, yyleng); DBG_INF("QC_TOKEN_STRING");	DBG_RETURN(QC_TOKEN_STRING); }
 '(\\.|[^'\n])*$					{ yyerror("Unterminated string %s", yytext); }
 \"(\\.|[^"\n])*$				{ yyerror("Unterminated string %s", yytext); }
 
 	/* Hex and Bit strings */
 X'[0-9A-F]+' |
-0X[0-9A-F]+						{ ZVAL_STRINGL(token_value, yytext, yyleng, 1); DBG_INF("QC_TOKEN_STRING");	DBG_RETURN(QC_TOKEN_STRING); }
+0X[0-9A-F]+						{ _MS_ZVAL_STRINGL(token_value, yytext, yyleng); DBG_INF("QC_TOKEN_STRING");	DBG_RETURN(QC_TOKEN_STRING); }
 0B[01]+ |
-B'[01]+'						{ ZVAL_STRINGL(token_value, yytext, yyleng, 1); DBG_INF("QC_TOKEN_STRING");	DBG_RETURN(QC_TOKEN_STRING); }
+B'[01]+'						{ _MS_ZVAL_STRINGL(token_value, yytext, yyleng); DBG_INF("QC_TOKEN_STRING");	DBG_RETURN(QC_TOKEN_STRING); }
 
 	/* Operators */
 \+								{ DBG_INF("QC_TOKEN_PLUS");			DBG_RETURN(QC_TOKEN_PLUS); }
@@ -691,24 +691,24 @@ B'[01]+'						{ ZVAL_STRINGL(token_value, yytext, yyleng, 1); DBG_INF("QC_TOKEN_
 ":="							{ DBG_INF("QC_TOKEN_ASSIGN_TO_VAR");DBG_RETURN(QC_TOKEN_ASSIGN_TO_VAR); }
 
 	/* normal identifier */
-([A-Za-z$_]|[\xC2-\xDF][\x80-\xBF]|\xE0[\xA0-\xBF][\x80-\xBF]|[\xE1-\xEF][\x80-\xBF][\x80-\xBF])([0-9]|[A-Za-z$_]|[\xC2-\xDF][\x80-\xBF]|\xE0[\xA0-\xBF][\x80-\xBF]|[\xE1-\xEF][\x80-\xBF][\x80-\xBF])* { ZVAL_STRINGL(token_value, yytext, yyleng, 1); DBG_INF("QC_TOKEN_IDENTIFIER"); DBG_RETURN(QC_TOKEN_IDENTIFIER); }
+([A-Za-z$_]|[\xC2-\xDF][\x80-\xBF]|\xE0[\xA0-\xBF][\x80-\xBF]|[\xE1-\xEF][\x80-\xBF][\x80-\xBF])([0-9]|[A-Za-z$_]|[\xC2-\xDF][\x80-\xBF]|\xE0[\xA0-\xBF][\x80-\xBF]|[\xE1-\xEF][\x80-\xBF][\x80-\xBF])* { _MS_ZVAL_STRINGL(token_value, yytext, yyleng); DBG_INF("QC_TOKEN_IDENTIFIER"); DBG_RETURN(QC_TOKEN_IDENTIFIER); }
 
 	/* quoted identifier */
 `[^`/\\.\n]+`					{
-									ZVAL_STRINGL(token_value, yytext + 1, yyleng - 2, 1);
+									_MS_ZVAL_STRINGL(token_value, yytext + 1, yyleng - 2);
 									DBG_INF("QC_TOKEN_IDENTIFIER");
 									DBG_RETURN(QC_TOKEN_IDENTIFIER);
 								}
 
 	/* Comments */
 #.* ;							{
-									ZVAL_STRINGL(token_value, yytext + 1, yyleng - 1, 1);
+									_MS_ZVAL_STRINGL(token_value, yytext + 1, yyleng - 1);
 									DBG_INF("QC_TOKEN_COMMENT");
 									DBG_RETURN(QC_TOKEN_COMMENT);
 								}
 
 "--"[ \t].*						{
-									ZVAL_STRINGL(token_value, yytext + 2, yyleng - 2, 1);
+									_MS_ZVAL_STRINGL(token_value, yytext + 2, yyleng - 2);
 									DBG_INF("QC_TOKEN_COMMENT");
 									DBG_RETURN(QC_TOKEN_COMMENT);
 								}
@@ -723,7 +723,7 @@ B'[01]+'						{ ZVAL_STRINGL(token_value, yytext, yyleng, 1); DBG_INF("QC_TOKEN_
 										*comment = NULL;
 									}
 #endif
-									*comment = mnd_ecalloc(1, sizeof(smart_str));
+									*comment = mnd_ecalloc(1, sizeof(_ms_smart_type));
 
 									ZVAL_NULL(token_value);
 								}
@@ -733,17 +733,17 @@ B'[01]+'						{ ZVAL_STRINGL(token_value, yytext, yyleng, 1); DBG_INF("QC_TOKEN_
 									DBG_INF("leaving COMMENT_MODE");
 									DBG_INF("QC_TOKEN_COMMENT");
 
-									smart_str_appendc(*comment, '\0');
+									_ms_smart_method(appendc, *comment, '\0');
 									/*
 									  we need to copy the smart_str by value before we set token_value
 									  because comment and token_value are the vary same thing (part of an union)
 									  if we write something to token_value we will lose comment;
 									*/
 									{
-										smart_str * ss_copy = *comment;
-										ZVAL_STRINGL(token_value, (*comment)->c, (*comment)->len, 1);
+										_ms_smart_type * ss_copy = *comment;
+										_MS_ZVAL_STRINGL(token_value, (*comment)->c, (*comment)->len);
 
-										smart_str_free(ss_copy);
+										_ms_smart_method(free, ss_copy);
 										mnd_efree(ss_copy);
 									}
 									DBG_INF_FMT("token_value is now:%s", Z_STRVAL_P(token_value));
@@ -752,7 +752,7 @@ B'[01]+'						{ ZVAL_STRINGL(token_value, yytext, yyleng, 1); DBG_INF("QC_TOKEN_
 								}
 
 <COMMENT_MODE>.|\n 				{
-									smart_str_appendc(*comment, yytext[0]);
+									_ms_smart_method(appendc, *comment, yytext[0]);
 								}
 
 	/* the rest */
@@ -838,7 +838,7 @@ mysqlnd_qp_get_token(struct st_mysqlnd_query_scanner * scanner TSRMLS_DC)
 				break;
 			case IS_NULL:
 				if (lex_val.kn) {
-					ZVAL_STRING(&ret.value, lex_val.kn, 1);
+					_MS_ZVAL_STRING(&ret.value, lex_val.kn);
 				}
 				break;
 		}

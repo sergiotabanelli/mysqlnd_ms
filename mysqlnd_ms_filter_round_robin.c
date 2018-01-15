@@ -30,8 +30,9 @@
 #ifndef mnd_emalloc
 #include "ext/mysqlnd/mysqlnd_alloc.h"
 #endif
-#if PHP_VERSION_ID >= 50400
 #include "ext/mysqlnd/mysqlnd_ext_plugin.h"
+#if PHP_VERSION_ID >= 70100
+#include "ext/mysqlnd/mysqlnd_connection.h"
 #endif
 #include "mysqlnd_ms.h"
 #include "mysqlnd_ms_switch.h"
@@ -41,10 +42,14 @@
 
 /* {{{ mysqlnd_ms_filter_rr_context_dtor */
 static void
-mysqlnd_ms_filter_rr_context_dtor(void * data)
+mysqlnd_ms_filter_rr_context_dtor(_ms_hash_zval_type * data)
 {
-	MYSQLND_MS_FILTER_RR_CONTEXT * context = (MYSQLND_MS_FILTER_RR_CONTEXT *) data;
+	MYSQLND_MS_FILTER_RR_CONTEXT * context = data? _ms_p_zval (MYSQLND_MS_FILTER_RR_CONTEXT _ms_p_zval *) _MS_HASH_Z_PTR_P(data) : NULL;
+	zend_bool persistent = context->weight_list.persistent;
 	zend_llist_clean(&context->weight_list);
+	if (context) {
+		mnd_pefree(context, persistent);
+	}
 }
 /* }}} */
 
@@ -149,42 +154,44 @@ mysqlnd_ms_rr_filter_ctor(struct st_mysqlnd_ms_config_json_entry * section, zend
 static MYSQLND_MS_FILTER_RR_CONTEXT *
 mysqlnd_ms_choose_connection_rr_fetch_context(HashTable * rr_contexts, zend_llist * connections, HashTable * lb_weights_list TSRMLS_DC)
 {
-	MYSQLND_MS_FILTER_RR_CONTEXT * ret_context = NULL;
-	smart_str fprint = {0};
+	MYSQLND_MS_FILTER_RR_CONTEXT _ms_p_zval * ret_context = NULL;
+	_ms_smart_type fprint = {0};
 
 	DBG_ENTER("mysqlnd_ms_choose_connection_rr_fetch_context");
 
 	mysqlnd_ms_get_fingerprint(&fprint, connections TSRMLS_CC);
-	if (SUCCESS != zend_hash_find(rr_contexts, fprint.c, fprint.len /*\0 counted*/, (void **) &ret_context)) {
-		MYSQLND_MS_FILTER_RR_CONTEXT context;
+	if (SUCCESS != _MS_HASHSTR_GET_ZR_FUNC_PTR(zend_hash_str_find_ptr, rr_contexts, fprint.c, fprint.len - 1 /*\0 counted*/, ret_context)) {
+		MYSQLND_MS_FILTER_RR_CONTEXT * context = mnd_pemalloc(sizeof(MYSQLND_MS_FILTER_RR_CONTEXT), _MS_HASH_PERSISTENT(rr_contexts));
 		int retval;
 		DBG_INF("Init the master context");
-		memset(&context, 0, sizeof(MYSQLND_MS_FILTER_RR_CONTEXT));
-		context.pos = 0;
-		mysqlnd_ms_weight_list_init(&context.weight_list TSRMLS_CC);
+		memset(context, 0, sizeof(MYSQLND_MS_FILTER_RR_CONTEXT));
+		context->pos = 0;
+		mysqlnd_ms_weight_list_init(&context->weight_list, _MS_HASH_PERSISTENT(rr_contexts) TSRMLS_CC);
 
-		retval = zend_hash_add(rr_contexts, fprint.c, fprint.len /*\0 counted*/, &context, sizeof(MYSQLND_MS_FILTER_RR_CONTEXT), NULL);
+		retval = _MS_HASHSTR_SET_ZR_FUNC_PTR(zend_hash_str_add_ptr, rr_contexts, fprint.c, fprint.len - 1 /*\0 counted*/, context);
+
 		if (SUCCESS == retval) {
 			/* fetch ptr to the data inside the HT */
-			retval = zend_hash_find(rr_contexts, fprint.c, fprint.len /*\0 counted*/, (void**)&ret_context);
+			retval = _MS_HASHSTR_GET_ZR_FUNC_PTR(zend_hash_str_find_ptr, rr_contexts, fprint.c, fprint.len - 1 /*\0 counted*/, ret_context);
 		}
-		smart_str_free(&fprint);
+		DBG_INF_FMT("Add context retval %d num elements %d", retval, zend_hash_num_elements(rr_contexts));
+		_ms_smart_method(free, &fprint);
 		if (SUCCESS != retval) {
 			DBG_RETURN(NULL);
 		}
 
 		if (zend_hash_num_elements(lb_weights_list)) {
 			/* sort list for weighted load balancing */
-			if (PASS != mysqlnd_ms_populate_weights_sort_list(lb_weights_list, &ret_context->weight_list, connections TSRMLS_CC)) {
+			if (PASS != mysqlnd_ms_populate_weights_sort_list(lb_weights_list, &(_ms_p_zval ret_context)->weight_list, connections TSRMLS_CC)) {
 				DBG_RETURN(NULL);
 			}
-			DBG_INF_FMT("Sort list has %d elements", zend_llist_count(&ret_context->weight_list));
+			DBG_INF_FMT("Sort list has %d elements", zend_llist_count(&(_ms_p_zval ret_context)->weight_list));
 		}
 	} else {
-		smart_str_free(&fprint);
+		_ms_smart_method(free, &fprint);
 	}
-	DBG_INF_FMT("context=%p", ret_context);
-	DBG_RETURN(ret_context);
+	DBG_INF_FMT("context=%p", _ms_p_zval ret_context);
+	DBG_RETURN(_ms_p_zval ret_context);
 }
 /* }}} */
 
@@ -344,25 +351,25 @@ mysqlnd_ms_choose_connection_rr_use_slave(zend_llist * master_connections,
 			connection = element->conn;
 		}
 		if (connection) {
-			smart_str fprint_conn = {0};
+			_ms_smart_type fprint_conn = {0};
 			DBG_INF_FMT("Using slave connection "MYSQLND_LLU_SPEC"", connection->thread_id);
 
 			/* Check if this connection has already been marked failed */
 			if (stgy->failover_remember_failed) {
-				zend_bool * failed;
+				zend_bool _ms_p_zval * failed;
 				mysqlnd_ms_get_fingerprint_connection(&fprint_conn, &element TSRMLS_CC);
-				if (SUCCESS == zend_hash_find(&stgy->failed_hosts, fprint_conn.c, fprint_conn.len /*\0 counted*/, (void **) &failed)) {
-					smart_str_free(&fprint_conn);
+				if (SUCCESS == _MS_HASHSTR_GET_ZR_FUNC_PTR(zend_hash_str_find_ptr, &stgy->failed_hosts, fprint_conn.c, fprint_conn.len - 1 /*\0 counted*/, failed)) {
+					_ms_smart_method(free, &fprint_conn);
 					DBG_INF("Skipping previously failed connection");
 					continue;
 				}
 			}
 
-			if (CONN_GET_STATE(connection) > CONN_ALLOCED || PASS == mysqlnd_ms_lazy_connect(element, FALSE TSRMLS_CC)) {
+			if (_MS_CONN_GET_STATE(connection) > CONN_ALLOCED || PASS == mysqlnd_ms_lazy_connect(element, FALSE TSRMLS_CC)) {
 				MYSQLND_MS_INC_STATISTIC(MS_STAT_USE_SLAVE);
-				SET_EMPTY_ERROR(MYSQLND_MS_ERROR_INFO(connection));
+				SET_EMPTY_ERROR(_ms_a_ei MYSQLND_MS_ERROR_INFO(connection));
 				if (fprint_conn.c) {
-					smart_str_free(&fprint_conn);
+					_ms_smart_method(free, &fprint_conn);
 				}
 				/* Real Success !! */
 				DBG_RETURN(connection);
@@ -370,13 +377,13 @@ mysqlnd_ms_choose_connection_rr_use_slave(zend_llist * master_connections,
 
 			/* Not nice, bad connection, mark it if the user wants it */
 			if (stgy->failover_remember_failed) {
-				zend_bool failed = TRUE;
-				if (SUCCESS != zend_hash_add(&stgy->failed_hosts, fprint_conn.c, fprint_conn.len /*\0 counted*/, &failed, sizeof(zend_bool), NULL)) {
-					DBG_INF("Failed to remember failing connection");
+				zend_bool *failed = &stgy->failover_remember_failed;
+				if (SUCCESS != _MS_HASHSTR_SET_ZR_FUNC_PTR(zend_hash_str_add_ptr, &stgy->failed_hosts, fprint_conn.c, fprint_conn.len - 1/*\0 counted*/, failed)) {
+					DBG_INF_FMT("Failed to remember failing connection %s", fprint_conn.c);
 				}
 			}
 			if (fprint_conn.c) {
-				smart_str_free(&fprint_conn);
+				_ms_smart_method(free, &fprint_conn);
 			}
 		}
 		/* if we are here, we had some kind of a problem, either !connection or establishment failed */
@@ -489,33 +496,35 @@ mysqlnd_ms_choose_connection_rr_use_master(zend_llist * master_connections,
 		*pos = ((*pos) + 1) % zend_llist_count(l);
 
 		if (connection) {
-			smart_str fprint_conn = {0};
+			_ms_smart_type fprint_conn = {0};
 
 			if (stgy->failover_remember_failed) {
 				mysqlnd_ms_get_fingerprint_connection(&fprint_conn, &element TSRMLS_CC);
-				if (zend_hash_exists(&stgy->failed_hosts, fprint_conn.c, fprint_conn.len /*\0 counted*/)) {
-					smart_str_free(&fprint_conn);
+				zend_bool _ms_p_zval * failed;
+				mysqlnd_ms_get_fingerprint_connection(&fprint_conn, &element TSRMLS_CC);
+				if (SUCCESS == _MS_HASHSTR_GET_ZR_FUNC_PTR(zend_hash_str_find_ptr, &stgy->failed_hosts, fprint_conn.c, fprint_conn.len - 1 /*\0 counted*/, failed)) {
+					_ms_smart_method(free, &fprint_conn);
 					DBG_INF("Skipping previously failed connection");
 					continue;
 				}
 			}
-			if ((CONN_GET_STATE(connection) > CONN_ALLOCED || PASS == mysqlnd_ms_lazy_connect(element, TRUE TSRMLS_CC))) {
+			if ((_MS_CONN_GET_STATE(connection) > CONN_ALLOCED || PASS == mysqlnd_ms_lazy_connect(element, TRUE TSRMLS_CC))) {
 				MYSQLND_MS_INC_STATISTIC(MS_STAT_USE_MASTER);
-				SET_EMPTY_ERROR(MYSQLND_MS_ERROR_INFO(connection));
+				SET_EMPTY_ERROR(_ms_a_ei MYSQLND_MS_ERROR_INFO(connection));
 				if (fprint_conn.c) {
-					smart_str_free(&fprint_conn);
+					_ms_smart_method(free, &fprint_conn);
 				}
 				DBG_RETURN(connection);
 			}
 
 			if (stgy->failover_remember_failed) {
-				zend_bool failed = TRUE;
-				if (SUCCESS != zend_hash_add(&stgy->failed_hosts, fprint_conn.c, fprint_conn.len /*\0 counted*/, &failed, sizeof(zend_bool), NULL)) {
+				zend_bool *failed = &stgy->failover_remember_failed;
+				if (SUCCESS != _MS_HASHSTR_SET_ZR_FUNC_PTR(zend_hash_str_add_ptr, &stgy->failed_hosts, fprint_conn.c, fprint_conn.len - 1 /*\0 counted*/, failed)) {
 					DBG_INF("Failed to remember failing connection");
 				}
 			}
 			if (fprint_conn.c) {
-				smart_str_free(&fprint_conn);
+				_ms_smart_method(free, &fprint_conn);
 			}
 		}
 		if ((SERVER_FAILOVER_LOOP == stgy->failover_strategy) &&
@@ -656,7 +665,7 @@ mysqlnd_ms_choose_connection_rr(void * f_data, const char * const query, const s
 											  " Last used SQL hint cannot be used because last used connection has not been set yet. "
 											  "Statement will fail");
 			} else {
-				SET_EMPTY_ERROR(MYSQLND_MS_ERROR_INFO(stgy->last_used_conn));
+				SET_EMPTY_ERROR(_ms_a_ei MYSQLND_MS_ERROR_INFO(stgy->last_used_conn));
 			}
 			conn = stgy->last_used_conn;
 			break;
@@ -668,6 +677,21 @@ mysqlnd_ms_choose_connection_rr(void * f_data, const char * const query, const s
 
 return_connection:
 	if (stgy->in_transaction && (stgy->trx_stickiness_strategy != TRX_STICKINESS_STRATEGY_DISABLED)) {
+		// BEGIN HACK
+		if (stgy->trx_stop_switching == FALSE) {
+			MS_DECLARE_AND_LOAD_CONN_DATA(conn_data, conn);
+			if (conn_data && *conn_data && (*conn_data)->global_trx.type != GTID_NONE && (*conn_data)->global_trx.is_master) {
+				/* If we were switching and now we stop this should mean autocommit off, begin or implicit commit */
+				DBG_INF("Delayed gtid INJECT");
+				if (FAIL == (*conn_data)->global_trx.m->gtid_inject_before(conn TSRMLS_CC)) {
+					DBG_INF("Failed delayed gtid INJECT");
+					mysqlnd_ms_client_n_php_error(error_info, CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, E_WARNING TSRMLS_CC,
+															MYSQLND_MS_ERROR_PREFIX " Failed delayed gtid inject after choosing a server");
+					MYSQLND_MS_INC_STATISTIC(MS_STAT_GTID_IMPLICIT_COMMIT_FAILURE);
+				}
+			}
+		}
+		// END HACK
 		/*
 		 Initial server for running trx has been identified. No matter
 		 whether we found a valid connection or not, we stop switching
@@ -679,7 +703,11 @@ return_connection:
 
 #if MYSQLND_VERSION_ID >= 50011
 	if ((conn) && (stgy->trx_stickiness_strategy != TRX_STICKINESS_STRATEGY_DISABLED) &&
-		(TRUE == stgy->in_transaction) && (TRUE == stgy->trx_begin_required) && !forced) {
+//BEGIN HACK
+		//(TRUE == stgy->in_transaction) && (TRUE == stgy->trx_begin_required) && !forced) {
+		// Why !forced ???????
+		(TRUE == stgy->in_transaction) && (TRUE == stgy->trx_begin_required)) {
+//END HACK
 		/* See mysqlnd_ms.c tx_begin notes! */
 		enum_func_status ret = FAIL;
 		MS_DECLARE_AND_LOAD_CONN_DATA(conn_data, conn);

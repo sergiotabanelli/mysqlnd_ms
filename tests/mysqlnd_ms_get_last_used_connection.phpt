@@ -52,7 +52,7 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_get_last_used_connection.ini
 				}
 
 				if (isset($expected[$prop])) {
-					if ($expected[$prop] !== $value) {
+					if ($expected[$prop] !== $value && ($prop != 'sqlstate' || $value || $expected[$prop] != '000')) {
 						printf("[%03d + 03] Expecting %s = %s, got %s\n",
 							$offset, $prop, var_export($expected[$prop], true), var_export($value, true));
 					}

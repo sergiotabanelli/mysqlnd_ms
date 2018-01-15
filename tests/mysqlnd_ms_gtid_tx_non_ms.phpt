@@ -30,12 +30,16 @@ $settings = array(
 		),
 
 		'global_transaction_id_injection' => array(
+		 	'type'						=> 1,
 			'on_commit'	 				=> $sql['update'],
+			'fetch_last_gtid'			=> $sql['fetch_last_gtid'],
 		),
 
-		'lazy_connections' => 1,
 		'trx_stickiness' => 'disabled',
 		'filters' => array(
+			"quality_of_service" => array(
+				"session_consistency" => 1,
+			),
 			"roundrobin" => array(),
 		),
 	),

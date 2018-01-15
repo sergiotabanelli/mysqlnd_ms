@@ -46,6 +46,7 @@ $settings = array(
 		),
 
 		'global_transaction_id_injection' => array(
+			'type'						=> 1,
 			'on_commit'	 				=> $sql['update'],
 			'fetch_last_gtid'			=> NULL,
 			'check_for_gtid'			=> $sql['check_for_gtid'],
@@ -55,6 +56,9 @@ $settings = array(
 		'lazy_connections' => 1,
 		'trx_stickiness' => 'disabled',
 		'filters' => array(
+			"quality_of_service" => array(
+				"session_consistency" => 1,
+			),
 			"roundrobin" => array(),
 		),
 	),
@@ -124,9 +128,15 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_get_last_gtid_config.ini
 		printf("[clean] %s\n", $error);
 ?>
 --EXPECTF--
-Warning: mysqlnd_ms_get_last_gtid(): SQL to fetch last global transaction ID is not set in %s on line %d
-[004] [0%A
+Warning: mysqli::query(): (mysqlnd_ms) Error on SQL injection. in %s on line %d
+[002] [2000] Error on gtid_inject_after
 
-Warning: mysqlnd_ms_get_last_gtid(): SQL to fetch last global transaction ID is not set in %s on line %d
+Warning: mysqlnd_ms_get_last_gtid(): (mysqlnd_ms) Fail or no ID has been injected yet in %s on line %d
+[004] [2000] Error on gtid_inject_after
+
+Warning: mysqli::query(): (mysqlnd_ms) Error on SQL injection. in %s on line %d
+[005] [2000] Error on gtid_inject_after
+
+Warning: mysqlnd_ms_get_last_gtid(): (mysqlnd_ms) Fail or no ID has been injected yet in %s on line %d
 [010] [0%A
 done!

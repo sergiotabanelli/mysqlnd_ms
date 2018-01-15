@@ -23,6 +23,8 @@ if (true == $ret)
 $sql = mst_get_gtid_sql($db);
 if ($error = mst_mysqli_setup_gtid_table($emulated_master_host_only, $user, $passwd, $db, $emulated_master_port, $emulated_master_socket))
   die(sprintf("SKIP Failed to setup GTID on master, %s\n", $error));
+if ($error = mst_mysqli_setup_gtid_table($emulated_slave_host_only, $user, $passwd, $db, $emulated_slave_port, $emulated_slave_socket))
+  die(sprintf("SKIP Failed to setup GTID on slave, %s\n", $error));
 
 msg_mysqli_init_emulated_id_skip($emulated_slave_host_only, $user, $passwd, $db, $emulated_slave_port, $emulated_slave_socket, "slave");
 msg_mysqli_init_emulated_id_skip($emulated_master_host_only, $user, $passwd, $db, $emulated_master_port, $emulated_master_socket, "master");
@@ -45,12 +47,18 @@ $settings = array(
 		),
 
 		'global_transaction_id_injection' => array(
+		 	'type'						=> 1,
 			'on_commit'	 				=> $sql['update'],
+			'fetch_last_gtid'			=> $sql['fetch_last_gtid'],
+			'report_error'				=> true,
 		),
 
 		'lazy_connections' => 0,
 		'trx_stickiness' => 'disabled',
 		'filters' => array(
+			"quality_of_service" => array(
+				"session_consistency" => 1,
+			),
 			"roundrobin" => array(),
 		),
 	),
@@ -153,6 +161,9 @@ mysqlnd_ms.collect_statistics=1
 	$row = $res->fetch_assoc();
 	printf("I am the %s of ", $row['_role']);
 
+	// With session consistency we need to reset GTID otherwise master will be choosen
+	mysqlnd_ms_set_qos($link, MYSQLND_MS_QOS_CONSISTENCY_SESSION,  MYSQLND_MS_QOS_OPTION_GTID, "0");
+
 	/* slave statement */
 	$stmt = mst_mysqli_stmt(17, $link, "SET @myrole = 'Slave'", MYSQLND_MS_SLAVE_SWITCH);
 
@@ -233,7 +244,8 @@ mysqlnd_ms.collect_statistics=1
 		printf("[045] GTID not incremented\n");
 	}
 	$gtid = $new_gtid;
-	$expected["gtid_implicit_commit_injections_success"]++;
+	$expected["gtid_implicit_commit_injections_success"]++; // Implicit commit fire an explicit one
+	$expected["gtid_commit_injections_success"]++;
 	$stats = mysqlnd_ms_get_stats();
 	compare_stats(46, $stats, $expected);
 
@@ -265,7 +277,8 @@ mysqlnd_ms.collect_statistics=1
 		printf("[053] GTID has must not change because commit was done on dead connection\n");
 	}
 	$stats = mysqlnd_ms_get_stats();
-	$expected["gtid_commit_injections_failure"]++;
+	// Failure will be detected before injection fase
+	//$expected["gtid_commit_injections_failure"]++;
 	compare_stats(54, $stats, $expected);
 
 	print "done!";
@@ -278,6 +291,8 @@ mysqlnd_ms.collect_statistics=1
 	require_once("connect.inc");
 	require_once("util.inc");
 	if ($error = mst_mysqli_drop_gtid_table($emulated_master_host_only, $user, $passwd, $db, $emulated_master_port, $emulated_master_socket))
+		printf("[clean] %s\n", $error);
+	if ($error = mst_mysqli_drop_gtid_table($emulated_slave_host_only, $user, $passwd, $db, $emulated_slave_port, $emulated_slave_socket))
 		printf("[clean] %s\n", $error);
 ?>
 --EXPECTF--

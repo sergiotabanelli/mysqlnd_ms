@@ -51,10 +51,18 @@ $settings = array(
 		'lazy_connections' => 0,
 
 		'global_transaction_id_injection' => array(
+		    'type'						=> 1,
+		    'on_connect'				=> 1,
 			'on_commit'	 				=> $sql['update'],
 			'fetch_last_gtid'			=> $sql['fetch_last_gtid'],
 			'check_for_gtid'			=> $sql['check_for_gtid'],
 			'report_error'				=> true,
+		),
+		'filters' => array(
+			"quality_of_service" => array(
+				"session_consistency" => 1,
+			),
+			"roundrobin" => array(),
 		),
 
 	),
@@ -130,9 +138,11 @@ array(1) {
     string(1) "1"
   }
 }
-GTID '5'
+GTID '4'
 
-Warning: mysqli::query(): (mysqlnd_ms) SQL error while checking slave for GTID: 1146/'%s' in %s on line %d
+Warning: mysqli::query(): (mysqlnd_ms) Error on gtid SQL connection. in %s on line %d
+
+Warning: mysqli::query(): (mysqlnd_ms) Error no gtid_conn_elm or failed lazy connection. in %s on line %d
 array(1) {
   [0]=>
   array(1) {
@@ -140,7 +150,5 @@ array(1) {
     string(1) "1"
   }
 }
-
-Warning: mysqli::query(): (mysqlnd_ms) SQL error while checking slave for GTID: 1146/'%s' in %s on line %d
 [009] Run on master1-%s
 done!

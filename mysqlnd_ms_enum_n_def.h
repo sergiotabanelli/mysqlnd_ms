@@ -27,58 +27,318 @@
 #include "sys/time.h"
 #include <libmemcached/memcached.h>
 #endif
+#if PHP_MAJOR_VERSION < 7
+#include "ext/standard/php_smart_str.h"
+#else
+#include "ext/standard/php_smart_string.h"
+#endif
+
+//#include "mysqlnd_ms.h"
 
 #include "fabric/mysqlnd_fabric.h"
 
-#if MYSQLND_VERSION_ID < 50010 && !defined(MYSQLND_CONN_DATA_DEFINED)
-typedef MYSQLND MYSQLND_CONN_DATA;
-#endif
+//BEGIN HACK
+/*
+#define zend_bool unsigned char
+#define ulong unsigned long
+#define uint unsigned int
+#define uint64_t unsigned __int64
+#define SUCCESS  0
+#define FAILURE  -1
+#define NULL ((void *)0)
+#define SIZE_MAX ((size_t)-1)
+*/
+#if PHP_MAJOR_VERSION < 7
+#define _MS_SEND_QUERY_A_EXT
+#define _MS_SEND_QUERY_D_EXT
+#define _MS_SEND_QUERY_AD_EXT
 
-#if MYSQLND_VERSION_ID >= 50010
+#define _MS_REAP_QUERY_A_EXT
+#define _MS_REAP_QUERY_D_EXT
+#define _MS_REAP_QUERY_AD_EXT
+
+#define _ms_zval_dtor(zv) zval_ptr_dtor(&(zv))
+#define _ms_zval_ptr_dtor(zv) zval_ptr_dtor(&(zv))
+#define _ms_p_zval *
+#define _ms_a_zval
+#define _ms_hash_zval_type void
+#define _ms_smart_type smart_str
+#define _ms_smart_method(meth, ...) smart_str_##meth(__VA_ARGS__)
+#define _ms_add_next_index_stringl(h, s, l) add_next_index_stringl(h, s, l, 1)
+
+#define _MS_STR_D_P(str) char **str, unsigned int *str##_len
+#define _MS_STR_A(str) str, str##_len
+#define _MS_STR_DECL(str) char *str = NULL; unsigned int str##_len = 0
+#define _MS_STR_L_FUNC_PS_1(func, arg1, str, ...) str##_len = func((arg1), &(str), __VA_ARGS__)
+#define _MS_STR_L(str) str##_len
+#define _MS_STR_S(str) str
+#define _MS_STR(str) str
+#define _MS_STR_PEFREE(str, persistent) pefree(str, persistent)
+#define _MS_HASHSTR_GET_ZR_FUNC_PTR(func, ht, str, str_len, ptr) func((ht), (str), (str_len) + 1, (void **)&(ptr))
+#define _MS_HASH_GET_ZR_FUNC_PTR_1(func, ht, arg1, ptr) func((ht), (arg1), (void **)&(ptr))
+#define _MS_HASH_GET_ZR_FUNC_PTR(func, ht, ptr) func((ht), (void **)&(ptr))
+#define _MS_HASH_GET_ZR_FUNC_PTR_VA(func, ht, ptr, ...) func((ht), (void **)&(ptr), __VA_ARGS__)
+#define _MS_HASHSTR_SET_ZR_FUNC_PTR(func, ht, str, str_len, ptr) func((ht), (str), (str_len) + 1, &(ptr), sizeof(ptr), NULL)
+#define _MS_HASH_SET_ZR_FUNC_PTR_1(func, ht, arg1, ptr) func((ht), (arg1), &(ptr), sizeof(ptr), NULL)
+
+#define _MS_ZVAL_STRINGL(zv, str, str_len) ZVAL_STRINGL(zv, str, str_len, 1)
+#define _MS_ZVAL_STRING(zv, str) ZVAL_STRING(zv, str, 1)
+
+#define _MS_RETURN_ZSTR(str, persistent) return (str && str##_len ? zend_string_init(str, str##_len, persistent) : NULL)
+
+#define _MS_HASH_Z_PTR_P(pDest) pDest
+
+#define _MS_HASH_PERSISTENT(ht) (ht->persistent)
+
+#define ZVAL_STR(z, s) ZVAL_STRINGL(z, s->val, s->len, 0)
+
+#define _MS_RETURN_STRING(s) RETURN_STRING(s, 1)
+
+#define _ms_size_type unsigned int
+
+static zend_always_inline int _ms_hash_str_get_current_key(const HashTable *ht, char **key, uint *key_len, ulong *num_index, HashPosition *pos)
+{
+	int ret = zend_hash_get_current_key_ex(ht, key, (uint *) key_len, num_index, 0/*dup*/, pos);
+	if (ret == HASH_KEY_IS_STRING) {
+		(*key_len)--;
+	}
+	return ret;
+}
+
+#define zend_hash_str_find_ptr  zend_hash_find
+#define zend_hash_index_find_ptr zend_hash_index_find
+#define zend_hash_str_add_ptr zend_hash_add
+#define zend_hash_str_update_ptr zend_hash_update
+#define zend_hash_index_update_ptr zend_hash_index_update
+#define zend_hash_next_index_insert_ptr zend_hash_next_index_insert
+#define zend_hash_get_current_data_ptr_ex zend_hash_get_current_data_ex
+#define zend_hash_get_current_data_ptr zend_hash_get_current_data
+#define zend_hash_str_del zend_hash_del
+#define zend_hash_str_find zend_hash_find
+#define zend_hash_sort_ex zend_hash_sort
+#define zend_hash_str_exists zend_hash_exists
+
+#define zend_string_release zend_string_free
+
+struct _zend_string {
+	char *val;
+	size_t len;
+	int persistent;
+};
+
+typedef struct _zend_string zend_string;
+
+static zend_always_inline zend_string *zend_string_alloc(int persistent)
+{
+	/* single alloc, so free the buf, will also free the struct */
+	zend_string *str = pemalloc(sizeof(zend_string), persistent);
+
+	str->val = NULL;
+	str->len = 0;
+	return str;
+}
+
+static zend_always_inline zend_string *zend_string_init(char *str, size_t len, int persistent)
+{
+	/* single alloc, so free the buf, will also free the struct */
+	zend_string *zstr = zend_string_alloc(persistent);
+
+	zstr->val = str;
+	zstr->len = len;
+	return zstr;
+}
+
+static zend_always_inline void zend_string_free(zend_string *s)
+{
+	if (s->val)
+		pefree(s->val, s->persistent);
+	pefree(s, s->persistent);
+}
+#else
+extern zval *php_get_session_var(zend_string *name);
+
+#define _MS_SEND_QUERY_A_EXT , type, read_cb, err_cb
+#define _MS_SEND_QUERY_D_EXT , enum_mysqlnd_send_query_type type, zval *read_cb, zval *err_cb
+#define _MS_SEND_QUERY_AD_EXT , MYSQLND_SEND_QUERY_IMPLICIT, NULL, NULL
+
+#define _MS_REAP_QUERY_A_EXT , type
+#define _MS_REAP_QUERY_D_EXT , enum_mysqlnd_reap_result_type type
+#define _MS_REAP_QUERY_AD_EXT , MYSQLND_REAP_RESULT_IMPLICIT
+
+#define _ms_zval_dtor(zv) zval_dtor(&(zv))
+#define _ms_zval_ptr_dtor(zv) zval_ptr_dtor((zv))
+#define _ms_p_zval
+#define _ms_a_zval &
+#define _ms_hash_zval_type zval
+#define _ms_smart_type smart_string
+#define _ms_smart_method(meth, ...) smart_string_##meth(__VA_ARGS__)
+#define _ms_add_next_index_stringl add_next_index_stringl
+
+#define _MS_STR_D_P(str) zend_string **str
+#define _MS_STR_A(str) str
+#define _MS_STR_DECL(str) zend_string *str = NULL
+#define _MS_STR_L_FUNC_PS_1(func, arg1, str, ...) str = func((arg1), __VA_ARGS__)
+#define _MS_STR_L(str) str->len
+#define _MS_STR_S(str) str->val
+#define _MS_STR(str) str
+#define _MS_STR_PEFREE(str, persistent) zend_string_free(str)
+#define _MS_GET_ZR_FUNC_PTR_VA(func, ptr, ...) ((ptr = func(__VA_ARGS__)) == NULL ? FAILURE : SUCCESS)
+#define _MS_HASHSTR_GET_ZR_FUNC_PTR(func, ht, str, str_len, ptr) _MS_GET_ZR_FUNC_PTR_VA(func, ptr, ht, str, str_len)
+#define _MS_HASH_GET_ZR_FUNC_PTR_1(func, ht, arg1, ptr) _MS_GET_ZR_FUNC_PTR_VA(func, ptr, ht, arg1)
+#define _MS_HASH_GET_ZR_FUNC_PTR(func, ht, ptr) _MS_GET_ZR_FUNC_PTR_VA(func, ptr, ht)
+#define _MS_HASH_GET_ZR_FUNC_PTR_VA(func, ht, ptr, ...) _MS_GET_ZR_FUNC_PTR_VA(func, ptr, ht, __VA_ARGS__)
+#define _MS_SET_ZR_FUNC_PTR_VA(func, ...) (func(__VA_ARGS__) == NULL ? FAILURE : SUCCESS)
+#define _MS_HASHSTR_SET_ZR_FUNC_PTR(func, ht, str, str_len, ptr) _MS_SET_ZR_FUNC_PTR_VA(func, ht, str, str_len, ptr)
+#define _MS_HASH_SET_ZR_FUNC_PTR_1(func, ht, arg1, ptr) _MS_SET_ZR_FUNC_PTR_VA(func, ht, arg1, ptr)
+#define _MS_HASH_SET_ZR_FUNC_PTR(func, ht,ptr) _MS_SET_ZR_FUNC_PTR_VA(func, ht, ptr)
+
+#define _MS_ZVAL_STRINGL(zv, str, str_len) ZVAL_STRINGL(zv, str, str_len)
+#define _MS_ZVAL_STRING(zv, str) ZVAL_STRING(zv, str)
+
+#define _MS_RETURN_ZSTR(str, persistent) return str
+
+#define _MS_HASH_Z_PTR_P(pDest) Z_PTR_P(pDest)
+
+#define _MS_HASH_PERSISTENT(ht) (ht->u.flags & HASH_FLAG_PERSISTENT)
+
+#define ALLOC_INIT_ZVAL(z)
+#define INIT_ZVAL(z);
+#define MAKE_STD_ZVAL(z)
+#define _MS_RETURN_STRING RETURN_STRING
+
+#define _ms_size_type size_t
+
+#define zend_uint uint32_t
+
+static zend_always_inline int _ms_hash_str_get_current_key(HashTable *ht, char **key, size_t *key_len, ulong *num_index, HashPosition *pos)
+{
+	zend_string *zs_key = NULL;
+	int ret = zend_hash_get_current_key_ex(ht, &zs_key, num_index, pos ? pos : &ht->nInternalPointer);
+	if (zs_key && ret == HASH_KEY_IS_STRING) {
+		*key = zs_key->val;
+		*key_len = zs_key->len;
+	}
+	return ret;
+}
+
+#endif
+#if PHP_VERSION_ID < 70100
+#define _ms_p_ei *
+#define _ms_a_ei
+
+#define _ms_csize_type unsigned int
+
+#define _ms_mysqlnd_error_info_init(error_info)
+#define _ms_mysqlnd_error_info_free_contents(error_info)
+
+#define enum_mysqlnd_client_option enum_mysqlnd_option
+
+#define MYSQLND_MS_CONN_STRING(conn_str) (conn_str)
+#define MYSQLND_MS_CONN_STRING_LEN(conn_str) conn_str##_len
+#define MYSQLND_MS_CONN_D_STRINGL(conn_str) char *conn_str, unsigned int conn_str##_len
+#define MYSQLND_MS_CONN_DV_STRINGL(conn_str) char *conn_str; unsigned int conn_str##_len
+#define MYSQLND_MS_CONN_A_STRINGL(conn_str) conn_str, conn_str##_len
+#define MYSQLND_MS_CONN_D_STRING(conn_str) char *conn_str
+#define MYSQLND_MS_CONN_DV_STRING(conn_str) MYSQLND_MS_CONN_D_STRING(conn_str)
+#define MYSQLND_MS_CONN_A_STRING(conn_str) conn_str
+
+#define MYSQLND_MS_CONN_D_CSTRINGL(conn_str) const char *conn_str, unsigned int conn_str##_len
+#define MYSQLND_MS_CONN_DV_CSTRINGL(conn_str) const char *conn_str; unsigned int conn_str##_len
+#define MYSQLND_MS_CONN_A_CSTRINGL MYSQLND_MS_CONN_A_STRINGL
+#define MYSQLND_MS_CONN_D_CSTRING(conn_str) const char *conn_str
+#define MYSQLND_MS_CONN_DV_CSTRING(conn_str) MYSQLND_MS_CONN_D_CSTRING(conn_str)
+#define MYSQLND_MS_CONN_A_CSTRING MYSQLND_MS_CONN_A_STRING
+
+#define MYSQLND_MS_CONN_STRING_DUP(dstr, sstr, persistent) (dstr) = (sstr) ?  mnd_pestrdup((sstr), persistent) : NULL
+#define MYSQLND_MS_CONN_STRINGL_DUP(dstr, sstr, persistent) MYSQLND_MS_CONN_STRING_DUP(dstr, sstr, persistent); (dstr##_len) = (sstr##_len)
+#define MYSQLND_MS_CONN_STRING_FREE(conn_str, persistent) if ((conn_str)) mnd_pefree((conn_str), persistent)
+#define MYSQLND_MS_CONN_STRINGL_FREE(conn_str, persistent) MYSQLND_MS_CONN_STRING_FREE(conn_str, persistent);  (conn_str) = NULL; (conn_str##_len) = 0
+#define MYSQLND_MS_S_TO_CONN_STRINGL(conn_str, str, str_len) (conn_str) = str; (conn_str##_len) = str_len
+#define MYSQLND_MS_S_TO_CONN_STRING(conn_str, str) (conn_str) = str
+#define MYSQLND_MS_CONN_HOST(conn) conn->host
+#define MYSQLND_MS_CONN_USER(conn) conn->user
+#define MYSQLND_MS_CONN_PASS(conn) conn->passwd
+#define _ms_mysqlnd_plugin_get_plugin_connection_data_data mysqlnd_plugin_get_plugin_connection_data_data
+#define _ms_mysqlnd_plugin_get_plugin_stmt_data mysqlnd_plugin_get_plugin_stmt_data
+#define _ms_mysqlnd_conn_get_methods mysqlnd_conn_get_methods
+#define _ms_mysqlnd_conn_data_get_methods mysqlnd_conn_data_get_methods
+#define _ms_mysqlnd_stmt_get_methods mysqlnd_stmt_get_methods
+#define _ms_mysqlnd_protocol_get_methods mysqlnd_protocol_get_methods
+#define _MS_CONN_SET_STATE CONN_SET_STATE
+#define _MS_CONN_GET_STATE CONN_GET_STATE
+#else
+#define _ms_p_ei
+#define _ms_a_ei &
+
+#define _ms_csize_type const size_t
+
+#define _ms_mysqlnd_error_info_init(error_info) mysqlnd_error_info_init(error_info, 0)
+#define _ms_mysqlnd_error_info_free_contents(error_info) mysqlnd_error_info_free_contents(error_info)
+
+#define MYSQLND_MS_CONN_STRING(conn_str) (conn_str).s
+#define MYSQLND_MS_CONN_STRING_LEN(conn_str) (conn_str).l
+#define MYSQLND_MS_CONN_D_STRINGL(conn_str) MYSQLND_STRING conn_str
+#define MYSQLND_MS_CONN_DV_STRINGL(conn_str) MYSQLND_MS_CONN_D_STRINGL(conn_str)
+#define MYSQLND_MS_CONN_A_STRINGL(conn_str) conn_str
+#define MYSQLND_MS_CONN_D_STRING MYSQLND_MS_CONN_D_STRINGL
+#define MYSQLND_MS_CONN_DV_STRING MYSQLND_MS_CONN_DV_STRINGL
+#define MYSQLND_MS_CONN_A_STRING MYSQLND_MS_CONN_A_STRINGL
+
+#define MYSQLND_MS_CONN_D_CSTRINGL(conn_str) MYSQLND_CSTRING conn_str
+#define MYSQLND_MS_CONN_DV_CSTRINGL(conn_str) MYSQLND_MS_CONN_D_CSTRINGL(conn_str)
+#define MYSQLND_MS_CONN_A_CSTRINGL(conn_str) mnd_str2c(conn_str)
+#define MYSQLND_MS_CONN_D_CSTRING MYSQLND_MS_CONN_D_CSTRINGL
+#define MYSQLND_MS_CONN_DV_CSTRING MYSQLND_MS_CONN_DV_CSTRINGL
+#define MYSQLND_MS_CONN_A_CSTRING MYSQLND_MS_CONN_A_CSTRINGL
+
+#define MYSQLND_MS_CONN_STRINGL_DUP(dstr, sstr, persistent) (dstr).s = (sstr).s ?  mnd_pestrdup((sstr).s, persistent) : NULL; (dstr).l = (sstr).l
+#define MYSQLND_MS_CONN_STRING_DUP MYSQLND_MS_CONN_STRINGL_DUP
+#define MYSQLND_MS_CONN_STRINGL_FREE(conn_str, persistent) if ((conn_str).s) mnd_pefree((conn_str).s, persistent);  (conn_str).s = NULL; (conn_str).l = 0
+#define MYSQLND_MS_CONN_STRING_FREE MYSQLND_MS_CONN_STRINGL_FREE
+#define MYSQLND_MS_S_TO_CONN_STRINGL(conn_str, str, str_len) (conn_str).s = str; (conn_str).l = str_len
+#define MYSQLND_MS_S_TO_CONN_STRING(conn_str, str) MYSQLND_MS_S_TO_CONN_STRINGL(conn_str, str, strlen(str))
+#define MYSQLND_MS_CONN_HOST(conn) conn->hostname
+#define MYSQLND_MS_CONN_USER(conn) conn->username
+#define MYSQLND_MS_CONN_PASS(conn) conn->password
+#define _ms_mysqlnd_plugin_get_plugin_connection_data_data(conn, plugin_id) ((void *)((char *)conn + sizeof(MYSQLND_CONN_DATA) + plugin_id * sizeof(void *)))
+#define _ms_mysqlnd_plugin_get_plugin_stmt_data(stmt, plugin_id) ((void *)((char *)stmt + sizeof(MYSQLND_STMT) + plugin_id * sizeof(void *)))
+#define _ms_mysqlnd_conn_get_methods() (&mysqlnd_mysqlnd_conn_methods)
+#define _ms_mysqlnd_conn_data_get_methods() (&mysqlnd_mysqlnd_conn_data_methods)
+#define _ms_mysqlnd_stmt_get_methods() (&mysqlnd_mysqlnd_stmt_methods)
+#define _ms_mysqlnd_protocol_get_methods() (&mysqlnd_mysqlnd_protocol_payload_decoder_factory_methods)
+#define _MS_CONN_SET_STATE(conn, s) SET_CONNECTION_STATE(&(conn)->state, s)
+#define _MS_CONN_GET_STATE(conn) GET_CONNECTION_STATE(&(conn)->state)
+#define SET_STMT_ERROR(stmt, e, s, m) SET_CLIENT_ERROR(stmt->error_info, e, s, m)
+
+#endif
+#if PHP_MAJOR_VERSION < 7
+#define MYSQLND_MS_ADD_ASSOC_LONG(arg, key, n) add_assoc_long_ex((arg), (key), sizeof((key)), (n))
+#define MYSQLND_MS_ADD_ASSOC_STRING(arg, key, str) add_assoc_string_ex((arg), (key), sizeof((key)), (str) ? (str):"", 1)
+#else
+#define MYSQLND_MS_ADD_ASSOC_LONG(arg, key, n) add_assoc_long_ex((arg), (key), sizeof((key)) - 1, (n))
+#define MYSQLND_MS_ADD_ASSOC_STRING(arg, key, str) add_assoc_string_ex((arg), (key), sizeof((key)) - 1, (str) ? (str):"")
+#endif
+#define MYSQLND_MS_ADD_ASSOC_CONN_STRING(arg, key, str) MYSQLND_MS_ADD_ASSOC_STRING(arg, key, MYSQLND_MS_CONN_STRING((str)))
+
+//END HACK
+
 #define MS_DECLARE_AND_LOAD_CONN_DATA(conn_data, connection) \
-	MYSQLND_MS_CONN_DATA ** conn_data = \
-		(MYSQLND_MS_CONN_DATA **) mysqlnd_plugin_get_plugin_connection_data_data((connection), mysqlnd_ms_plugin_id)
+	MYSQLND_MS_CONN_DATA ** conn_data = (MYSQLND_MS_CONN_DATA **) _ms_mysqlnd_plugin_get_plugin_connection_data_data((connection), mysqlnd_ms_plugin_id)
 
 #define MS_LOAD_CONN_DATA(conn_data, connection) \
-	(conn_data) = (MYSQLND_MS_CONN_DATA **) mysqlnd_plugin_get_plugin_connection_data_data((connection), mysqlnd_ms_plugin_id)
+	(conn_data) = (MYSQLND_MS_CONN_DATA **) _ms_mysqlnd_plugin_get_plugin_connection_data_data((connection), mysqlnd_ms_plugin_id)
 
 #define MS_CALL_ORIGINAL_CONN_HANDLE_METHOD(method) ms_orig_mysqlnd_conn_handle_methods->method
 #define MS_CALL_ORIGINAL_CONN_DATA_METHOD(method) ms_orig_mysqlnd_conn_methods->method
 extern struct st_mysqlnd_conn_data_methods * ms_orig_mysqlnd_conn_methods;
 extern struct st_mysqlnd_conn_methods * ms_orig_mysqlnd_conn_handle_methods;
-
-#else
-
-#define MS_DECLARE_AND_LOAD_CONN_DATA(conn_data, connection) \
-	MYSQLND_MS_CONN_DATA ** conn_data = \
-		(MYSQLND_MS_CONN_DATA **) mysqlnd_plugin_get_plugin_connection_data((connection), mysqlnd_ms_plugin_id)
-
-#define MS_LOAD_CONN_DATA(conn_data, connection) \
-	(conn_data) = (MYSQLND_MS_CONN_DATA **) mysqlnd_plugin_get_plugin_connection_data((connection), mysqlnd_ms_plugin_id)
-
-#define MS_CALL_ORIGINAL_CONN_HANDLE_METHOD(method) ms_orig_mysqlnd_conn_methods->method
-#define MS_CALL_ORIGINAL_CONN_DATA_METHOD(method) ms_orig_mysqlnd_conn_methods->method
-extern struct st_mysqlnd_conn_methods * ms_orig_mysqlnd_conn_methods;
-#endif
-
-#ifndef MYSQLND_HAS_INJECTION_FEATURE
 #define MS_LOAD_STMT_DATA(stmt_data, statement) \
-	(stmt_data) = (MYSQLND_MS_STMT_DATA **)  mysqlnd_plugin_get_plugin_stmt_data((statement), mysqlnd_ms_plugin_id);
-#endif
+	(stmt_data) = (MYSQLND_MS_STMT_DATA **)  _ms_mysqlnd_plugin_get_plugin_stmt_data((statement), mysqlnd_ms_plugin_id)
 
-
-#if MYSQLND_VERSION_ID < 50010
-#define MYSQLND_MS_ERROR_INFO(conn_object) ((conn_object)->error_info)
-#else
 #define MYSQLND_MS_ERROR_INFO(conn_object) (*((conn_object)->error_info))
-#endif
 
-
-#if MYSQLND_VERSION_ID < 50010
-#define MYSQLND_MS_UPSERT_STATUS(conn_object) ((conn_object)->upsert_status)
-#else
 #define MYSQLND_MS_UPSERT_STATUS(conn_object) (*((conn_object)->upsert_status))
-#endif
+
 
 
 
@@ -219,14 +479,21 @@ extern struct st_mysqlnd_conn_methods * ms_orig_mysqlnd_conn_methods;
 #define ALL_SERVER_SWITCH "ms=all"
 
 //BEGIN HACK
+
 #define STRONG_SWITCH "ms=strong"
 #define SESSION_SWITCH "ms=session"
 #define EVENTUAL_SWITCH "ms=eventual"
 #define NOINJECT_SWITCH "ms=noinject"
 #define INJECT_SWITCH "ms=inject"
 
-#define GTID_ON_CONNECT				"gtid_on_connect"
+#define GTID_RUNNING_MARKER 'R'
+#define GTID_WAIT_MARKER 'W'
+#define GTID_GTID_MARKER '?'
 
+#define MEMCACHED_DEBUG_KEY "__debug__"
+#define MEMCACHED_ERROR_KEY "__error__"
+#define TEST_ACTIVE_QUERY "SELECT @@global.read_only"
+#define TEST_ACTIVE_WQUERY "SELECT @@global.read_only FROM DUAL WHERE @@global.read_only = 0"
 //END HACK
 
 #define MASTER_NAME							"master"
@@ -275,9 +542,22 @@ extern struct st_mysqlnd_conn_methods * ms_orig_mysqlnd_conn_methods;
 #define SECT_G_TRX_CHECK_FOR_GTID 			"check_for_gtid"
 #define SECT_G_TRX_WAIT_FOR_GTID_TIMEOUT 	"wait_for_gtid_timeout"
 //BEGIN HACK
+#define HOSTS_GROUP							"hosts_group"
+#define SECT_G_TRX_WAIT_FOR_WGTID_TIMEOUT 	"wait_for_wgtid_timeout"
+#define SECT_G_TRX_THROTTLE_WGTID_TIMEOUT 	"throttle_wgtid_timeout"
+#define SECT_G_TRX_GTID_BLOCK_SIZE			"gtid_block_size"
+#define SECT_G_TRX_RACE_AVOID			 	"race_avoid"
+#define SECT_G_TRX_RUNNING_TTL				"running_ttl"
+#define SECT_G_TRX_MEMCACHED_DEBUG_TTL		"memcached_debug_ttl"
+#define SECT_G_TRX_ON_CONNECT				"on_connect"
+#define SECT_G_TRX_TYPE						"type"
+#define SECT_G_TRX_MEMCACHED_HOST			"memcached_host"
 #define SECT_G_TRX_MEMCACHED_KEY			"memcached_key"
+#define SECT_G_TRX_MEMCACHED_WKEY			"memcached_wkey"
+#define SECT_G_TRX_WC_UUID					"wc_uuid"
 #define SECT_G_TRX_MEMCACHED_PORT			"memcached_port"
 #define SECT_G_TRX_MEMCACHED_PORT_ADD_HACK	"memcached_port_add_hack"
+#define SECT_G_TRX_AUTO_CLEAN				"auto_clean"
 //END HACK
 #define SECT_LB_WEIGHTS						"weights"
 #define SECT_FABRIC_NAME					"fabric"
@@ -449,18 +729,16 @@ typedef struct st_mysqlnd_ms_list_data
 {
 	/* hash_key should be the only case where we break
 	 * encapsulation between core and pool */
-	smart_str pool_hash_key;
+	_ms_smart_type pool_hash_key;
 
 	char * name_from_config;
 	MYSQLND_CONN_DATA * conn;
-	char * host;
-	char * user;
-	char * passwd;
-	size_t passwd_len;
+	MYSQLND_MS_CONN_DV_STRING(host);
+	MYSQLND_MS_CONN_DV_STRING(user);
+	MYSQLND_MS_CONN_DV_STRINGL(passwd);
 	unsigned int port;
-	char * socket;
-	char * db;
-	size_t db_len;
+	MYSQLND_MS_CONN_DV_STRING(socket);
+	MYSQLND_MS_CONN_DV_STRINGL(db);
 	unsigned long connect_flags;
 	char * emulated_scheme;
 	size_t emulated_scheme_len;
@@ -483,7 +761,7 @@ typedef struct st_mysqlnd_ms_filter_data
 typedef struct st_mysqlnd_ms_filter_user_data
 {
 	MYSQLND_MS_FILTER_DATA parent;
-	zval * user_callback;
+	zval user_callback;
 	zend_bool callback_valid;
 } MYSQLND_MS_FILTER_USER_DATA;
 
@@ -566,6 +844,23 @@ enum mysqlnd_ms_filter_qos_option
 	QOS_OPTION_CACHE,
 	QOS_OPTION_LAST_ENUM_ENTRY
 };
+
+// BEGIN HACK
+enum mysqlnd_ms_gtid_type
+{
+	GTID_NONE,
+	GTID_CLIENT,
+	GTID_SERVER,
+	GTID_CLIENT_SERVER,
+	GTID_LAST_ENUM_ENTRY
+};
+
+#define GTID_RACE_AVOID_DISABLED				0
+#define GTID_RACE_AVOID_ADD_ERROR				1
+#define GTID_RACE_AVOID_ADD_ACTIVE					2
+#define GTID_RACE_AVOID_MAX_VALUE				3
+
+// END HACK
 
 /* using struct because we will likely add cache ttl later */
 typedef struct st_mysqlnd_ms_filter_qos_option_data
@@ -697,7 +992,25 @@ typedef struct st_mysqlnd_ms_xa_trx {
 	enum mysqlnd_ms_xa_state state;
 } MYSQLND_MS_XA_TRX;
 
+// BEGIN HACK
+/* Low-level extraction functionality */
+typedef struct st_mysqlnd_ms_gtid_trx_methods {
+	enum mysqlnd_ms_gtid_type type;
+	enum_func_status (*gtid_get_last)(MYSQLND_MS_LIST_DATA * gtid_conn_elm, char ** gtid TSRMLS_DC);
+	enum_func_status (*gtid_set_last_write)(MYSQLND_CONN_DATA * connection, char * gtid TSRMLS_DC);
+	enum_func_status (*gtid_init)(MYSQLND_CONN_DATA * proxy_conn TSRMLS_DC);
+	enum_func_status (*gtid_connect)(MYSQLND_CONN_DATA * proxy_conn, MYSQLND_MS_LIST_DATA * new_element, zend_bool is_master,
+	                               zend_bool lazy_connections TSRMLS_DC);
+	enum_func_status (*gtid_inject_before)(MYSQLND_CONN_DATA * conn TSRMLS_DC);
+	enum_func_status (*gtid_inject_after)(MYSQLND_CONN_DATA * conn, enum_func_status status TSRMLS_DC);
+	void (*gtid_filter)(MYSQLND_CONN_DATA * conn, const char * gtid, const char *query, size_t query_len,
+									 zend_llist * slave_list, zend_llist * master_list, zend_llist * selected_slaves, zend_llist * selected_masters, zend_bool is_write TSRMLS_DC);
+	void (*gtid_reset)(MYSQLND_CONN_DATA * conn, enum_func_status status TSRMLS_DC);
+	void (*gtid_trace)(MYSQLND_CONN_DATA * conn, const char * key, size_t key_len, unsigned int ttl, const char * query, size_t query_len TSRMLS_DC);
+	void (*gtid_race_add_active)(MYSQLND_CONN_DATA * conn, zend_llist * server_list, zend_llist * selected_servers, zend_bool is_write TSRMLS_DC);
+} MYSQLND_MS_GTID_TRX_METHODS;
 
+// END HACK
 /*
  NOTE: Some elements are available with every connection, some
  are set for the global/proxy connection only. The global/proxy connection
@@ -710,7 +1023,9 @@ typedef struct st_mysqlnd_ms_conn_data
 	zend_bool skip_ms_calls;
 	MYSQLND_CONN_DATA * proxy_conn;
 	char * connect_host;
-
+    // BEGIN HACK
+	_ms_smart_type *elm_pool_hash_key;
+	// END HACK
 	struct st_mysqlnd_pool * pool;
 
 	const MYSQLND_CHARSET * server_charset;
@@ -726,12 +1041,6 @@ typedef struct st_mysqlnd_ms_conn_data
 
 		zend_bool mysqlnd_ms_flag_master_on_write;
 		zend_bool master_used;
-
-		// BEGIN HACK
-		zend_bool injectable_query;
-		zend_bool stop_inject;
-		zend_bool gtid_on_connect;
-		// END HACK
 
 		/* note: some flags may not be used, however saves us a ton of ifdef to declare them anyway */
 		enum mysqlnd_ms_trx_stickiness_strategy trx_stickiness_strategy;
@@ -760,17 +1069,14 @@ typedef struct st_mysqlnd_ms_conn_data
 	} stgy;
 
 	struct st_mysqlnd_ms_conn_credentials {
-		char * user;
-		char * passwd;
-		size_t passwd_len;
-		char * db;
-		size_t db_len;
+		MYSQLND_MS_CONN_DV_STRING(user);
+		MYSQLND_MS_CONN_DV_STRINGL(passwd);
 		unsigned int port;
-		char * socket;
+		MYSQLND_MS_CONN_DV_STRING(socket);
+		MYSQLND_MS_CONN_DV_STRINGL(db);
 		unsigned long mysql_flags;
 	} cred;
 
-#ifndef MYSQLND_HAS_INJECTION_FEATURE
 	/* per connection trx context set on proxy conn and all others */
 	struct st_mysqlnd_ms_global_trx_injection {
 		char * on_commit;
@@ -787,22 +1093,45 @@ typedef struct st_mysqlnd_ms_conn_data
 		 The rest could probably be global, like with stgy and
 		 LB weigth.
 		*/
-		zend_bool is_master;
 		zend_bool report_error;
+		zend_bool is_master;
+
 		//BEGIN HACK
-#ifndef PHP_WIN32
-		memcached_st *memc;
-#endif
+		enum mysqlnd_ms_gtid_type type;
+		MYSQLND_MS_GTID_TRX_METHODS * m;
+		char * memcached_host;
+		size_t memcached_host_len;
 		unsigned int memcached_port;
 		unsigned int memcached_port_add_hack;
 		char * memcached_key;
 		size_t memcached_key_len;
+		char * memcached_wkey;
+		size_t memcached_wkey_len;
+		char * wc_uuid;
+		size_t wc_uuid_len;
+		size_t gtid_block_size;
+		unsigned int running_ttl;
+		unsigned int memcached_debug_ttl;
+		unsigned int wait_for_wgtid_timeout;
+		unsigned int throttle_wgtid_timeout;
+		unsigned int race_avoid_strategy;
+		zend_bool gtid_on_connect;
+		zend_bool auto_clean;
+
 		MYSQLND_MS_LIST_DATA * gtid_conn_elm;
+		memcached_st *memc;
+		uint64_t owned_token;
 		char * last_gtid;
 		size_t last_gtid_len;
+		char * last_wgtid;
+		size_t last_wgtid_len;
+		char * last_ckgtid;
+		size_t last_ckgtid_len;
+		time_t run_time;
+		zend_bool injectable_query;
+		zend_bool is_prepare;
 		//END HACK
 	} global_trx;
-#endif
 	mysqlnd_fabric *fabric;
 
 	/* TODO XA: proxy connection only */
@@ -810,6 +1139,13 @@ typedef struct st_mysqlnd_ms_conn_data
 
 } MYSQLND_MS_CONN_DATA;
 
+// BEGIN HACK
+typedef struct st_mysqlnd_ms_stmt_data
+{
+	char * query;
+	size_t query_len;
+} MYSQLND_MS_STMT_DATA;
+// END HACK
 
 typedef struct st_mysqlnd_ms_table_filter
 {

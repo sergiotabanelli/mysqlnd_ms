@@ -114,7 +114,12 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_filter_qos_eventual_consistency_rr.ini
 	else
 		$servers[$server_id] = array($role => 1);
 
+	/* MYSQLND_MS_QOS_CONSISTENCY_SESSION with no fall to MYSQLND_MS_QOS_CONSISTENCY_EVENTUAL 
+	  and no more to MYSQLND_MS_QOS_CONSISTENCY_STRONG
 	if (false === ($ret = mysqlnd_ms_set_qos($link, MYSQLND_MS_QOS_CONSISTENCY_SESSION)))
+		printf("[014] [%d] %s\n", $link->errno, $link->error);
+    */
+	if (false === ($ret = mysqlnd_ms_set_qos($link, MYSQLND_MS_QOS_CONSISTENCY_STRONG)))
 		printf("[014] [%d] %s\n", $link->errno, $link->error);
 
 	/* master */

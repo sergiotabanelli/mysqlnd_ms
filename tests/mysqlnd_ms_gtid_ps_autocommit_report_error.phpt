@@ -20,6 +20,8 @@ include_once("util.inc");
 $sql = mst_get_gtid_sql($db);
 if ($error = mst_mysqli_setup_gtid_table($emulated_master_host_only, $user, $passwd, $db, $emulated_master_port, $emulated_master_socket))
   die(sprintf("SKIP Failed to setup GTID on master, %s\n", $error));
+if ($error = mst_mysqli_setup_gtid_table($emulated_slave_host_only, $user, $passwd, $db, $emulated_slave_port, $emulated_slave_socket))
+  die(sprintf("SKIP Failed to setup GTID on slave, %s\n", $error));
 
 $settings = array(
 	"myapp" => array(
@@ -29,11 +31,20 @@ $settings = array(
 			"roundrobin" => array(),
 		),
 		'global_transaction_id_injection' => array(
+		 	'type'						=> 1,
 			'on_commit'	 				=> $sql['update'],
+			'fetch_last_gtid'			=> $sql['fetch_last_gtid'],
 			'report_error'				=> true,
 		),
+
+		'lazy_connections' => 1,
 		'trx_stickiness' => 'disabled',
-		'lazy_connections' => 1
+		'filters' => array(
+			"quality_of_service" => array(
+				"session_consistency" => 1,
+			),
+			"roundrobin" => array(),
+		),
 	),
 );
 if ($error = mst_create_config("test_mysqlnd_ms_gtid_ps_autocommit_report_error.ini", $settings))
@@ -80,7 +91,7 @@ mysqlnd_ms.collect_statistics=1
 	$expected['gtid_autocommit_injections_success'] += 2;
 
 	/* statement created in autocommit mode on master connection */
-	if (!($stmt = $link->prepare(sprintf("/*%s*/SELECT COUNT(*) AS _num_rows FROM test", MYSQLND_MS_MASTER_SWITCH))))
+	if (!($stmt = $link->prepare("SET @novar = 'novar'")))
 		printf("[003] [%d] %s\n", $link->errno, $link->error);
 
 	$stats = mysqlnd_ms_get_stats();
@@ -93,6 +104,7 @@ mysqlnd_ms.collect_statistics=1
 	$stats = mysqlnd_ms_get_stats();
 	compare_stats(6, $stats, $expected);
 
+/*
 	$num_rows = NULL;
 	if (!$stmt->bind_result($num_rows))
 		printf("[007] [%d] %s\n", $stmt->errno, $stmt->error);
@@ -104,6 +116,7 @@ mysqlnd_ms.collect_statistics=1
 
 	while ($stmt->fetch())
 		printf("[009] Clean line...\n");
+*/
 
 	if ($err = mst_mysqli_drop_gtid_table($emulated_master_host_only, $user, $passwd, $db, $emulated_master_port, $emulated_master_socket))
 		printf("[010] %s\n", $err);
@@ -159,7 +172,7 @@ mysqlnd_ms.collect_statistics=1
 	$expected['gtid_autocommit_injections_failure']++;
 	$stats = mysqlnd_ms_get_stats();
 	compare_stats(28, $stats, $expected);
-
+/*
 	$num_rows = NULL;
 	if (!$stmt->bind_result($num_rows)) {
 		printf("[029] [%d/%s] %s\n", $stmt->errno, $stmt->sqlstate, $stmt->error);
@@ -171,7 +184,7 @@ mysqlnd_ms.collect_statistics=1
 	} else {
 		printf("Rows %d\n", $num_rows);
 	}
-
+*/
 	print "done!";
 ?>
 --CLEAN--
@@ -186,19 +199,27 @@ mysqlnd_ms.collect_statistics=1
 
 	if ($error = mst_mysqli_drop_gtid_table($emulated_master_host_only, $user, $passwd, $db, $emulated_master_port, $emulated_master_socket))
 		printf("[clean] %s\n", $error);
+	if ($error = mst_mysqli_drop_gtid_table($emulated_slave_host_only, $user, $passwd, $db, $emulated_slave_port, $emulated_slave_socket))
+		printf("[clean] %s\n", $error);
 ?>
 --EXPECTF--
-Rows 0
+Warning: mysqli_stmt::execute(): (mysqlnd_ms) Error on SQL injection. in %s on line %d
 [011] [1146/42S02] %s
 [012] [1146/42S02] %s
+
+Warning: mysqli::query(): (mysqlnd_ms) Error on SQL injection. in %s on line %d
 [015] [1146] %s
+
+Warning: mysqli_stmt::execute(): (mysqlnd_ms) Error on SQL injection. in %s on line %d
 [017] [1146/42S02] %s
 [018] [1146/42S02] %s
 [021] [1146/42S02] %s
-[022] [2014/HY000] %s
+[022] [1146/42S02] %s
+
+Warning: mysqli::query(): (mysqlnd_ms) Error on SQL injection. in %s on line %d
 [023] [1146] %s
+
+Warning: mysqli_stmt::execute(): (mysqlnd_ms) Error on SQL injection. in %s on line %d
 [025] [1146/42S02] %s
 [026] [1146/42S02] %s
-[031] [0/00000%A
-[032] [2014/HY000] %s
 done!

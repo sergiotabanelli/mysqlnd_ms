@@ -30,6 +30,9 @@
 #ifndef mnd_emalloc
 #include "ext/mysqlnd/mysqlnd_alloc.h"
 #endif
+#if PHP_VERSION_ID >= 70100
+#include "ext/mysqlnd/mysqlnd_connection.h"
+#endif
 #include "mysqlnd_ms.h"
 #include "mysqlnd_ms_config_json.h"
 #include "ext/standard/php_rand.h"
@@ -42,13 +45,13 @@
 #define MS_STRING(vl, a)				\
 {											\
 	MAKE_STD_ZVAL((a));						\
-	ZVAL_STRING((a), (char *)(vl), 1);	\
+	_MS_ZVAL_STRING((a), (char *)(vl));	\
 }
 
 #define MS_STRINGL(vl, ln, a)				\
 {											\
 	MAKE_STD_ZVAL((a));						\
-	ZVAL_STRINGL((a), (char *)(vl), (ln), 1);	\
+	_MS_ZVAL_STRINGL((a), (char *)(vl), (ln));	\
 }
 
 #define MS_ARRAY(a)		\
@@ -65,9 +68,7 @@ user_filter_dtor(struct st_mysqlnd_ms_filter_data * pDest TSRMLS_DC)
 	MYSQLND_MS_FILTER_USER_DATA * filter = (MYSQLND_MS_FILTER_USER_DATA *) pDest;
 	DBG_ENTER("user_filter_dtor");
 
-	if (filter->user_callback) {
-		zval_ptr_dtor(&filter->user_callback);
-	}
+	zval_dtor(&filter->user_callback);
 	mnd_pefree(filter, filter->parent.persistent);
 
 	DBG_VOID_RETURN;
@@ -94,6 +95,8 @@ mysqlnd_ms_user_filter_ctor(struct st_mysqlnd_ms_config_json_entry * section, ze
 		if (ret) {
 			zend_bool value_exists = FALSE, is_list_value = FALSE;
 			char * callback;
+			INIT_ZVAL(ret->user_callback);
+			ZVAL_NULL(&ret->user_callback);
 
 			ret->parent.filter_dtor = user_filter_dtor;
 			ret->parent.filter_conn_pool_replaced = user_filter_conn_pool_replaced;
@@ -102,16 +105,10 @@ mysqlnd_ms_user_filter_ctor(struct st_mysqlnd_ms_config_json_entry * section, ze
 																  &value_exists, &is_list_value TSRMLS_CC);
 
 			if (value_exists) {
-				zval * zv;
-				char * c_name;
-
-				MAKE_STD_ZVAL(zv);
-				ZVAL_STRING(zv, callback, 1);
+				_MS_ZVAL_STRING(&ret->user_callback, callback);
+				ret->callback_valid = zend_is_callable(&ret->user_callback, 0, NULL TSRMLS_CC);
+				DBG_INF_FMT("name=%s valid=%d", callback, ret->callback_valid);
 				mnd_efree(callback);
-				ret->user_callback = zv;
-				ret->callback_valid = zend_is_callable(zv, 0, &c_name TSRMLS_CC);
-				DBG_INF_FMT("name=%s valid=%d", c_name, ret->callback_valid);
-				efree(c_name);
 			} else {
 				mnd_pefree(ret, persistent);
 				php_error_docref(NULL TSRMLS_CC, E_ERROR,
@@ -127,31 +124,29 @@ mysqlnd_ms_user_filter_ctor(struct st_mysqlnd_ms_config_json_entry * section, ze
 
 
 /* {{{ mysqlnd_ms_call_handler */
-static zval *
-mysqlnd_ms_call_handler(zval *func, int argc, zval **argv, zend_bool destroy_args, MYSQLND_ERROR_INFO * error_info TSRMLS_DC)
+static int
+mysqlnd_ms_call_handler(zval *func, zval * retval, int argc, zval _ms_p_zval argv[], zend_bool destroy_args, MYSQLND_ERROR_INFO * error_info TSRMLS_DC)
 {
-	int i;
-	zval * retval;
+	int i, ret = SUCCESS;
 	DBG_ENTER("mysqlnd_ms_call_handler");
 
-	MAKE_STD_ZVAL(retval);
 	if (call_user_function(EG(function_table), NULL, func, retval, argc, argv TSRMLS_CC) == FAILURE) {
 		char error_buf[128];
 		snprintf(error_buf, sizeof(error_buf), MYSQLND_MS_ERROR_PREFIX " Failed to call '%s'", Z_STRVAL_P(func));
 		error_buf[sizeof(error_buf) - 1] = '\0';
-		SET_CLIENT_ERROR((*error_info), CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, error_buf);
+		SET_CLIENT_ERROR((_ms_p_ei error_info), CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, error_buf);
 		php_error_docref(NULL TSRMLS_CC, E_RECOVERABLE_ERROR, "%s", error_buf);
-		zval_ptr_dtor(&retval);
-		retval = NULL;
+		ret = FAILURE;
+		DBG_INF_FMT("%s", error_buf);
 	}
 
 	if (destroy_args == TRUE) {
 		for (i = 0; i < argc; i++) {
-			zval_ptr_dtor(&argv[i]);
+			_ms_zval_dtor(argv[i]);
 		}
 	}
 
-	DBG_RETURN(retval);
+	DBG_RETURN(ret);
 }
 /* }}} */
 
@@ -163,102 +158,98 @@ mysqlnd_ms_user_pick_server(void * f_data, const char * connect_host, const char
 							struct mysqlnd_ms_lb_strategies * stgy, MYSQLND_ERROR_INFO * error_info TSRMLS_DC)
 {
 	MYSQLND_MS_FILTER_USER_DATA * filter_data = (MYSQLND_MS_FILTER_USER_DATA *) f_data;
-	zval * args[7];
-	zval * retval;
+	zval _ms_p_zval args[7];
+	zval _ms_p_zval retval;
 	MYSQLND_CONN_DATA * ret = NULL;
 
 	DBG_ENTER("mysqlnd_ms_user_pick_server");
-	DBG_INF_FMT("query(50bytes)=%*s query_is_select=%p", MIN(50, query_len), query, filter_data? filter_data->user_callback:NULL);
+	DBG_INF_FMT("query(50bytes)=%*s", MIN(50, query_len), query);
 
-	if (master_list && filter_data && filter_data->user_callback) {
+	if (master_list && filter_data) {
 		uint param = 0;
 #ifdef ALL_SERVER_DISPATCH
 		uint use_all_pos = 0;
 #endif
 		if (!filter_data->callback_valid) {
-			char * cback_name;
-			if (!zend_is_callable(filter_data->user_callback, 0, &cback_name TSRMLS_CC)) {
-				char error_buf[128];
-				snprintf(error_buf, sizeof(error_buf), MYSQLND_MS_ERROR_PREFIX " Specified callback (%s) is not a valid callback", cback_name);
-				error_buf[sizeof(error_buf) - 1] = '\0';
-				SET_CLIENT_ERROR((*error_info), CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, error_buf);
-				php_error_docref(NULL TSRMLS_CC, E_RECOVERABLE_ERROR, "%s", error_buf);
+			if (!zend_is_callable(&filter_data->user_callback, 0, NULL TSRMLS_CC)) {
+				SET_CLIENT_ERROR((_ms_p_ei error_info), CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE,  MYSQLND_MS_ERROR_PREFIX " Specified callback is not a valid callback");
+				php_error_docref(NULL TSRMLS_CC, E_RECOVERABLE_ERROR, "%s", MYSQLND_MS_ERROR_PREFIX " Specified callback is not a valid callback");
 			} else {
 				filter_data->callback_valid = TRUE;
 			}
-			efree(cback_name);
 			if (!filter_data->callback_valid) {
 				DBG_RETURN(ret);
 			}
 		}
 
 		/* connect host */
-		MS_STRING((char *) connect_host, args[param]);
+		MS_STRING((char *) connect_host, _ms_a_zval(args[param]));
 
 		/* query */
 		param++;
-		MS_STRINGL((char *) query, query_len, args[param]);
+		MS_STRINGL((char *) query, query_len, _ms_a_zval(args[param]));
 		{
 			MYSQLND_MS_LIST_DATA * el, ** el_pp;
 			zend_llist_position	pos;
 			/* master list */
 			param++;
-			MS_ARRAY(args[param]);
+			MS_ARRAY(_ms_a_zval(args[param]));
 			for (el_pp = (MYSQLND_MS_LIST_DATA **) zend_llist_get_first_ex(master_list, &pos); el_pp && (el = *el_pp) && el->conn;
 					el_pp = (MYSQLND_MS_LIST_DATA **) zend_llist_get_next_ex(master_list, &pos))
 			{
-				if (CONN_GET_STATE(el->conn) == CONN_ALLOCED) {
+				if (_MS_CONN_GET_STATE(el->conn) == CONN_ALLOCED) {
 					/* lazy */
-					add_next_index_stringl(args[param], el->emulated_scheme, el->emulated_scheme_len, 1);
+					_ms_add_next_index_stringl(_ms_a_zval(args[param]), el->emulated_scheme, el->emulated_scheme_len);
 				} else {
-					add_next_index_stringl(args[param], el->conn->scheme, el->conn->scheme_len, 1);
+					_ms_add_next_index_stringl(_ms_a_zval(args[param]), MYSQLND_MS_CONN_STRING(el->conn->scheme), MYSQLND_MS_CONN_STRING_LEN(el->conn->scheme));
 				}
 			}
 
 			/* slave list*/
 			param++;
-			MS_ARRAY(args[param]);
+			MS_ARRAY(_ms_a_zval(args[param]));
 			if (slave_list) {
 				for (el_pp = (MYSQLND_MS_LIST_DATA **) zend_llist_get_first_ex(slave_list, &pos); el_pp && (el = *el_pp) && el->conn;
 						el_pp = (MYSQLND_MS_LIST_DATA **) zend_llist_get_next_ex(slave_list, &pos))
 				{
-					if (CONN_GET_STATE(el->conn) == CONN_ALLOCED) {
+					if (_MS_CONN_GET_STATE(el->conn) == CONN_ALLOCED) {
 						/* lazy */
-						add_next_index_stringl(args[param], el->emulated_scheme, el->emulated_scheme_len, 1);
+						_ms_add_next_index_stringl(_ms_a_zval(args[param]), el->emulated_scheme, el->emulated_scheme_len);
 					} else {
-						add_next_index_stringl(args[param], el->conn->scheme, el->conn->scheme_len, 1);
+						_ms_add_next_index_stringl(_ms_a_zval(args[param]), MYSQLND_MS_CONN_STRING(el->conn->scheme), MYSQLND_MS_CONN_STRING_LEN(el->conn->scheme));
 					}
 				}
 			}
 			/* last used connection */
 			param++;
-			MAKE_STD_ZVAL(args[param]);
-			if (stgy->last_used_conn && stgy->last_used_conn->scheme) {
-				ZVAL_STRING(args[param], stgy->last_used_conn->scheme, 1);
+			MAKE_STD_ZVAL((args[param]));
+			if (stgy->last_used_conn && MYSQLND_MS_CONN_STRING(stgy->last_used_conn->scheme)) {
+				_MS_ZVAL_STRING(_ms_a_zval(args[param]), MYSQLND_MS_CONN_STRING(stgy->last_used_conn->scheme));
 			} else {
-				ZVAL_NULL(args[param]);
+				ZVAL_NULL(_ms_a_zval(args[param]));
 			}
 
 			/* in transaction */
 			param++;
-			MAKE_STD_ZVAL(args[param]);
+			MAKE_STD_ZVAL((args[param]));
 			if (stgy->in_transaction) {
-				ZVAL_TRUE(args[param]);
+				ZVAL_TRUE(_ms_a_zval(args[param]));
 			} else {
-				ZVAL_FALSE(args[param]);
+				ZVAL_FALSE(_ms_a_zval(args[param]));
 			}
 #ifdef ALL_SERVER_DISPATCH
 			/* use all */
 			use_all_pos = ++param;
-			MAKE_STD_ZVAL(args[param]);
-			Z_ADDREF_P(args[param]);
-			ZVAL_FALSE(args[param]);
+			MAKE_STD_ZVAL((args[param]));
+			Z_ADDREF_P(_ms_a_zval(args[param]));
+			ZVAL_FALSE(_ms_a_zval(args[param]));
 #endif
 		}
+		MAKE_STD_ZVAL(retval);
 
-		retval = mysqlnd_ms_call_handler(filter_data->user_callback, param + 1, args, FALSE /*we destroy later*/, error_info TSRMLS_CC);
-		if (retval) {
-			if (Z_TYPE_P(retval) == IS_STRING) {
+		if (SUCCESS == mysqlnd_ms_call_handler(&filter_data->user_callback, _ms_a_zval retval, param + 1, args, FALSE /*we destroy later*/, error_info TSRMLS_CC)) {
+			DBG_INF_FMT("Pick callback returned type %d", Z_TYPE(_ms_p_zval retval));
+			if (Z_TYPE(_ms_p_zval retval) == IS_STRING) {
 				do {
 					MYSQLND_MS_LIST_DATA * el, ** el_pp;
 					zend_llist_position	pos;
@@ -267,11 +258,11 @@ mysqlnd_ms_user_pick_server(void * f_data, const char * connect_host, const char
 						 !ret && el_pp && (el = *el_pp) && el->conn;
 						 el_pp = (MYSQLND_MS_LIST_DATA **) zend_llist_get_next_ex(master_list, &pos))
 					{
-						if (CONN_GET_STATE(el->conn) == CONN_ALLOCED) {
+						if (_MS_CONN_GET_STATE(el->conn) == CONN_ALLOCED) {
 							/* lazy */
-							if (!strcasecmp(el->emulated_scheme, Z_STRVAL_P(retval))) {
+							if (!strcasecmp(el->emulated_scheme, Z_STRVAL(_ms_p_zval retval))) {
 								MYSQLND_MS_INC_STATISTIC(MS_STAT_USE_MASTER_CALLBACK);
-								DBG_INF_FMT("Userfunc chose LAZY master host : [%*s]", el->conn->scheme_len, el->conn->scheme);
+								DBG_INF_FMT("Userfunc chose LAZY master host : [%*s]", MYSQLND_MS_CONN_STRING_LEN(el->conn->scheme), MYSQLND_MS_CONN_STRING(el->conn->scheme));
 								if (PASS == mysqlnd_ms_lazy_connect(el, TRUE TSRMLS_CC)) {
 									ret = el->conn;
 								} else {
@@ -280,11 +271,11 @@ mysqlnd_ms_user_pick_server(void * f_data, const char * connect_host, const char
 								}
 							}
 						} else {
-							if (!strcasecmp(el->conn->scheme, Z_STRVAL_P(retval))) {
+							if (!strcasecmp(MYSQLND_MS_CONN_STRING(el->conn->scheme), Z_STRVAL(_ms_p_zval retval))) {
 								MYSQLND_MS_INC_STATISTIC(MS_STAT_USE_MASTER_CALLBACK);
 								ret = el->conn;
-								SET_EMPTY_ERROR(MYSQLND_MS_ERROR_INFO(ret));
-								DBG_INF_FMT("Userfunc chose master host : [%*s]", el->conn->scheme_len, el->conn->scheme);
+								SET_EMPTY_ERROR(_ms_a_ei MYSQLND_MS_ERROR_INFO(ret));
+								DBG_INF_FMT("Userfunc chose master host : [%*s]", MYSQLND_MS_CONN_STRING_LEN(el->conn->scheme), MYSQLND_MS_CONN_STRING(el->conn->scheme));
 							}
 						}
 					}
@@ -294,30 +285,30 @@ mysqlnd_ms_user_pick_server(void * f_data, const char * connect_host, const char
 							 el_pp = (MYSQLND_MS_LIST_DATA **) zend_llist_get_next_ex(slave_list, &pos))
 						{
 
-							if (CONN_GET_STATE(el->conn) == CONN_ALLOCED) {
+							if (_MS_CONN_GET_STATE(el->conn) == CONN_ALLOCED) {
 								/* lazy */
-								if (!strcasecmp(el->emulated_scheme, Z_STRVAL_P(retval))) {
+								if (!strcasecmp(el->emulated_scheme, Z_STRVAL(_ms_p_zval retval))) {
 									MYSQLND_MS_INC_STATISTIC(MS_STAT_USE_SLAVE_CALLBACK);
 									DBG_INF_FMT("Userfunc chose LAZY slave host : [%*s]", el->emulated_scheme_len, el->emulated_scheme);
 									if (PASS == mysqlnd_ms_lazy_connect(el, FALSE TSRMLS_CC)) {
 										ret = el->conn;
-										SET_EMPTY_ERROR(MYSQLND_MS_ERROR_INFO(ret));
+										SET_EMPTY_ERROR(_ms_a_ei MYSQLND_MS_ERROR_INFO(ret));
 									} else {
 										char error_buf[128];
 										snprintf(error_buf, sizeof(error_buf), MYSQLND_MS_ERROR_PREFIX " Callback chose %s but connection failed", el->emulated_scheme);
 										error_buf[sizeof(error_buf) - 1] = '\0';
-										SET_CLIENT_ERROR((*error_info), CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, error_buf);
+										SET_CLIENT_ERROR((_ms_p_ei error_info), CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, error_buf);
 										php_error_docref(NULL TSRMLS_CC, E_WARNING, "%s", error_buf);
 										DBG_ERR_FMT("%s", error_buf);
 										ret = el->conn; /* no automatic action: leave it to the user to decide! */
 									}
 								}
 							} else {
-								if (!strcasecmp(el->conn->scheme, Z_STRVAL_P(retval))) {
+								if (!strcasecmp(MYSQLND_MS_CONN_STRING(el->conn->scheme), Z_STRVAL(_ms_p_zval retval))) {
 									MYSQLND_MS_INC_STATISTIC(MS_STAT_USE_SLAVE_CALLBACK);
 									ret = el->conn;
-									SET_EMPTY_ERROR(MYSQLND_MS_ERROR_INFO(ret));
-									DBG_INF_FMT("Userfunc chose slave host : [%*s]", el->conn->scheme_len, el->conn->scheme);
+									SET_EMPTY_ERROR(_ms_a_ei MYSQLND_MS_ERROR_INFO(ret));
+									DBG_INF_FMT("Userfunc chose slave host : [%*s]", MYSQLND_MS_CONN_STRING_LEN(el->conn->scheme), MYSQLND_MS_CONN_STRING(el->conn->scheme));
 								}
 							}
 						}
@@ -325,9 +316,9 @@ mysqlnd_ms_user_pick_server(void * f_data, const char * connect_host, const char
 				} while (0);
 				if (!ret) {
 					char error_buf[256];
-					snprintf(error_buf, sizeof(error_buf), MYSQLND_MS_ERROR_PREFIX " User filter callback has returned an unknown server. The server '%s' can neither be found in the master list nor in the slave list", Z_STRVAL_P(retval));
+					snprintf(error_buf, sizeof(error_buf), MYSQLND_MS_ERROR_PREFIX " User filter callback has returned an unknown server. The server '%s' can neither be found in the master list nor in the slave list", Z_STRVAL(_ms_p_zval retval));
 					error_buf[sizeof(error_buf) - 1] = '\0';
-					SET_CLIENT_ERROR((*error_info), CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, error_buf);
+					SET_CLIENT_ERROR((_ms_p_ei error_info), CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, error_buf);
 					DBG_ERR_FMT("%s", error_buf);
 					php_error_docref(NULL TSRMLS_CC, E_RECOVERABLE_ERROR, "%s", error_buf);
 				}
@@ -335,29 +326,29 @@ mysqlnd_ms_user_pick_server(void * f_data, const char * connect_host, const char
 				char error_buf[256];
 				snprintf(error_buf, sizeof(error_buf), MYSQLND_MS_ERROR_PREFIX " User filter callback has not returned string with server to use. The callback must return a string");
 				error_buf[sizeof(error_buf) - 1] = '\0';
-				SET_CLIENT_ERROR((*error_info), CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, error_buf);
+				SET_CLIENT_ERROR((_ms_p_ei error_info), CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, error_buf);
 				DBG_ERR_FMT("%s", error_buf);
 				php_error_docref(NULL TSRMLS_CC, E_RECOVERABLE_ERROR, "%s", error_buf);
 			}
-			zval_ptr_dtor(&retval);
+			_ms_zval_dtor(retval);
 		} else {
 			/* We should never get here */
 			char error_buf[128];
 			snprintf(error_buf, sizeof(error_buf), MYSQLND_MS_ERROR_PREFIX " User filter callback did not return server to use");
 			error_buf[sizeof(error_buf) - 1] = '\0';
-			SET_CLIENT_ERROR((*error_info), CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, error_buf);
+			SET_CLIENT_ERROR((_ms_p_ei error_info), CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, error_buf);
 			DBG_ERR_FMT("%s", error_buf);
 			php_error_docref(NULL TSRMLS_CC, E_RECOVERABLE_ERROR, "%s", error_buf);
 		}
 #ifdef ALL_SERVER_DISPATCH
-		convert_to_boolean(args[use_all_pos]);
-		Z_DELREF_P(args[use_all_pos]);
+		convert_to_boolean(_ms_a_zval(args[use_all_pos]));
+		Z_DELREF_P(_ms_a_zval(args[use_all_pos]));
 #endif
 		/* destroy the params */
 		{
 			unsigned int i;
 			for (i = 0; i <= param; i++) {
-				zval_ptr_dtor(&args[i]);
+				_ms_zval_dtor(args[i]);
 			}
 		}
 	}
@@ -373,15 +364,21 @@ my_long_compare(const void * a, const void * b TSRMLS_DC)
 {
 	Bucket * f = *((Bucket **) a);
 	Bucket * s = *((Bucket **) b);
+#if PHP_MAJOR_VERSION < 7
 	zval * first = *((zval **) f->pData);
 	zval * second = *((zval **) s->pData);
-
+#else
+	zval * first = &f->val;
+	zval * second = &s->val;
+#endif
+	DBG_ENTER("my_long_compare");
+	DBG_INF_FMT("zval type first %d second %d", Z_TYPE_P(first), Z_TYPE_P(second));
 	if (Z_LVAL_P(first) > Z_LVAL_P(second)) {
-		return 1;
+		DBG_RETURN(1);
 	} else if (Z_LVAL_P(first) == Z_LVAL_P(second)) {
-		return 0;
+		DBG_RETURN(0);
 	}
-	return -1;
+	DBG_RETURN(-1);
 }
 /* }}} */
 
@@ -395,155 +392,160 @@ mysqlnd_ms_user_pick_multiple_server(void * f_data, const char * connect_host, c
 									 TSRMLS_DC)
 {
 	MYSQLND_MS_FILTER_USER_DATA * filter_data = (MYSQLND_MS_FILTER_USER_DATA *) f_data;
-	zval * args[7];
-	zval * retval;
+	zval _ms_p_zval args[7];
+	zval _ms_p_zval retval;
 	enum_func_status ret = FAIL;
 
 	DBG_ENTER("mysqlnd_ms_user_pick_multiple_server");
-	DBG_INF_FMT("query(50bytes)=%*s query_is_select=%p", MIN(50, query_len), query, filter_data? filter_data->user_callback:NULL);
+	DBG_INF_FMT("query(50bytes)=%*s", MIN(50, query_len), query);
 
-	if (master_list && filter_data && filter_data->user_callback) {
+	if (master_list && filter_data) {
 		uint param = 0;
 
 		/* connect host */
-		MS_STRING((char *) connect_host, args[param]);
+		MS_STRING((char *) connect_host, _ms_a_zval(args[param]));
 
 		/* query */
 		param++;
-		MS_STRINGL((char *) query, query_len, args[param]);
+		MS_STRINGL((char *) query, query_len, _ms_a_zval(args[param]));
 		{
 			MYSQLND_MS_LIST_DATA * el, ** el_pp;
 			zend_llist_position	pos;
 			/* master list */
 			param++;
-			MS_ARRAY(args[param]);
+			MS_ARRAY(_ms_a_zval(args[param]));
 			for (el_pp = (MYSQLND_MS_LIST_DATA **) zend_llist_get_first_ex(master_list, &pos); el_pp && (el = *el_pp) && el->conn;
 					el_pp = (MYSQLND_MS_LIST_DATA **) zend_llist_get_next_ex(master_list, &pos))
 			{
-				if (CONN_GET_STATE(el->conn) == CONN_ALLOCED) {
+				if (_MS_CONN_GET_STATE(el->conn) == CONN_ALLOCED) {
 					/* lazy */
-					add_next_index_stringl(args[param], el->emulated_scheme, el->emulated_scheme_len, 1);
+					_ms_add_next_index_stringl(_ms_a_zval(args[param]), el->emulated_scheme, el->emulated_scheme_len);
 				} else {
-					add_next_index_stringl(args[param], el->conn->scheme, el->conn->scheme_len, 1);
+					_ms_add_next_index_stringl(_ms_a_zval(args[param]), MYSQLND_MS_CONN_STRING(el->conn->scheme), MYSQLND_MS_CONN_STRING_LEN(el->conn->scheme));
 				}
 			}
 
 			/* slave list*/
 			param++;
-			MS_ARRAY(args[param]);
+			MS_ARRAY(_ms_a_zval(args[param]));
 			if (slave_list) {
 				for (el_pp = (MYSQLND_MS_LIST_DATA **) zend_llist_get_first_ex(slave_list, &pos); el_pp && (el = *el_pp) && el->conn;
 						el_pp = (MYSQLND_MS_LIST_DATA **) zend_llist_get_next_ex(slave_list, &pos))
 				{
-					if (CONN_GET_STATE(el->conn) == CONN_ALLOCED) {
+					if (_MS_CONN_GET_STATE(el->conn) == CONN_ALLOCED) {
 						/* lazy */
-						add_next_index_stringl(args[param], el->emulated_scheme, el->emulated_scheme_len, 1);
+						_ms_add_next_index_stringl(_ms_a_zval(args[param]), el->emulated_scheme, el->emulated_scheme_len);
 					} else {
-						add_next_index_stringl(args[param], el->conn->scheme, el->conn->scheme_len, 1);
+						_ms_add_next_index_stringl(_ms_a_zval(args[param]), MYSQLND_MS_CONN_STRING(el->conn->scheme), MYSQLND_MS_CONN_STRING_LEN(el->conn->scheme));
 					}
 				}
 			}
 			/* last used connection */
 			param++;
-			MAKE_STD_ZVAL(args[param]);
+			MAKE_STD_ZVAL(_ms_a_zval(args[param]));
 			if (stgy->last_used_conn) {
-				ZVAL_STRING(args[param], stgy->last_used_conn->scheme, 1);
+				_MS_ZVAL_STRING(_ms_a_zval(args[param]), MYSQLND_MS_CONN_STRING(stgy->last_used_conn->scheme));
 			} else {
-				ZVAL_NULL(args[param]);
+				ZVAL_NULL(_ms_a_zval(args[param]));
 			}
 
 			/* in transaction */
 			param++;
-			MAKE_STD_ZVAL(args[param]);
+			MAKE_STD_ZVAL(_ms_a_zval(args[param]));
 			if (stgy->in_transaction) {
-				ZVAL_TRUE(args[param]);
+				ZVAL_TRUE(_ms_a_zval(args[param]));
 			} else {
-				ZVAL_FALSE(args[param]);
+				ZVAL_FALSE(_ms_a_zval(args[param]));
 			}
 		}
+		MAKE_STD_ZVAL(retval);
 
-		retval = mysqlnd_ms_call_handler(filter_data->user_callback, param + 1, args, FALSE /*we destroy later*/, error_info TSRMLS_CC);
-		if (retval) {
-			if (Z_TYPE_P(retval) != IS_ARRAY) {
+		if (SUCCESS == mysqlnd_ms_call_handler(&filter_data->user_callback, _ms_a_zval retval, param + 1, args, FALSE /*we destroy later*/, error_info TSRMLS_CC)) {
+			if (Z_TYPE(_ms_p_zval retval) != IS_ARRAY) {
 				char error_buf[256];
 				DBG_ERR("The user returned no array");
 				snprintf(error_buf, sizeof(error_buf), MYSQLND_MS_ERROR_PREFIX " User multi filter callback has not returned a list of servers to use. The callback must return an array");
 				error_buf[sizeof(error_buf) - 1] = '\0';
-				SET_CLIENT_ERROR((*error_info), CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, error_buf);
+				SET_CLIENT_ERROR((_ms_p_ei error_info), CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, error_buf);
 				DBG_ERR_FMT("%s", error_buf);
 				php_error_docref(NULL TSRMLS_CC, E_RECOVERABLE_ERROR, "%s", error_buf);
 			} else {
 				do {
 					HashPosition hash_pos;
-					zval ** users_masters, ** users_slaves;
+					zval _ms_p_zval * users_masters, _ms_p_zval * users_slaves;
 					DBG_INF("Checking data validity");
 					/* Check data validity */
 					{
-						zend_hash_internal_pointer_reset_ex(Z_ARRVAL_P(retval), &hash_pos);
-						if (SUCCESS != zend_hash_get_current_data_ex(Z_ARRVAL_P(retval), (void **)&users_masters, &hash_pos) ||
-							Z_TYPE_PP(users_masters) != IS_ARRAY ||
-							SUCCESS != zend_hash_move_forward_ex(Z_ARRVAL_P(retval), &hash_pos) ||
-							SUCCESS != zend_hash_get_current_data_ex(Z_ARRVAL_P(retval), (void **)&users_slaves, &hash_pos) ||
-							Z_TYPE_PP(users_slaves) != IS_ARRAY ||
+						zend_hash_internal_pointer_reset_ex(Z_ARRVAL(_ms_p_zval retval), &hash_pos);
+						if (SUCCESS != _MS_HASH_GET_ZR_FUNC_PTR_VA(zend_hash_get_current_data_ex, Z_ARRVAL(_ms_p_zval retval), users_masters, &hash_pos) ||
+							Z_TYPE_P(_ms_p_zval users_masters) != IS_ARRAY ||
+							SUCCESS != zend_hash_move_forward_ex(Z_ARRVAL(_ms_p_zval retval), &hash_pos) ||
+							SUCCESS != _MS_HASH_GET_ZR_FUNC_PTR_VA(zend_hash_get_current_data_ex, Z_ARRVAL(_ms_p_zval retval), users_slaves, &hash_pos) ||
+							Z_TYPE_P(_ms_p_zval users_slaves) != IS_ARRAY ||
 							(
-								0 == zend_hash_num_elements(Z_ARRVAL_PP(users_masters))
+								0 == zend_hash_num_elements(Z_ARRVAL_P(_ms_p_zval users_masters))
 								&&
-								0 == zend_hash_num_elements(Z_ARRVAL_PP(users_slaves))
+								0 == zend_hash_num_elements(Z_ARRVAL_P(_ms_p_zval users_slaves))
 							))
 						{
 							char error_buf[256];
 							DBG_ERR("Error in validity");
 							snprintf(error_buf, sizeof(error_buf), MYSQLND_MS_ERROR_PREFIX " User multi filter callback has returned an invalid list of servers to use. The callback must return an array");
 							error_buf[sizeof(error_buf) - 1] = '\0';
-							SET_CLIENT_ERROR((*error_info), CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, error_buf);
+							SET_CLIENT_ERROR((_ms_p_ei error_info), CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, error_buf);
 							DBG_ERR_FMT("%s", error_buf);
 							php_error_docref(NULL TSRMLS_CC, E_RECOVERABLE_ERROR, "%s", error_buf);
 							break;
 						}
 					}
 					/* convert to long and sort */
-					DBG_INF("Converting and sorting");
+					DBG_INF("Converting");
 					{
-						zval ** selected_server;
+						zval _ms_p_zval * selected_server;
 						/* convert to longs and sort */
-						zend_hash_internal_pointer_reset_ex(Z_ARRVAL_PP(users_masters), &hash_pos);
-						while (SUCCESS == zend_hash_get_current_data_ex(Z_ARRVAL_PP(users_masters), (void **)&selected_server, &hash_pos)) {
+						zend_hash_internal_pointer_reset_ex(Z_ARRVAL_P(_ms_p_zval users_masters), &hash_pos);
+						while (SUCCESS == _MS_HASH_GET_ZR_FUNC_PTR_VA(zend_hash_get_current_data_ex, Z_ARRVAL_P(_ms_p_zval users_masters), selected_server, &hash_pos)) {
 							convert_to_long_ex(selected_server);
-							zend_hash_move_forward_ex(Z_ARRVAL_PP(users_masters), &hash_pos);
+							zend_hash_move_forward_ex(Z_ARRVAL_P(_ms_p_zval users_masters), &hash_pos);
 						}
-						if (FAILURE == zend_hash_sort(Z_ARRVAL_PP(users_masters), zend_qsort, my_long_compare, 1 TSRMLS_CC)) {
+						/*
+						DBG_INF("Sort master");
+						if (FAILURE == zend_hash_sort_ex(Z_ARRVAL_P(_ms_p_zval users_masters), zend_qsort, my_long_compare, 1 TSRMLS_CC)) {
 							char error_buf[256];
 							DBG_ERR("Error while sorting the master list");
 							snprintf(error_buf, sizeof(error_buf), MYSQLND_MS_ERROR_PREFIX " User multi filter callback has returned an invalid list of servers to use. Error while sorting the master list");
 							error_buf[sizeof(error_buf) - 1] = '\0';
-							SET_CLIENT_ERROR((*error_info), CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, error_buf);
+							SET_CLIENT_ERROR((_ms_p_ei error_info), CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, error_buf);
 							DBG_ERR_FMT("%s", error_buf);
 							php_error_docref(NULL TSRMLS_CC, E_RECOVERABLE_ERROR, "%s", error_buf);
 							break;
 						}
-
+						*/
 						/* convert to longs and sort */
-						zend_hash_internal_pointer_reset_ex(Z_ARRVAL_PP(users_slaves), &hash_pos);
-						while (SUCCESS == zend_hash_get_current_data_ex(Z_ARRVAL_PP(users_slaves), (void **)&selected_server, &hash_pos)) {
+						zend_hash_internal_pointer_reset_ex(Z_ARRVAL_P(_ms_p_zval users_slaves), &hash_pos);
+						while (SUCCESS == _MS_HASH_GET_ZR_FUNC_PTR_VA(zend_hash_get_current_data_ex, Z_ARRVAL_P(_ms_p_zval users_slaves), selected_server, &hash_pos)) {
 							convert_to_long_ex(selected_server);
-							zend_hash_move_forward_ex(Z_ARRVAL_PP(users_slaves), &hash_pos);
+							zend_hash_move_forward_ex(Z_ARRVAL_P(_ms_p_zval users_slaves), &hash_pos);
 						}
-						if (FAILURE == zend_hash_sort(Z_ARRVAL_PP(users_slaves), zend_qsort, my_long_compare, 1 TSRMLS_CC)) {
+						/*
+						DBG_INF("Sort slave");
+						if (FAILURE == zend_hash_sort_ex(Z_ARRVAL_P(_ms_p_zval users_slaves), zend_qsort, my_long_compare, 1 TSRMLS_CC)) {
 							char error_buf[256];
 							DBG_ERR("Error while sorting the slave list");
 							snprintf(error_buf, sizeof(error_buf), MYSQLND_MS_ERROR_PREFIX " User multi filter callback has returned an invalid list of servers to use. Error while sorting the slave list");
 							error_buf[sizeof(error_buf) - 1] = '\0';
-							SET_CLIENT_ERROR((*error_info), CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, error_buf);
+							SET_CLIENT_ERROR((_ms_p_ei error_info), CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, error_buf);
 							DBG_ERR_FMT("%s", error_buf);
 							php_error_docref(NULL TSRMLS_CC, E_RECOVERABLE_ERROR, "%s", error_buf);
 							break;
 						}
+						*/
 					}
 					DBG_INF("Extracting into the supplied lists");
 					/* extract into llists */
 					{
 						unsigned int pass;
-						zval ** selected_server;
+						zval _ms_p_zval * selected_server;
 
 						for (pass = 0; pass < 2; pass++) {
 							long i = 0;
@@ -552,19 +554,19 @@ mysqlnd_ms_user_pick_multiple_server(void * f_data, const char * connect_host, c
 							zend_llist * out_list = (pass == 0)? selected_masters : selected_slaves;
 							MYSQLND_MS_LIST_DATA ** el_pp = (MYSQLND_MS_LIST_DATA **) zend_llist_get_first_ex(in_list, &list_pos);
 							MYSQLND_MS_LIST_DATA * el = el_pp? *el_pp : NULL;
-							HashTable * conn_hash = (pass == 0)? Z_ARRVAL_PP(users_masters):Z_ARRVAL_PP(users_slaves);
+							HashTable * conn_hash = (pass == 0)? Z_ARRVAL_P(_ms_p_zval users_masters):Z_ARRVAL_P(_ms_p_zval users_slaves);
 
 							DBG_INF_FMT("pass=%u", pass);
 							zend_hash_internal_pointer_reset_ex(conn_hash, &hash_pos);
-							while (SUCCESS == zend_hash_get_current_data_ex(conn_hash, (void **)&selected_server, &hash_pos)) {
-								if (Z_LVAL_PP(selected_server) >= 0) {
-									long server_id = Z_LVAL_PP(selected_server);
+							while (SUCCESS == _MS_HASH_GET_ZR_FUNC_PTR_VA(zend_hash_get_current_data_ex, conn_hash, selected_server, &hash_pos)) {
+								if (Z_LVAL_P(_ms_p_zval selected_server) >= 0) {
+									long server_id = Z_LVAL_P(_ms_p_zval selected_server);
 									DBG_INF_FMT("i=%ld server_id=%ld llist_count=%d", i, server_id, zend_llist_count(in_list));
 									if (server_id >= zend_llist_count(in_list)) {
 										char error_buf[256];
 										snprintf(error_buf, sizeof(error_buf), MYSQLND_MS_ERROR_PREFIX " User multi filter callback has returned an invalid list of servers to use. Server id is too big");
 										error_buf[sizeof(error_buf) - 1] = '\0';
-										SET_CLIENT_ERROR((*error_info), CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, error_buf);
+										SET_CLIENT_ERROR((_ms_p_ei error_info), CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, error_buf);
 										DBG_ERR("server_id too big, skipping and breaking");
 										DBG_ERR_FMT("%s", error_buf);
 										php_error_docref(NULL TSRMLS_CC, E_RECOVERABLE_ERROR, "%s", error_buf);
@@ -588,7 +590,7 @@ mysqlnd_ms_user_pick_multiple_server(void * f_data, const char * connect_host, c
 									char error_buf[256];
 									snprintf(error_buf, sizeof(error_buf), MYSQLND_MS_ERROR_PREFIX " User multi filter callback has returned an invalid list of servers to use. Server id is either negative or not a number");
 									error_buf[sizeof(error_buf) - 1] = '\0';
-									SET_CLIENT_ERROR((*error_info), CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, error_buf);
+									SET_CLIENT_ERROR((_ms_p_ei error_info), CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, error_buf);
 									DBG_ERR("server_id is negative, skipping and breaking");
 									DBG_ERR_FMT("%s", error_buf);
 									php_error_docref(NULL TSRMLS_CC, E_RECOVERABLE_ERROR, "%s", error_buf);
@@ -604,13 +606,13 @@ mysqlnd_ms_user_pick_multiple_server(void * f_data, const char * connect_host, c
 					}
 				} while (0);
 			}
-			zval_ptr_dtor(&retval);
+			_ms_zval_dtor(retval);
 		} else {
 			/* We should never get here */
 			char error_buf[256];
 			snprintf(error_buf, sizeof(error_buf), MYSQLND_MS_ERROR_PREFIX " User multi filter callback has not returned a list of servers to use. The callback must return an array");
 			error_buf[sizeof(error_buf) - 1] = '\0';
-			SET_CLIENT_ERROR((*error_info), CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, error_buf);
+			SET_CLIENT_ERROR((_ms_p_ei error_info), CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, error_buf);
 			DBG_ERR_FMT("%s", error_buf);
 			php_error_docref(NULL TSRMLS_CC, E_RECOVERABLE_ERROR, "%s", error_buf);
 		}
@@ -620,7 +622,7 @@ mysqlnd_ms_user_pick_multiple_server(void * f_data, const char * connect_host, c
 		{
 			unsigned int i;
 			for (i = 0; i <= param; i++) {
-				zval_ptr_dtor(&args[i]);
+				_ms_zval_dtor(args[i]);
 			}
 		}
 	}

@@ -24,7 +24,7 @@ _skipif_connect($emulated_slave_host_only, $user, $passwd, $db, $emulated_slave_
 $settings = array(
 	"myapp" => array(
 		'master' 	=> array($emulated_master_host),
-		'slave' 	=> array($emulated_slave_host, "unknown", $emulated_slave_host),
+		'slave' 	=> array($emulated_slave_host, "realyunknownrealy", $emulated_slave_host),
 		'pick' 		=> array("roundrobin"),
 		'failover' => array('strategy' => 'disabled'),
 	),

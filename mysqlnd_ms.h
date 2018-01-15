@@ -38,7 +38,11 @@
 #ifndef SMART_STR_PREALLOC
 #define SMART_STR_PREALLOC 256
 #endif
+#if PHP_MAJOR_VERSION < 7
 #include "ext/standard/php_smart_str.h"
+#else
+#include "ext/standard/php_smart_string.h"
+#endif
 
 #include "ext/mysqlnd/mysqlnd.h"
 #include "ext/mysqlnd/mysqlnd_statistics.h"
@@ -68,6 +72,8 @@ ZEND_BEGIN_MODULE_GLOBALS(mysqlnd_ms)
 	HashTable xa_state_stores;
 	// BEGIN HACK
 	const char * master_on;
+	const char * inject_on;
+	const char * config_dir;
 	// END HACK
 ZEND_END_MODULE_GLOBALS(mysqlnd_ms)
 
@@ -78,8 +84,8 @@ ZEND_END_MODULE_GLOBALS(mysqlnd_ms)
 #define MYSQLND_MS_G(v) (mysqlnd_ms_globals.v)
 #endif
 
-#define PHP_MYSQLND_MS_VERSION "1.6.0-alpha"
-#define MYSQLND_MS_VERSION_ID 10600
+#define PHP_MYSQLND_MS_VERSION "1.7.0-alpha"
+#define MYSQLND_MS_VERSION_ID 10700
 
 #define MYSQLND_MS_ERROR_PREFIX "(mysqlnd_ms)"
 
@@ -124,7 +130,7 @@ void mysqlnd_ms_client_n_php_error(MYSQLND_ERROR_INFO * error_info,
 enum_func_status
 mysqlnd_ms_connect_to_host_aux(MYSQLND_CONN_DATA * proxy_conn, MYSQLND_CONN_DATA * conn, const char * name_from_config,
 							   zend_bool is_master,
-							   const char * host, unsigned int port,
+							   const MYSQLND_MS_CONN_D_STRING(host), unsigned int port,
 							   struct st_mysqlnd_ms_conn_credentials * cred,
 							   struct st_mysqlnd_ms_global_trx_injection * global_trx,
 							   zend_bool lazy_connections,
@@ -178,7 +184,6 @@ struct st_mysqlnd_query_parser
 	struct st_mysqlnd_query_scanner * scanner;
 	struct st_mysqlnd_parse_info parse_info;
 };
-
 
 #endif	/* MYSQLND_MS_H */
 

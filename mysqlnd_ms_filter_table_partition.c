@@ -36,11 +36,22 @@
 #include "mysqlnd_ms_config_json.h"
 #include "mysqlnd_qp.h"
 
-static void mysqlnd_ms_filter_ht_dtor(void * data);
 static enum_func_status mysqlnd_ms_load_table_filters(HashTable * master_rules, HashTable * slave_rules,
 													  struct st_mysqlnd_ms_config_json_entry * section,
 													  MYSQLND_ERROR_INFO * error_info, zend_bool persistent TSRMLS_DC);
 
+/* {{{ mysqlnd_ms_filter_ht_dtor */
+static void
+mysqlnd_ms_filter_ht_dtor(_ms_hash_zval_type * data)
+{
+	HashTable * entry = _ms_p_zval (HashTable _ms_p_zval *) _MS_HASH_Z_PTR_P(data);
+	TSRMLS_FETCH();
+	if (entry) {
+		zend_hash_destroy(entry);
+		mnd_free(entry);
+	}
+}
+/* }}} */
 
 /* {{{ table_filter_dtor */
 static void
@@ -97,12 +108,11 @@ mysqlnd_ms_table_filter_ctor(struct st_mysqlnd_ms_config_json_entry * section, z
 }
 /* }}} */
 
-
 /* {{{ mysqlnd_ms_filter_dtor */
 static void
 mysqlnd_ms_filter_dtor(void * data)
 {
-	MYSQLND_MS_TABLE_FILTER * entry = * (MYSQLND_MS_TABLE_FILTER **) data;
+	MYSQLND_MS_TABLE_FILTER * entry = (MYSQLND_MS_TABLE_FILTER *) data;
 	TSRMLS_FETCH();
 	if (entry) {
 		zend_bool pers = entry->persistent;
@@ -116,12 +126,20 @@ mysqlnd_ms_filter_dtor(void * data)
 		}
 #ifdef WE_NEED_NEXT
 		if (entry->next) {
-			mysqlnd_ms_filter_dtor(&entry->next);
+			mysqlnd_ms_filter_dtor(entry->next);
 		}
 #endif
 		mnd_pefree(entry, pers);
 		* (MYSQLND_MS_TABLE_FILTER **) data = NULL;
 	}
+}
+/* }}} */
+
+/* {{{ mysqlnd_ms_ht_filter_dtor */
+static void
+mysqlnd_ms_ht_filter_dtor(_ms_hash_zval_type * pDest)
+{
+	mysqlnd_ms_filter_dtor( _ms_p_zval _MS_HASH_Z_PTR_P(pDest) );
 }
 /* }}} */
 
@@ -150,21 +168,6 @@ mysqlnd_ms_filter_compare(const void * a, const void * b TSRMLS_DC)
 }
 /* }}} */
 #endif
-
-
-/* {{{ mysqlnd_ms_filter_ht_dtor */
-static void
-mysqlnd_ms_filter_ht_dtor(void * data)
-{
-	HashTable * entry = * (HashTable **) data;
-	TSRMLS_FETCH();
-	if (entry) {
-		zend_hash_destroy(entry);
-		mnd_free(entry);
-	}
-}
-/* }}} */
-
 
 /* {{{ mysqlnd_ms_table_add_rule */
 static enum_func_status
@@ -214,12 +217,11 @@ mysqlnd_ms_table_add_rule(HashTable * rules_ht,
 				server_name = NULL;
 				/* now add */
 				{
-					HashTable ** existing_filter;
-					if (SUCCESS == zend_hash_find(rules_ht, filter_mask, filter_mask_len + 1, (void **) &existing_filter)) {
+					HashTable _ms_p_zval * existing_filter;
+					if (SUCCESS == _MS_HASHSTR_GET_ZR_FUNC_PTR(zend_hash_str_find_ptr, rules_ht, filter_mask, filter_mask_len, existing_filter)) {
 						DBG_INF("Filter HT already exists");
 						if (!existing_filter ||
-							SUCCESS != zend_hash_next_index_insert(*existing_filter, &new_filter_entry,
-						  				 			 			   sizeof(MYSQLND_MS_TABLE_FILTER *), NULL))
+							SUCCESS != _MS_HASH_SET_ZR_FUNC_PTR(zend_hash_next_index_insert_ptr, _ms_p_zval existing_filter, new_filter_entry))
 						{
 							char error_buf[256];
 							snprintf(error_buf, sizeof(error_buf), MYSQLND_MS_ERROR_PREFIX "Couldn't add new filter and couldn't find the original %*s",
@@ -228,27 +230,24 @@ mysqlnd_ms_table_add_rule(HashTable * rules_ht,
 							SET_CLIENT_ERROR((*error_info), CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, error_buf);
 							php_error_docref(NULL TSRMLS_CC, E_WARNING, "%s", error_buf);
 							DBG_ERR_FMT("%s", error_buf);
-							mysqlnd_ms_filter_dtor(&new_filter_entry);
+							mysqlnd_ms_filter_dtor(new_filter_entry);
 							ret = FAIL;
 						} else {
 							DBG_INF("Added to the existing HT");
 							DBG_INF("re-sorting");
 							/* Sort specified array. */
 #ifdef PRIORITY_IS_OFF_FOR_NOW
-							zend_hash_sort(*existing_filter, zend_qsort, mysqlnd_ms_filter_compare, 0 /* renumber */ TSRMLS_CC);
+							zend_hash_sort(_ms_p_zval existing_filter, zend_qsort, mysqlnd_ms_filter_compare, 0 /* renumber */ TSRMLS_CC);
 #endif
 						}
 					} else {
 						HashTable * ht_for_new_filter = mnd_malloc(sizeof(HashTable));
 						DBG_INF("Filter HT doesn't exist, need to create it");
 						if (ht_for_new_filter) {
-							if (SUCCESS == zend_hash_init(ht_for_new_filter, 2, NULL, mysqlnd_ms_filter_dtor, 1/*pers*/)) {
-								if (SUCCESS != zend_hash_add(rules_ht, filter_mask, filter_mask_len + 1, &ht_for_new_filter,
-						  				 			 		 sizeof(HashTable *), NULL))
-								{
+							if (SUCCESS == zend_hash_init(ht_for_new_filter, 2, NULL, mysqlnd_ms_ht_filter_dtor, 1/*pers*/)) {
+								if (SUCCESS != _MS_HASHSTR_SET_ZR_FUNC_PTR(zend_hash_str_add_ptr, rules_ht, filter_mask, filter_mask_len, ht_for_new_filter)) {
 									char error_buf[256];
-									snprintf(error_buf, sizeof(error_buf), MYSQLND_MS_ERROR_PREFIX "The hashtable %*s did not exist in the slave_rules "
-											"but couldn't add", (int) filter_mask_len, filter_mask);
+									snprintf(error_buf, sizeof(error_buf), MYSQLND_MS_ERROR_PREFIX "The hashtable %*s did not exist in the slave_rules but couldn't add", (int) filter_mask_len, filter_mask);
 									error_buf[sizeof(error_buf) - 1] = '\0';
 									SET_CLIENT_ERROR((*error_info), CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, error_buf);
 									php_error_docref(NULL TSRMLS_CC, E_WARNING, "%s", error_buf);
@@ -257,10 +256,9 @@ mysqlnd_ms_table_add_rule(HashTable * rules_ht,
 									zend_hash_destroy(ht_for_new_filter);
 									mnd_free(ht_for_new_filter);
 									ht_for_new_filter = NULL;
-									mysqlnd_ms_filter_dtor(&new_filter_entry);
+									mysqlnd_ms_filter_dtor(new_filter_entry);
 									new_filter_entry = NULL;
-								} else if (SUCCESS != zend_hash_next_index_insert(ht_for_new_filter, &new_filter_entry,
-						  				 			 			   				  sizeof(MYSQLND_MS_TABLE_FILTER *), NULL))
+								} else if (SUCCESS != _MS_HASH_SET_ZR_FUNC_PTR(zend_hash_next_index_insert_ptr, ht_for_new_filter, new_filter_entry))
 								{
 									char error_buf[256];
 									snprintf(error_buf, sizeof(error_buf), MYSQLND_MS_ERROR_PREFIX "Couldn't add new filter and couldn't find the original %*s",
@@ -269,7 +267,7 @@ mysqlnd_ms_table_add_rule(HashTable * rules_ht,
 									SET_CLIENT_ERROR((*error_info), CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, error_buf);
 									php_error_docref(NULL TSRMLS_CC, E_WARNING, "%s", error_buf);
 									DBG_ERR_FMT("%s", error_buf);
-									mysqlnd_ms_filter_dtor(&new_filter_entry);
+									mysqlnd_ms_filter_dtor(new_filter_entry);
 								} else {
 									DBG_INF("Created, added to global HT and filter added to local HT");
 								}
@@ -353,27 +351,27 @@ mysqlnd_ms_table_filter_match(const char * const db_table_buf, HashTable * rules
 	enum_func_status ret = PASS;
 	zend_bool match = FALSE;
 	HashPosition pos_rules;
-	HashTable ** filter_ht;
+	HashTable _ms_p_zval * filter_ht;
 	DBG_ENTER("mysqlnd_ms_table_filter_match");
 
 	zend_hash_internal_pointer_reset_ex(rules, &pos_rules);
-	while ((FALSE == match) && (SUCCESS == zend_hash_get_current_data_ex(rules, (void **)&filter_ht, &pos_rules) && filter_ht)) {
+	while ((FALSE == match) && (SUCCESS == _MS_HASH_GET_ZR_FUNC_PTR_VA(zend_hash_get_current_data_ptr_ex, rules, filter_ht, &pos_rules) && filter_ht)) {
 		char * filter_mask;
 		uint fm_len;
 		ulong n_key;
 
-		if (HASH_KEY_IS_STRING == zend_hash_get_current_key_ex(rules, &filter_mask, &fm_len, &n_key, 0, &pos_rules)) {
+		if (HASH_KEY_IS_STRING == _ms_hash_str_get_current_key(rules, &filter_mask, &fm_len, &n_key, &pos_rules)) {
 			DBG_INF_FMT("Comparing [%s] with [%s]", db_table_buf, filter_mask);
 			if (TRUE == (match = mysqlnd_ms_match_wild(db_table_buf, filter_mask TSRMLS_CC))) {
-				MYSQLND_MS_TABLE_FILTER ** entry_filter_pp;
+				MYSQLND_MS_TABLE_FILTER _ms_p_zval * entry_filter_pp;
 				HashPosition pos_servers;
 				/* found a match*/
 				DBG_INF("Found a match");
-				zend_hash_internal_pointer_reset_ex(*filter_ht, &pos_servers);
-				while (SUCCESS == zend_hash_get_current_data_ex(*filter_ht, (void **)&entry_filter_pp,
+				zend_hash_internal_pointer_reset_ex(_ms_p_zval filter_ht, &pos_servers);
+				while (SUCCESS == _MS_HASH_GET_ZR_FUNC_PTR_VA(zend_hash_get_current_data_ptr_ex,_ms_p_zval filter_ht, entry_filter_pp,
 																&pos_servers) && entry_filter_pp)
 				{
-					MYSQLND_MS_TABLE_FILTER * entry_filter = *entry_filter_pp;
+					MYSQLND_MS_TABLE_FILTER * entry_filter = _ms_p_zval entry_filter_pp;
 					/* compare entry_filter->host_id with MYSQLND_MS_LIST_DATA::name_from_config */
 					MYSQLND_MS_LIST_DATA * el;
 
@@ -391,7 +389,7 @@ mysqlnd_ms_table_filter_match(const char * const db_table_buf, HashTable * rules
 					}
 					END_ITERATE_OVER_SERVER_LIST;
 skip1:
-					zend_hash_move_forward_ex(*filter_ht, &pos_servers);
+					zend_hash_move_forward_ex(_ms_p_zval filter_ht, &pos_servers);
 				}
 			}
 		}

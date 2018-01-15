@@ -56,7 +56,7 @@ $settings = array(
 
 		'filters' => array(
 			"quality_of_service" => array(
-				"session_consistency" => 1,
+				"strong_consistency" => 1,
 			),
 			"roundrobin" => array(),
 		),

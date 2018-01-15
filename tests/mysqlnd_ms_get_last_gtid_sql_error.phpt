@@ -33,6 +33,7 @@ $settings = array(
 		),
 
 		'global_transaction_id_injection' => array(
+			'type'						=> 1,
 			'on_commit'	 				=> $sql['update'],
 			'fetch_last_gtid'			=> 'Hi there!',
 			'check_for_gtid'			=> $sql['check_for_gtid'],
@@ -42,6 +43,9 @@ $settings = array(
 		'lazy_connections' => 1,
 		'trx_stickiness' => 'disabled',
 		'filters' => array(
+			"quality_of_service" => array(
+				"session_consistency" => 1,
+			),
 			"roundrobin" => array(),
 		),
 	),
@@ -69,19 +73,25 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_get_last_gtid_sql_error.ini
 
 	mst_mysqli_query(3, $link, "DROP TABLE IF EXISTS test", MYSQLND_MS_SLAVE_SWITCH);
 
+	if (!$link->rollback())
+		printf("[004] [%d] %s\n", $link->errno, $link->error);
+
 	if (false !== ($ret = mysqlnd_ms_get_last_gtid($link))) {
 		printf("[005] Expecting false, got %s\n", var_export($ret, true));
 	} else {
 		printf("[006] [%d] %s\n", $link->errno, $link->error);
 	}
+	
+	mst_mysqli_query(7, $link, "DROP TABLE IF EXISTS test");
 
-	mst_mysqli_query(7, $link, "DROP TABLE IF EXISTS test", MYSQLND_MS_LAST_USED_SWITCH);
-
-	if (!$link->autocommit(false))
+/*	if (!$link->autocommit(false))
 		printf("[009] [%d] %s\n", $link->errno, $link->error);
-
+*/
 	/* autocommit, master */
 	if (!$link->query("DROP TABLE IF EXISTS test"))
+		printf("[009] [%d] %s\n", $link->errno, $link->error);
+
+	if (!$link->commit())
 		printf("[010] [%d] %s\n", $link->errno, $link->error);
 
 	if (false !== ($ret = mysqlnd_ms_get_last_gtid($link))) {
@@ -106,6 +116,12 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_get_last_gtid_sql_error.ini
 		printf("[clean] %s\n");
 ?>
 --EXPECTF--
-[006] [1064] %s
-[012] [1064] %s
+Warning: mysqlnd_ms_get_last_gtid(): (mysqlnd_ms) Fail or no ID has been injected yet in %s on line %d
+[006] [0] 
+
+Warning: mysqli::commit(): (mysqlnd_ms) Error on SQL injection. in %s on line %d
+[010] [1146] %s
+
+Warning: mysqlnd_ms_get_last_gtid(): (mysqlnd_ms) Fail or no ID has been injected yet in %s on line %d
+[012] [1146] %s
 done!

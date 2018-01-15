@@ -79,4 +79,4 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_gtid_invalid_check_for_gtid.ini
 	  printf("[clean] Cannot unlink ini file 'test_mysqlnd_ms_gtid_invalid_check_for_gtid.ini'.\n");
 ?>
 --EXPECTF--
-Catchable fatal error: mysqli_real_connect(): (mysqlnd_ms) 'check_for_gtid' from 'global_transaction_id_injection' must be a string in %s on line %d
+%s fatal error: mysqli_real_connect(): (mysqlnd_ms) 'check_for_gtid' from 'global_transaction_id_injection' must be a string in %s on line %d

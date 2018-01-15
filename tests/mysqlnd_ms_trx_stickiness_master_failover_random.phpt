@@ -14,7 +14,7 @@ _skipif_connect($slave_host_only, $user, $passwd, $db, $slave_port, $slave_socke
 
 $settings = array(
 	"myapp" => array(
-		'master' => array($master_host, "unknown:6033"),
+		'master' => array($master_host, "realyunknownrealy:6033"),
 		'slave' => array($slave_host),
 		'trx_stickiness' => 'master',
 		'pick' => array("random"),

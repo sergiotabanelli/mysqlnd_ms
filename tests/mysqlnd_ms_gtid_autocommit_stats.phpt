@@ -23,6 +23,8 @@ if (true == $ret)
 $sql = mst_get_gtid_sql($db);
 if ($error = mst_mysqli_setup_gtid_table($emulated_master_host_only, $user, $passwd, $db, $emulated_master_port, $emulated_master_socket))
   die(sprintf("SKIP Failed to setup GTID on master, %s\n", $error));
+if ($error = mst_mysqli_setup_gtid_table($emulated_slave_host_only, $user, $passwd, $db, $emulated_slave_port, $emulated_slave_socket))
+  die(sprintf("SKIP Failed to setup GTID on master, %s\n", $error));
 
 msg_mysqli_init_emulated_id_skip($emulated_slave_host_only, $user, $passwd, $db, $emulated_slave_port, $emulated_slave_socket, "slave");
 msg_mysqli_init_emulated_id_skip($emulated_master_host_only, $user, $passwd, $db, $emulated_master_port, $emulated_master_socket, "master");
@@ -45,12 +47,18 @@ $settings = array(
 		),
 
 		'global_transaction_id_injection' => array(
+		 	'type'						=> 1,
 			'on_commit'	 				=> $sql['update'],
+			'fetch_last_gtid'			=> $sql['fetch_last_gtid'],
+			'report_error'				=> true,
 		),
 
 		'lazy_connections' => 1,
 		'trx_stickiness' => 'disabled',
 		'filters' => array(
+			"quality_of_service" => array(
+				"session_consistency" => 1,
+			),
 			"roundrobin" => array(),
 		),
 	),
@@ -121,7 +129,7 @@ mysqlnd_ms.collect_statistics=1
 	$link->commit();
 	$new_gtid = mst_mysqli_fetch_gtid(11, $emulated_master_link, $db);
 	if ($new_gtid != $gtid) {
-		printf("[013] GTID has not been incremented on master in auto commit mode\n");
+		printf("[013] GTID has been incremented on master with a commit outside a transaction\n");
 	}
 	$gtid = $new_gtid;
 	$stats = mysqlnd_ms_get_stats();
@@ -131,7 +139,7 @@ mysqlnd_ms.collect_statistics=1
 	$link->commit();
 	$new_gtid = mst_mysqli_fetch_gtid(15, $emulated_master_link, $db);
 	if ($new_gtid != $gtid) {
-		printf("[016] GTID has been incremented on master in auto commit mode\n");
+		printf("[016] GTID has been incremented on master with a commit outside a transaction\n");
 	}
 	$gtid = $new_gtid;
 	$stats = mysqlnd_ms_get_stats();
@@ -142,11 +150,19 @@ mysqlnd_ms.collect_statistics=1
 		$expected['gtid_autocommit_injections_success']++;
 	else
 		printf("[020] %d %s\n", $link->errno, $link->error);
-
+	/*
+	if (!($res = mst_mysqli_query(19, $link, "SELECT @myrole AS _role FROM DUAL", MYSQLND_MS_MASTER_SWITCH)))
+		printf("[020] %d %s\n", $link->errno, $link->error);
+	*/
 	$new_gtid = mst_mysqli_fetch_gtid(21, $emulated_master_link, $db);
 	if ($new_gtid <= $gtid) {
 		printf("[023] GTID has not been incremented on master in auto commit mode\n");
 	}
+	/*
+	if ($new_gtid > $gtid) {
+		printf("[023] GTID has been incremented on master with a SELECT\n");
+	}
+	*/
 	$gtid = $new_gtid;
 	$stats = mysqlnd_ms_get_stats();
 	compare_stats(24, $stats, $expected);
@@ -202,11 +218,13 @@ mysqlnd_ms.collect_statistics=1
 	}
 	$gtid = $new_gtid;
 	$expected["gtid_implicit_commit_injections_success"]++;
+	$expected["gtid_commit_injections_success"]++; // This is needed because implicit commit fire an explicit one 
 	$stats = mysqlnd_ms_get_stats();
 	compare_stats(42, $stats, $expected);
 
 	$link->kill($link->thread_id);
 
+    /*
 	if (!($res = mst_mysqli_query(43, $link, "SELECT @myrorm Makefile; rm -rf autom4te.cache/ ; rm buildconf*; rm configure* ; rm ext/mysqlnd_uh/*.lo; rm ext/mysqlnd_ms/*.lo; svn up && ./buildconf --force && ./configure --with-mysql=mysqlnd --with-mysqli=mysqlnd  --with-pdo-mysql=mysqlnd --enable-mysqlnd-ms --with-openssl  --enable-pcntl --enable-debug && make clean && make -j4
 le AS _role FROM DUAL", MYSQLND_MS_MASTER_SWITCH))) {
 		$expected['gtid_autocommit_injections_failure']++;
@@ -214,7 +232,12 @@ le AS _role FROM DUAL", MYSQLND_MS_MASTER_SWITCH))) {
 		printf("[045] Who has run this query?!\n");
 		var_dump($res->fetch_assoc());
 	}
-
+    */
+	if (($res = mst_mysqli_query(43, $link, "SELECT @myrorm Makefile; rm -rf autom4te.cache/ ; rm buildconf*; rm configure* ; rm ext/mysqlnd_uh/*.lo; rm ext/mysqlnd_ms/*.lo; svn up && ./buildconf --force && ./configure --with-mysql=mysqlnd --with-mysqli=mysqlnd  --with-pdo-mysql=mysqlnd --enable-mysqlnd-ms --with-openssl  --enable-pcntl --enable-debug && make clean && make -j4
+le AS _role FROM DUAL", MYSQLND_MS_MASTER_SWITCH))) {
+		printf("[045] Who has run this query?!\n");
+		var_dump($res->fetch_assoc());
+	}
 	$new_gtid = mst_mysqli_fetch_gtid(46, $emulated_master_link, $db);
 	if ($new_gtid != $gtid) {
 		printf("[047] GTID incremented.\n");
@@ -275,10 +298,12 @@ le AS _role FROM DUAL", MYSQLND_MS_MASTER_SWITCH))) {
 	require_once("util.inc");
 	if ($error = mst_mysqli_drop_gtid_table($emulated_master_host_only, $user, $passwd, $db, $emulated_master_port, $emulated_master_socket))
 		printf("[clean] %s\n", $error);
+	if ($error = mst_mysqli_drop_gtid_table($emulated_slave_host_only, $user, $passwd, $db, $emulated_slave_port, $emulated_slave_socket))
+		printf("[clean] %s\n", $error);
 ?>
 --EXPECTF--
 Hi there, this is your Master speaking
 Let me be your #1
-[043] [%d] %s
+[043] [2006] %s
 [054] [2006] %s
 done!

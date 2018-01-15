@@ -67,4 +67,4 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_settings_port_invalid.ini
 ?>
 --EXPECTF--
 
-Catchable fatal error: mysqli_connect(): (mysqlnd_ms) Invalid value for port '%s' . Stopping in %s on line %d
+%s fatal error: mysqli_connect(): (mysqlnd_ms) Invalid value for port '%s' . Stopping in %s on line %d

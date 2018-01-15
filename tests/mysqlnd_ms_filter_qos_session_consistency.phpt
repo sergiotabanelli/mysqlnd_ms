@@ -75,14 +75,12 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_filter_qos_session_consistency.ini
 	mst_mysqli_query(2, $link, "SET @myrole='master'");
 	$emulated_master_id = mst_mysqli_get_emulated_id(3, $link);
 
-	/* session consistency --- master only if no other consistency criteria is set */
 	mst_mysqli_query(4, $link, "SET @myrole='slave'", MYSQLND_MS_SLAVE_SWITCH);
 	$server_id = mst_mysqli_get_emulated_id(5, $link);
-	if ($server_id != $emulated_master_id) {
-		printf("[006] Expecting master use, found %s used\n", $server_id);
+	if ($server_id == $emulated_master_id) {
+		printf("[006] Expecting slave use, found %s used\n", $server_id);
 	}
 
-	/* By default slave shall not be used but last set has overwritten previous one */
 	if ($res = mst_mysqli_query(7, $link, "SELECT @myrole AS _msg")) {
 		$row = $res->fetch_assoc();
 		printf("Greetings from '%s'\n", $row['_msg']);
@@ -91,8 +89,8 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_filter_qos_session_consistency.ini
 	}
 
 	$server_id = mst_mysqli_get_emulated_id(8, $link);
-	if ($server_id != $emulated_master_id) {
-		printf("[009] Expecting master use, found %s used\n", $server_id);
+	if ($server_id == $emulated_master_id) {
+		printf("[009] Expecting slave use, found %s used\n", $server_id);
 	}
 
 	if (false === ($ret = mysqlnd_ms_set_qos($link, MYSQLND_MS_QOS_CONSISTENCY_EVENTUAL)))
@@ -119,6 +117,11 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_filter_qos_session_consistency.ini
 	if (false === ($ret = mysqlnd_ms_set_qos($link, MYSQLND_MS_QOS_CONSISTENCY_SESSION)))
 		printf("[021] [%d] %s\n", $link->errno, $link->error);
 
+	$server_id = mst_mysqli_get_emulated_id(15, $link);
+	if ($server_id != $emulated_master_id) {
+		printf("[009] Expecting master use, found %s used\n", $server_id);
+	}
+
 	/* slave */
 	if ($res = mst_mysqli_query(22, $link, "SELECT @myrole AS _msg")) {
 		$row = $res->fetch_assoc();
@@ -138,5 +141,5 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_filter_qos_session_consistency.ini
 --EXPECTF--
 Greetings from 'slave'
 Greetings from 'slave'
-Greetings from 'master'
+Greetings from 'slave'
 done!

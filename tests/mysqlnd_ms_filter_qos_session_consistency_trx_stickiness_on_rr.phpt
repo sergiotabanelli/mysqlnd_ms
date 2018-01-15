@@ -118,7 +118,7 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_filter_qos_session_consistency_trx_sticki
 
 	$link->begin_transaction(MYSQLI_TRANS_START_READ_ONLY);
 	/* master 0 */
-	mst_mysqli_fech_role(mst_mysqli_query(8, $link, "SELECT @myrole AS _role"));
+	mst_mysqli_fech_role(mst_mysqli_query(8, $link, "SELECT @myrole AS _role", MYSQLND_MS_MASTER_SWITCH));
 
 	/* reject change */
 	if (false === ($ret = mysqlnd_ms_set_qos($link, MYSQLND_MS_QOS_CONSISTENCY_EVENTUAL)))
@@ -140,7 +140,7 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_filter_qos_session_consistency_trx_sticki
 	if (false === ($ret = mysqlnd_ms_set_qos($link, MYSQLND_MS_QOS_CONSISTENCY_SESSION)))
 		printf("[015] [%d] '%s'\n", $link->errno, $link->error);
 
-	/* master 1 */
+	/* slave 1 */
 	mst_mysqli_fech_role(mst_mysqli_query(16, $link, "SELECT @myrole AS _role"));
 
 
@@ -160,5 +160,5 @@ This is 'master0' speaking
 This is 'slave0' speaking
 This is 'slave1' speaking
 This is 'slave0' speaking
-This is 'master1' speaking
+This is 'slave1' speaking
 done!

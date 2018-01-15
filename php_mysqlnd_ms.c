@@ -28,8 +28,9 @@
 #include "ext/mysqlnd/mysqlnd.h"
 #include "ext/mysqlnd/mysqlnd_debug.h"
 #include "ext/mysqlnd/mysqlnd_priv.h"
-#if PHP_VERSION_ID >= 50400
 #include "ext/mysqlnd/mysqlnd_ext_plugin.h"
+#if PHP_VERSION_ID >= 70100
+#include "ext/mysqlnd/mysqlnd_connection.h"
 #endif
 #include "mysqlnd_ms.h"
 #include "mysqlnd_ms_config_json.h"
@@ -147,6 +148,8 @@ mysqlnd_ms_globals_ctor(zend_mysqlnd_ms_globals * mysqlnd_ms_globals TSRMLS_DC)
 	mysqlnd_ms_globals->config_startup_error = NULL;
 	// BEGIN HACK
 	mysqlnd_ms_globals->master_on = NULL;
+	mysqlnd_ms_globals->inject_on = NULL;
+	mysqlnd_ms_globals->config_dir = NULL;
 	// END HACK
 }
 /* }}} */
@@ -161,7 +164,6 @@ PHP_RINIT_FUNCTION(mysqlnd_ms)
 	if (MYSQLND_MS_G(enable)) {
 
 		zend_hash_init(&MYSQLND_MS_G(xa_state_stores), 0, NULL, mysqlnd_ms_xa_gc_hash_dtor, 1);
-
 		MYSQLND_MS_CONFIG_JSON_LOCK(mysqlnd_ms_json_config);
 		// BEGIN HACK
 		//if (FALSE == mysqlnd_ms_global_config_loaded) {
@@ -181,6 +183,7 @@ PHP_RINIT_FUNCTION(mysqlnd_ms)
 /* {{{ PHP_RSHUTDOWN_FUNCTION */
 PHP_RSHUTDOWN_FUNCTION(mysqlnd_ms)
 {
+	DBG_ENTER("mysqlnd_ms_shutdown");
 	if (MYSQLND_MS_G(enable)) {
 
 		zend_hash_destroy(&MYSQLND_MS_G(xa_state_stores));
@@ -190,7 +193,7 @@ PHP_RSHUTDOWN_FUNCTION(mysqlnd_ms)
 		}
 	}
 
-	return SUCCESS;
+	DBG_RETURN(SUCCESS);
 }
 /* }}} */
 
@@ -206,6 +209,8 @@ PHP_INI_BEGIN()
 	STD_PHP_INI_ENTRY("mysqlnd_ms.disable_rw_split", "0", PHP_INI_SYSTEM, OnUpdateBool, disable_rw_split, zend_mysqlnd_ms_globals, mysqlnd_ms_globals)
 	// BEGIN HACK
 	STD_PHP_INI_ENTRY("mysqlnd_ms.master_on", NULL, PHP_INI_SYSTEM, OnUpdateString, master_on, zend_mysqlnd_ms_globals, mysqlnd_ms_globals)
+	STD_PHP_INI_ENTRY("mysqlnd_ms.inject_on", NULL, PHP_INI_SYSTEM, OnUpdateString, inject_on, zend_mysqlnd_ms_globals, mysqlnd_ms_globals)
+	STD_PHP_INI_ENTRY("mysqlnd_ms.config_dir", NULL, PHP_INI_SYSTEM, OnUpdateString, config_dir, zend_mysqlnd_ms_globals, mysqlnd_ms_globals)
 	// END HACK
 PHP_INI_END()
 /* }}} */
@@ -221,8 +226,11 @@ PHP_MINIT_FUNCTION(mysqlnd_ms)
 	if (MYSQLND_MS_G(enable)) {
 		mysqlnd_ms_plugin_id = mysqlnd_plugin_register();
 		mysqlnd_ms_register_hooks();
+#if PHP_MAJOR_VERSION < 7
 		mysqlnd_stats_init(&mysqlnd_ms_stats, MS_STAT_LAST);
-
+#else
+		mysqlnd_stats_init(&mysqlnd_ms_stats, MS_STAT_LAST, 1);
+#endif
 		mysqlnd_ms_json_config = mysqlnd_ms_config_json_init(TSRMLS_C);
 	}
 
@@ -274,7 +282,11 @@ PHP_MSHUTDOWN_FUNCTION(mysqlnd_ms)
 {
 	UNREGISTER_INI_ENTRIES();
 	if (MYSQLND_MS_G(enable)) {
+#if PHP_MAJOR_VERSION < 7
 		mysqlnd_stats_end(mysqlnd_ms_stats);
+#else
+		mysqlnd_stats_end(mysqlnd_ms_stats, 1);
+#endif
 
 		mysqlnd_ms_config_json_free(mysqlnd_ms_json_config TSRMLS_CC);
 		mysqlnd_ms_json_config = NULL;
@@ -343,7 +355,7 @@ static PHP_FUNCTION(mysqlnd_ms_match_wild)
 {
 	char * str;
 	char * wild;
-	int tmp;
+	_ms_size_type tmp;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss", &str, &tmp, &wild, &tmp) == FAILURE) {
 		return;
@@ -426,20 +438,24 @@ static PHP_FUNCTION(mysqlnd_ms_get_last_used_connection)
 		RETURN_FALSE;
 	}
 	{
-		MYSQLND_MS_CONN_DATA ** conn_data = (MYSQLND_MS_CONN_DATA **) mysqlnd_plugin_get_plugin_connection_data_data(proxy_conn->data, mysqlnd_ms_plugin_id);
+		MYSQLND_MS_CONN_DATA ** conn_data = (MYSQLND_MS_CONN_DATA **) _ms_mysqlnd_plugin_get_plugin_connection_data_data(proxy_conn->data, mysqlnd_ms_plugin_id);
 		const MYSQLND_CONN_DATA * conn = (conn_data && (*conn_data) && (*conn_data)->stgy.last_used_conn)? (*conn_data)->stgy.last_used_conn:proxy_conn->data;
 
 		array_init(return_value);
-		add_assoc_string_ex(return_value, "scheme", sizeof("scheme"), conn->scheme? conn->scheme:"", 1);
-		add_assoc_string_ex(return_value, "host_info", sizeof("host_info"), conn->host_info? conn->host_info:"", 1);
-		add_assoc_string_ex(return_value, "host", sizeof("host"), conn->host? conn->host:"", 1);
-		add_assoc_long_ex(return_value, "port", sizeof("port"), conn->port);
-		add_assoc_string_ex(return_value, "socket_or_pipe", sizeof("socket_or_pipe"), conn->unix_socket? conn->unix_socket:"", 1);
-		add_assoc_long_ex(return_value, "thread_id", sizeof("thread_id"), conn->thread_id);
-		add_assoc_string_ex(return_value, "last_message", sizeof("last_message"), conn->last_message? conn->last_message:"", 1);
-		add_assoc_long_ex(return_value, "errno", sizeof("errno"), MYSQLND_MS_ERROR_INFO(conn).error_no);
-		add_assoc_string_ex(return_value, "error", sizeof("error"), (char *) MYSQLND_MS_ERROR_INFO(conn).error, 1);
-		add_assoc_string_ex(return_value, "sqlstate", sizeof("sqlstate"), (char *) MYSQLND_MS_ERROR_INFO(conn).sqlstate, 1);
+		MYSQLND_MS_ADD_ASSOC_CONN_STRING(return_value, "scheme", conn->scheme);
+		MYSQLND_MS_ADD_ASSOC_STRING(return_value, "host_info", conn->host_info);
+#if PHP_VERSION_ID < 70100
+		MYSQLND_MS_ADD_ASSOC_CONN_STRING(return_value, "host", conn->host);
+#else
+		MYSQLND_MS_ADD_ASSOC_CONN_STRING(return_value, "host", conn->hostname);
+#endif
+		MYSQLND_MS_ADD_ASSOC_LONG(return_value, "port", conn->port);
+		MYSQLND_MS_ADD_ASSOC_CONN_STRING(return_value, "socket_or_pipe", conn->unix_socket);
+		MYSQLND_MS_ADD_ASSOC_LONG(return_value, "thread_id", conn->thread_id);
+		MYSQLND_MS_ADD_ASSOC_CONN_STRING(return_value, "last_message", conn->last_message);
+		MYSQLND_MS_ADD_ASSOC_LONG(return_value, "errno", MYSQLND_MS_ERROR_INFO(conn).error_no);
+		MYSQLND_MS_ADD_ASSOC_STRING(return_value, "error", (char *) MYSQLND_MS_ERROR_INFO(conn).error);
+		MYSQLND_MS_ADD_ASSOC_STRING(return_value, "sqlstate", (char *) MYSQLND_MS_ERROR_INFO(conn).sqlstate);
 	}
 }
 /* }}} */
@@ -538,54 +554,29 @@ getlastidfailure:
 	}
 	RETURN_FALSE;
 	 */
-	conn_data = (MYSQLND_MS_CONN_DATA **) mysqlnd_plugin_get_plugin_connection_data_data(proxy_conn->data, mysqlnd_ms_plugin_id);
+	conn_data = (MYSQLND_MS_CONN_DATA **) _ms_mysqlnd_plugin_get_plugin_connection_data_data(proxy_conn->data, mysqlnd_ms_plugin_id);
 	if (!conn_data || !(*conn_data)) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " No mysqlnd_ms connection or no statement has been run yet");
 		RETURN_FALSE;
 	}
+	if (!(*conn_data)->stgy.last_used_conn) {
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " No mysqlnd_ms connection or no ID has been injected yet");
+		RETURN_FALSE;
+	}
+	conn = (*conn_data)->stgy.last_used_conn;
+	MS_LOAD_CONN_DATA(conn_data, conn);
+	if (!conn_data || !(*conn_data)) {
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Failed to fetch plugin data. Please report a bug");
+		RETURN_FALSE;
+	}
 	{
 		char * gtid = NULL;
-		zend_llist_position	pos;
-		zend_llist * masters = (*conn_data)->pool->get_active_masters((*conn_data)->pool TSRMLS_CC);
-		MYSQLND_MS_LIST_DATA ** element_pp = (MYSQLND_MS_LIST_DATA **) zend_llist_get_first_ex(masters, &pos);
-		conn = (*element_pp)->conn;
-		MS_LOAD_CONN_DATA(conn_data, conn);
-		if (!conn_data || !(*conn_data)) {
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "Failed to fetch plugin data. Please report a bug");
-			RETURN_FALSE;
+		if ((*conn_data)->global_trx.type != GTID_NONE && ((*conn_data)->global_trx.last_wgtid)) {
+			_MS_RETURN_STRING((*conn_data)->global_trx.last_wgtid);
+		} else {
+			// no error code set on line, we need to bail explicitly
+			php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Fail or no ID has been injected yet");
 		}
-		if ((*conn_data)->global_trx.memcached_key_len == 0)  {
-			if (!(*conn_data)->global_trx.fetch_last_gtid) {
-				php_error_docref(NULL TSRMLS_CC, E_WARNING, "SQL to fetch last global transaction ID is not set");
-				RETURN_FALSE;
-			}
-			if ((gtid = mysqlnd_ms_get_last_gtid_aux(conn TSRMLS_CC))) {
-				RETURN_STRING(gtid, 0);
-			} else {
-				// no error code set on line, we need to bail explicitly
-				php_error_docref(NULL TSRMLS_CC, E_WARNING, "Failed to read GTID from result set");
-			}
-		}
-#ifndef PHP_WIN32
-		if ((*conn_data)->global_trx.memcached_key_len > 0)  {
-			memcached_st *memc = (*conn_data)->global_trx.memc;
-			if (memc) {
-				memcached_return_t rc;
-				uint32_t flags;
-				char * last_gtid = NULL;
-				size_t last_gtid_len = 0;
-				last_gtid = memcached_get(memc, (*conn_data)->global_trx.memcached_key, (*conn_data)->global_trx.memcached_key_len, &last_gtid_len, &flags, &rc);
-				if (rc == MEMCACHED_SUCCESS) {
-					RETURN_STRINGL(last_gtid, last_gtid_len, 1);
-				} else {
-					php_error_docref(NULL TSRMLS_CC, E_WARNING, "Failed to read GTID from memcached");
-				}
-				if (last_gtid) free(last_gtid);
-			} else {
-				php_error_docref(NULL TSRMLS_CC, E_WARNING, "No memcached connection! a bug??");
-			}
-		}
-#endif
 	}
 	RETURN_FALSE;
 	// END HACK
@@ -698,7 +689,7 @@ static PHP_FUNCTION(mysqlnd_ms_set_qos)
 
 	{
 		MYSQLND_MS_CONN_DATA ** conn_data = NULL;
-		conn_data = (MYSQLND_MS_CONN_DATA **) mysqlnd_plugin_get_plugin_connection_data_data(proxy_conn->data, mysqlnd_ms_plugin_id);
+		conn_data = (MYSQLND_MS_CONN_DATA **) _ms_mysqlnd_plugin_get_plugin_connection_data_data(proxy_conn->data, mysqlnd_ms_plugin_id);
 		if (!conn_data || !(*conn_data)) {
 			php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " No mysqlnd_ms connection");
 			RETURN_FALSE;
@@ -809,15 +800,17 @@ ZEND_END_ARG_INFO()
    Parse query and propose where to send it */
 static PHP_FUNCTION(mysqlnd_ms_query_is_select)
 {
-	char * query;
-	int query_len;
+	char * query = NULL;
+	_ms_size_type query_len;
 	zend_bool forced;
-
+	DBG_ENTER("mysqlnd_ms_query_is_select");
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &query, &query_len) == FAILURE) {
-		return;
+		DBG_VOID_RETURN;
 	}
+	DBG_INF_FMT("Query %s", query);
 
-	RETURN_LONG(mysqlnd_ms_query_is_select(query, query_len, &forced TSRMLS_CC));
+	RETVAL_LONG(mysqlnd_ms_query_is_select(query, query_len, &forced TSRMLS_CC));
+	DBG_VOID_RETURN;
 }
 /* }}} */
 
@@ -851,7 +844,7 @@ static void mysqlnd_ms_fabric_select_servers(zval *return_value, zval *conn_zv, 
 	MYSQLND_MS_CONN_DATA **conn_data = NULL;
 	mysqlnd_fabric_server *servers, *tofree;
 	mysqlnd_fabric *fabric;
-	smart_str hash_key = {0};
+	_ms_smart_type hash_key = {0};
 	unsigned int server_counter = 0;
 	zend_bool exists = FALSE, is_master = FALSE, is_active = FALSE, is_removed = FALSE;
 	MYSQLND_MS_LIST_DATA * data;
@@ -863,7 +856,7 @@ static void mysqlnd_ms_fabric_select_servers(zval *return_value, zval *conn_zv, 
 		DBG_VOID_RETURN;
 	}
 
-	conn_data = (MYSQLND_MS_CONN_DATA **) mysqlnd_plugin_get_plugin_connection_data_data(proxy_conn->data, mysqlnd_ms_plugin_id);
+	conn_data = (MYSQLND_MS_CONN_DATA **) _ms_mysqlnd_plugin_get_plugin_connection_data_data(proxy_conn->data, mysqlnd_ms_plugin_id);
 	if (!conn_data || !(*conn_data)) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " No mysqlnd_ms connection");
 		RETVAL_FALSE;
@@ -919,13 +912,13 @@ static void mysqlnd_ms_fabric_select_servers(zval *return_value, zval *conn_zv, 
 		/* TODO: Don't know whether Fabric is using cred.db or cred.mysql_flags */
 
 		(*conn_data)->pool->get_conn_hash_key(&hash_key, unique_name_from_config,
-											servers->hostname, (*conn_data)->cred.user,
-											(*conn_data)->cred.passwd, (*conn_data)->cred.passwd_len,
+											servers->hostname, MYSQLND_MS_CONN_STRING((*conn_data)->cred.user),
+											MYSQLND_MS_CONN_STRING((*conn_data)->cred.passwd), MYSQLND_MS_CONN_STRING_LEN((*conn_data)->cred.passwd),
 											servers->port, NULL /* socket */,
 											NULL /* db */, 0 /* db_len */,
 											0 /* flags */,
 											proxy_conn->data->persistent);
-
+// MI SEMBRA PROPRIO CHE NON POSSA FUNZIONARE
 		exists = (*conn_data)->pool->connection_exists((*conn_data)->pool, &hash_key, &data, &is_master, &is_active, &is_removed TSRMLS_CC);
 		exists = (!is_active && !is_removed) ? TRUE : FALSE;
 		if (exists) {
@@ -952,13 +945,16 @@ static void mysqlnd_ms_fabric_select_servers(zval *return_value, zval *conn_zv, 
 		}
 
 		if (FALSE == exists) {
+			MYSQLND_MS_CONN_DV_STRING(host);
+			MYSQLND_MS_S_TO_CONN_STRING(host, servers->hostname);
+
 			if (servers->mode == READ_WRITE) {
 				mysqlnd_ms_connect_to_host_aux(proxy_conn->data, conn->data, unique_name_from_config, TRUE,
-											servers->hostname, servers->port, &(*conn_data)->cred, &(*conn_data)->global_trx,
+											host, servers->port, &(*conn_data)->cred, &(*conn_data)->global_trx,
 											TRUE, proxy_conn->data->persistent TSRMLS_CC);
 			} else {
 				mysqlnd_ms_connect_to_host_aux(proxy_conn->data, conn->data, unique_name_from_config, FALSE,
-											servers->hostname, servers->port,  &(*conn_data)->cred, &(*conn_data)->global_trx,
+											host, servers->port,  &(*conn_data)->cred, &(*conn_data)->global_trx,
 											TRUE, proxy_conn->data->persistent TSRMLS_CC);
 			}
 		}
@@ -968,7 +964,7 @@ static void mysqlnd_ms_fabric_select_servers(zval *return_value, zval *conn_zv, 
 	}
 
 	mysqlnd_fabric_free_server_list(tofree);
-	smart_str_free(&hash_key);
+	_ms_smart_method(free, &hash_key);
 
 	/* FIXME - this will, almost for sure, replay too many commands. Note the filter argument */
 	(*conn_data)->pool->replay_cmds((*conn_data)->pool, proxy_conn->data, NULL /* filter */ TSRMLS_CC);
@@ -1024,40 +1020,40 @@ static PHP_FUNCTION(mysqlnd_ms_fabric_select_global)
 
 static void mysqlnd_ms_add_server_to_array(void *data, void *arg TSRMLS_DC) /* {{{ */
 {
-	zval *host;
+	zval _ms_p_zval host;
 	MYSQLND_MS_LIST_DATA **element = (MYSQLND_MS_LIST_DATA **)data;
 	zval *array = (zval *)arg;
 
 	MAKE_STD_ZVAL(host);
-	array_init(host);
+	array_init(_ms_a_zval host);
 	if ((*element)->name_from_config) {
-		add_assoc_string(host, "name_from_config", (*element)->name_from_config, 1);
+		MYSQLND_MS_ADD_ASSOC_STRING(_ms_a_zval host, "name_from_config", (*element)->name_from_config);
 	} else {
-		add_assoc_null(host, "name_from_config");
+		add_assoc_null(_ms_a_zval host, "name_from_config");
 	}
 
-	add_assoc_string(host, "hostname", (*element)->host, 1);
+	MYSQLND_MS_ADD_ASSOC_CONN_STRING(_ms_a_zval host, "hostname", (*element)->host);
 
-	if ((*element)->user) {
-		add_assoc_string(host, "user", (*element)->user, 1);
+	if (MYSQLND_MS_CONN_STRING((*element)->user)) {
+		MYSQLND_MS_ADD_ASSOC_CONN_STRING(_ms_a_zval host, "user", (*element)->user);
 	} else {
-		add_assoc_null(host, "user");
+		add_assoc_null(_ms_a_zval host, "user");
 	}
 
-	add_assoc_long(host, "port", (*element)->port);
+	add_assoc_long(_ms_a_zval host, "port", (*element)->port);
 
-	if ((*element)->socket) {
-		add_assoc_string(host, "socket", (*element)->socket, 1);
+	if (MYSQLND_MS_CONN_STRING((*element)->socket)) {
+		MYSQLND_MS_ADD_ASSOC_CONN_STRING(_ms_a_zval host, "socket", (*element)->socket);
 	} else {
-		add_assoc_null(host, "socket");
+		add_assoc_null(_ms_a_zval host, "socket");
 	}
 
-	add_next_index_zval(array, host);
+	add_next_index_zval(array, _ms_a_zval host);
 
-	if (((*element)->conn) && (CONN_GET_STATE((*element)->conn) > CONN_ALLOCED)) {
-		add_assoc_long(host, "thread_id", (*element)->conn->thread_id);
+	if (((*element)->conn) && (_MS_CONN_GET_STATE((*element)->conn) > CONN_ALLOCED)) {
+		add_assoc_long(_ms_a_zval host, "thread_id", (*element)->conn->thread_id);
 	} else {
-		add_assoc_null(host, "thread_id");
+		add_assoc_null(_ms_a_zval host, "thread_id");
 	}
 }
 /* }}} */
@@ -1070,7 +1066,7 @@ ZEND_END_ARG_INFO()
    Dump configured master and slave servers */
 static PHP_FUNCTION(mysqlnd_ms_dump_servers)
 {
-	zval *conn_zv, *masters, *slaves;
+	zval * conn_zv, _ms_p_zval masters, _ms_p_zval slaves;
 	MYSQLND *conn;
 	MYSQLND_MS_CONN_DATA **conn_data = NULL;
 
@@ -1082,7 +1078,7 @@ static PHP_FUNCTION(mysqlnd_ms_dump_servers)
 		RETURN_FALSE;
 	}
 
-	conn_data = (MYSQLND_MS_CONN_DATA **) mysqlnd_plugin_get_plugin_connection_data_data(conn->data, mysqlnd_ms_plugin_id);
+	conn_data = (MYSQLND_MS_CONN_DATA **) _ms_mysqlnd_plugin_get_plugin_connection_data_data(conn->data, mysqlnd_ms_plugin_id);
 	if (!conn_data || !(*conn_data)) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " No mysqlnd_ms connection");
 		RETURN_FALSE;
@@ -1090,29 +1086,31 @@ static PHP_FUNCTION(mysqlnd_ms_dump_servers)
 
 	MAKE_STD_ZVAL(masters);
 	MAKE_STD_ZVAL(slaves);
-	array_init(masters);
-	array_init(slaves);
+	array_init(_ms_a_zval masters);
+	array_init(_ms_a_zval slaves);
 
 	zend_llist_apply_with_argument((*conn_data)->pool->get_active_masters((*conn_data)->pool TSRMLS_CC),
-								   mysqlnd_ms_add_server_to_array, masters TSRMLS_CC);
+								   mysqlnd_ms_add_server_to_array, _ms_a_zval masters TSRMLS_CC);
 	zend_llist_apply_with_argument((*conn_data)->pool->get_active_slaves((*conn_data)->pool TSRMLS_CC),
-								   mysqlnd_ms_add_server_to_array, slaves TSRMLS_CC);
+								   mysqlnd_ms_add_server_to_array, _ms_a_zval slaves TSRMLS_CC);
 
 	array_init(return_value);
-	add_assoc_zval(return_value, "masters", masters);
-	add_assoc_zval(return_value, "slaves", slaves);
+	add_assoc_zval(return_value, "masters", _ms_a_zval masters);
+	add_assoc_zval(return_value, "slaves", _ms_a_zval slaves);
 }
 /* }}} */
 
 static void mysqlnd_ms_dump_fabric_hosts_cb(const char *url, void *data) /* {{{ */
 {
-	zval *item;
+	zval _ms_p_zval item;
 	zval *return_value = (zval*)data;
+	DBG_ENTER("mysqlnd_ms_dump_fabric_hosts_cb");
 
 	MAKE_STD_ZVAL(item);
-	array_init(item);
-	add_assoc_string(item, "url", (char*)url, 1);
-	add_next_index_zval(return_value,  item);
+	array_init(_ms_a_zval item);
+	MYSQLND_MS_ADD_ASSOC_STRING(_ms_a_zval item, "url", (char*)url);
+	add_next_index_zval(return_value,_ms_a_zval item);
+	DBG_VOID_RETURN;
 }
 /* }}} */
 
@@ -1123,6 +1121,7 @@ static PHP_FUNCTION(mysqlnd_ms_dump_fabric_rpc_hosts)
 	zval *conn_zv;
 	MYSQLND *conn;
 	MYSQLND_MS_CONN_DATA **conn_data = NULL;
+	DBG_ENTER("mysqlnd_ms_dump_fabric_rpc_hosts");
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &conn_zv) == FAILURE) {
 		return;
@@ -1132,7 +1131,7 @@ static PHP_FUNCTION(mysqlnd_ms_dump_fabric_rpc_hosts)
 		RETURN_FALSE;
 	}
 
-	conn_data = (MYSQLND_MS_CONN_DATA **) mysqlnd_plugin_get_plugin_connection_data_data(conn->data, mysqlnd_ms_plugin_id);
+	conn_data = (MYSQLND_MS_CONN_DATA **) _ms_mysqlnd_plugin_get_plugin_connection_data_data(conn->data, mysqlnd_ms_plugin_id);
 	if (!conn_data || !(*conn_data)) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " No mysqlnd_ms connection");
 		RETURN_FALSE;
@@ -1145,6 +1144,7 @@ static PHP_FUNCTION(mysqlnd_ms_dump_fabric_rpc_hosts)
 
 	array_init(return_value);
 	mysqlnd_fabric_host_list_apply((*conn_data)->fabric, mysqlnd_ms_dump_fabric_hosts_cb, return_value);
+	DBG_VOID_RETURN;
 }
 /* }}} */
 
@@ -1173,7 +1173,7 @@ static PHP_FUNCTION(mysqlnd_ms_debug_set_fabric_raw_dump_data_xml)
 		RETURN_FALSE;
 	}
 
-	conn_data = (MYSQLND_MS_CONN_DATA **) mysqlnd_plugin_get_plugin_connection_data_data(conn->data, mysqlnd_ms_plugin_id);
+	conn_data = (MYSQLND_MS_CONN_DATA **) _ms_mysqlnd_plugin_get_plugin_connection_data_data(conn->data, mysqlnd_ms_plugin_id);
 	if (!conn_data || !(*conn_data)) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " No mysqlnd_ms connection");
 		RETURN_FALSE;
@@ -1184,14 +1184,14 @@ static PHP_FUNCTION(mysqlnd_ms_debug_set_fabric_raw_dump_data_xml)
 		RETURN_FALSE;
 	}
 
-	void fabric_set_raw_data_from_xmlstr(mysqlnd_fabric *fabric,
+/*	void fabric_set_raw_data_from_xmlstr(mysqlnd_fabric *fabric,
 		const char *shard_table_xml, size_t shard_table_len,
 		const char *shard_mapping_xml, size_t shard_mapping_len,
 		const char *shard_index_xml, size_t shard_index_len,
-		const char *server_xml, size_t server_len);
-	fabric_set_raw_data_from_xmlstr((*conn_data)->fabric, shard_table_xml, shard_table_len, shard_mapping_xml,
+		const char *server_xml, size_t server_len);*/
+/*	fabric_set_raw_data_from_xmlstr((*conn_data)->fabric, shard_table_xml, shard_table_len, shard_mapping_xml,
 			shard_mapping_len, shard_index_xml, shard_index_len, server_xml, server_len);
-
+*/
 }
 /* }}} */
 
@@ -1218,7 +1218,7 @@ static PHP_FUNCTION(mysqlnd_ms_debug_set_fabric_raw_dump_data_dangerous)
 		RETURN_FALSE;
 	}
 
-	conn_data = (MYSQLND_MS_CONN_DATA **) mysqlnd_plugin_get_plugin_connection_data_data(conn->data, mysqlnd_ms_plugin_id);
+	conn_data = (MYSQLND_MS_CONN_DATA **) _ms_mysqlnd_plugin_get_plugin_connection_data_data(conn->data, mysqlnd_ms_plugin_id);
 	if (!conn_data || !(*conn_data)) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " No mysqlnd_ms connection");
 		RETURN_FALSE;

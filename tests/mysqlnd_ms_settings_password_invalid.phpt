@@ -66,4 +66,4 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_settings_password_invalid.ini
 	  printf("[clean] Cannot unlink ini file 'test_mysqlnd_ms_settings_password_invalid.ini'.\n");
 ?>
 --EXPECTF--
-Catchable fatal error: mysqli_connect(): (mysqlnd_ms) Invalid value for password. Cannot be a list/hash' . Stopping in %s on line %d
+%s fatal error: mysqli_connect(): (mysqlnd_ms) Invalid value for password. Cannot be a list/hash' . Stopping in %s on line %d

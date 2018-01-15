@@ -15,17 +15,14 @@ _skipif_connect($slave_host_only, $user, $passwd, $db, $slave_port, $slave_socke
 include_once("util.inc");
 $sql = mst_get_gtid_sql($db);
 
-$link = mst_mysqli_connect($master_host_only, $user, $passwd, $db, $master_port, $master_socket);
-if (mysqli_connect_errno())
-	die(sprintf("SKIP [%d] %s\n", mysqli_connect_errno(), mysqli_connect_error()));
-if (!$link->query($sql['drop']))
-	die(sprintf("SKIP [%d] %s\n", $link->errno, $link->error));
+if ($error = mst_mysqli_drop_gtid_table($emulated_master_host_only, $user, $passwd, $db, $emulated_master_port, $emulated_master_socket))
+  die(sprintf("SKIP Failed to drop GTID on master, %s\n", $error));
 
-$link = mst_mysqli_connect($slave_host_only, $user, $passwd, $db, $slave_port, $slave_socket);
-if (mysqli_connect_errno())
-	die(sprintf("SKIP [%d] %s\n", mysqli_connect_errno(), mysqli_connect_error()));
-if (!$link->query($sql['drop']))
-	die(sprintf("SKIP [%d] %s\n", $link->errno, $link->error));
+//if ($error = mst_mysqli_drop_gtid_table($emulated_slave_host_only, $user, $passwd, $db, $emulated_slave_port, $emulated_slave_socket))
+ // die(sprintf("SKIP Failed to drop GTID on master, %s\n", $error));
+// We need to setup gtid table on slave otherwise session consistency will not choose slaves
+if ($error = mst_mysqli_setup_gtid_table($emulated_slave_host_only, $user, $passwd, $db, $emulated_slave_port, $emulated_slave_socket))
+  die(sprintf("SKIP Failed to setup GTID on slave, %s\n", $error));
 
 $settings = array(
 	"myapp" => array(
@@ -45,13 +42,18 @@ $settings = array(
 		),
 
 		'global_transaction_id_injection' => array(
+		 	'type'						=> 1,
 			'on_commit'	 				=> $sql['update'],
+			'fetch_last_gtid'			=> $sql['fetch_last_gtid'],
 			'report_error'				=> false,
 		),
 
 		'lazy_connections' => 0,
 		'trx_stickiness' => 'disabled',
 		'filters' => array(
+			"quality_of_service" => array(
+				"session_consistency" => 1,
+			),
 			"roundrobin" => array(),
 		),
 	),
@@ -162,15 +164,26 @@ mysqlnd_ms.collect_statistics=1
 <?php
 	if (!unlink("test_mysqlnd_ms_gtid_report_errors_off_non_lazy.ini"))
 		printf("[clean] Cannot unlink ini file 'test_mysqlnd_ms_gtid_report_errors_off_non_lazy.ini'.\n");
+	if ($error = mst_mysqli_drop_gtid_table($emulated_master_host_only, $user, $passwd, $db, $emulated_master_port, $emulated_master_socket))
+		printf("[clean] %s\n", $error);
+	if ($error = mst_mysqli_drop_gtid_table($emulated_slave_host_only, $user, $passwd, $db, $emulated_slave_port, $emulated_slave_socket))
+		printf("[clean] %s\n", $error);
 ?>
 --EXPECTF--
+Warning: mysqli::query(): (mysqlnd_ms) Error on SQL injection. in %s on line %d
 [013] Slave says 'slave'
 [017] Master says 'master'
 [021] Master says again 'master'
+
+Warning: mysqli::commit(): (mysqlnd_ms) Error on SQL injection. in %s on line %d
 Slave says '1'
 Master says '2'
-[036] [1193] Unknown system variable 'MY'
-[038] [1193] Unknown system variable 'MY'
-[040] [1193] Unknown system variable 'MY'
-[042] [1193] Unknown system variable 'MY'
+
+Warning: mysqli::commit(): (mysqlnd_ms) Error on SQL injection. in %s on line %d
+
+Warning: mysqli::autocommit(): (mysqlnd_ms) Error on SQL injection. in %s on line %d
+[036] [1064] %s
+[038] [1064] %s
+[040] [1064] %s
+[042] [1064] %s
 done!

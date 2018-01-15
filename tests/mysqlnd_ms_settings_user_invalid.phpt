@@ -57,8 +57,7 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_settings_user_invalid.ini
 	if (!($link = mysqli_connect("myapp")))
 		printf("[001] [%d] %s\n", mysqli_connect_errno(), mysqli_connect_error());
 
-	$res = mst_mysqli_query(2, $link, "SELECT 1 AS _one FROM DUAL");
-	var_dump($res->fetch_assoc());
+	var_dump($link);
 
 	print "done!";
 ?>
@@ -71,4 +70,5 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_settings_user_invalid.ini
 %A
 Warning: mysqli_connect(): (mysqlnd_ms) Error while connecting to the master(s) in %s on line %d
 %A
-Fatal error: Call to a member function query() on a non-object in %s on line %d
+bool(false)
+done!

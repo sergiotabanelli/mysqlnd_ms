@@ -1,5 +1,5 @@
 --TEST--
-mysqlnd_ms_set_qos(), GTID SQL error
+mysqlnd_ms_set_qos(), GTID SQL error - This TEST is useless
 --SKIPIF--
 <?php
 if (version_compare(PHP_VERSION, '5.3.99-dev', '<'))
@@ -45,14 +45,19 @@ $settings = array(
 		 ),
 
 		'lazy_connections' => 1,
-
 		'global_transaction_id_injection' => array(
+		    'type'						=> 1,
 			'on_commit'	 				=> $sql['update'],
 			'fetch_last_gtid'			=> $sql['fetch_last_gtid'],
 			'check_for_gtid'			=> "Looking for more interesting tasks!",
 			'report_error'				=> true,
 		),
-
+		'filters' => array(
+			"quality_of_service" => array(
+				"session_consistency" => 1,
+			),
+			"roundrobin" => array(),
+		),
 	),
 
 );
@@ -106,7 +111,6 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_set_qos_gtid_sql_error.ini
 		printf("[clean] %s\n", $error);
 ?>
 --EXPECTF--
-Warning: mysqli::query(): (mysqlnd_ms) Failed parse SQL for checking GTID. Cannot find #GTID placeholder in %s on line %d
 array(1) {
   [0]=>
   array(1) {

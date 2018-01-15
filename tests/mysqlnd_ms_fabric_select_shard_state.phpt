@@ -1,7 +1,7 @@
 --TEST--
 Fabric: select shard + state
 --XFAIL--
-No state alignment unlike promised by the manual
+No state alignment unlike promised by the manual - Emulator does not support dump commands
 --SKIPIF--
 <?php
 require_once('skipif.inc');
@@ -145,8 +145,6 @@ mysqlnd_ms.collect_statistics=1
 
 	print "done!";
 ?>
---XFAIL--
-Emulator does not support dump commands
 --CLEAN--
 <?php
 	if (!unlink("test_mysqlnd_ms_fabric_select_shard_state.ini"))

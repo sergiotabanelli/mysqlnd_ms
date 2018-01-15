@@ -120,7 +120,7 @@ mysqlnd_ms.multi_master=1
 	else
 		$servers[$server_id] = array($role => 1);
 
-	/* master 1 */
+	/* slave */
 	$role = fetch_role(10, $link);
 	$server_id = mst_mysqli_get_emulated_id(11, $link);
 	if (isset($servers[$server_id][$role]))
@@ -128,7 +128,7 @@ mysqlnd_ms.multi_master=1
 	else
 		$servers[$server_id] = array($role => 1);
 
-	/* master 2 */
+	/* slave */
 	$role = fetch_role(12, $link);
 	$server_id = mst_mysqli_get_emulated_id(13, $link);
 	if (isset($servers[$server_id][$role]))
@@ -136,7 +136,7 @@ mysqlnd_ms.multi_master=1
 	else
 		$servers[$server_id] = array($role => 1);
 
-	/* master 2 */
+	/* slave */
 	$role = fetch_role(14, $link, MYSQLND_MS_LAST_USED_SWITCH);
 	$server_id = mst_mysqli_get_emulated_id(15, $link);
 	if (isset($servers[$server_id][$role]))
@@ -147,7 +147,7 @@ mysqlnd_ms.multi_master=1
 	if (false === ($ret = mysqlnd_ms_set_qos($link, MYSQLND_MS_QOS_CONSISTENCY_EVENTUAL)))
 		printf("[016] [%d] %s\n", $link->errno, $link->error);
 
-	/* slave 1 */
+	/* slave */
 	$role = fetch_role(16, $link);
 	$server_id = mst_mysqli_get_emulated_id(17, $link);
 	if (isset($servers[$server_id][$role]))
@@ -197,7 +197,7 @@ mysqlnd_ms.multi_master=1
 	  printf("[clean] Cannot unlink ini file 'test_mysqlnd_ms_filter_qos_session_consistency_mm_rr.ini'.\n");
 ?>
 --EXPECTF--
-master 1 (master[1,2]-%d) has run 4 queries
-master 2 (master[1,2]-%d) has run 4 queries
- (slave1-%d) has run 1 queries
+master 1 (master[1,2]-%d) has run 3 queries
+master 2 (master[1,2]-%d) has run 2 queries
+ (slave1-%d) has run 4 queries
 done!

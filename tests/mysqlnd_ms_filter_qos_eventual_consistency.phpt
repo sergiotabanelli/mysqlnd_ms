@@ -74,8 +74,12 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_filter_qos_eventual_consistency.ini
 	/* master */
 	$res = mst_mysqli_query(10, $link, "SELECT @myrole FROM DUAL", MYSQLND_MS_LAST_USED_SWITCH);
 	var_dump($res->fetch_assoc());
-
+	/* MYSQLND_MS_QOS_CONSISTENCY_SESSION with no fall to MYSQLND_MS_QOS_CONSISTENCY_EVENTUAL 
+	  and no more to MYSQLND_MS_QOS_CONSISTENCY_STRONG
 	if (false === ($ret = mysqlnd_ms_set_qos($link, MYSQLND_MS_QOS_CONSISTENCY_SESSION)))
+		printf("[012] [%d] %s\n", $link->errno, $link->error);
+    */
+	if (false === ($ret = mysqlnd_ms_set_qos($link, MYSQLND_MS_QOS_CONSISTENCY_STRONG)))
 		printf("[012] [%d] %s\n", $link->errno, $link->error);
 
 	/* master */
