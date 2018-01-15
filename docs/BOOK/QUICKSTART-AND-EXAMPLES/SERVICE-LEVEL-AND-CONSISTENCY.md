@@ -1,7 +1,6 @@
 # Service level and consistency
 
->
-NOTE: Together with strictly related [global transaction IDs](REF:../CONCEPTS), the [service level and consistency](REF:../CONCEPTS) feature is one of the most changed areas of the `mymysqlnd_ms` fork. Functionlities like [server side read consistency](REFA:) and [server side write consistency](REFA:) allow transparent migration to MySQL clusters in almost all use cases with no or at most extremely small effort and application changes.
+>NOTE: Together with strictly related [global transaction IDs](REF:../CONCEPTS), the [service level and consistency](REF:../CONCEPTS) feature is one of the most changed areas of the `mymysqlnd_ms` fork. Functionlities like [server side read consistency](REFA:) and [server side write consistency](REFA:) allow transparent migration to MySQL clusters in almost all use cases with no or at most extremely small effort and application changes.
 
 >The code should be considered of beta quality. We use it in our restricted intranet production enviroment, but we are the developers so, if we find bugs, we can patch our code almost immediatly. The feature is not required for synchronous clusters, such as MySQL Cluster.
 
