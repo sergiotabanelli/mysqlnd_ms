@@ -48,11 +48,9 @@ if test "$PHP_MYSQLND_MS" && test "$PHP_MYSQLND_MS" != "no"; then
     PHP_ADD_INCLUDE($PHP_LIBMEMCACHED_INCDIR)
     PHP_ADD_LIBRARY_WITH_PATH(memcached, $PHP_LIBMEMCACHED_DIR/$PHP_LIBDIR, MYSQLND_MS_SHARED_LIBADD)
   fi
- 
+
   PHP_SUBST(MYSQLND_MS_SHARED_LIBADD)
-  
-  PHP_ADD_MAKEFILE_FRAGMENT    
-  
+
   mysqlnd_ms_sources="php_mysqlnd_ms.c mysqlnd_ms.c mysqlnd_ms_switch.c mysqlnd_ms_config_json.c \
                   mf_wcomp.c mysqlnd_query_lexer.c \
                   mysqlnd_ms_filter_random.c mysqlnd_ms_filter_round_robin.c \
@@ -82,6 +80,7 @@ if test "$PHP_MYSQLND_MS" && test "$PHP_MYSQLND_MS" != "no"; then
     PHP_ADD_EXTENSION_DEP(mysqlnd_ms, json)
     PHP_NEW_EXTENSION(mysqlnd_ms, $mysqlnd_ms_sources, $ext_shared)
     PHP_INSTALL_HEADERS([ext/mysqlnd_ms/])
+    PHP_ADD_MAKEFILE_FRAGMENT
   ], [
     AC_MSG_ERROR([xml2-config not found. Please check your libxml2 installation.])
   ])

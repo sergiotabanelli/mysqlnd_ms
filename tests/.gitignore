@@ -1,0 +1,6 @@
+/atest.phpt
+/mysqlnd_ms_filter_qos_rt_gtid.diff
+/mysqlnd_ms_filter_qos_rt_gtid.exp
+/mysqlnd_ms_filter_qos_rt_gtid.log
+/mysqlnd_ms_filter_qos_rt_gtid.out
+/mysqlnd_ms_filter_qos_rt_gtid.php
