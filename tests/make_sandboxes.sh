@@ -1,4 +1,3 @@
-# ----------------------------------------------------------------------------
 #!/bin/bash
 # installs MySQL Tests instances
 MYSQL_VERSION="$1"
