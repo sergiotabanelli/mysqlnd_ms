@@ -1620,30 +1620,34 @@ mysqlnd_ms_cs_ss_gtid_set_last_write(MYSQLND_CONN_DATA * connection, char * gtid
 			memcached_return_t rc;
 			uint64_t value = 0;
 			size_t ol = 0;
+			char *val = NULL;
 			ot[0] = 0;
 			if ((rc = memcached_increment((*proxy_conn_data)->global_trx.memc, (*proxy_conn_data)->global_trx.memcached_wkey,
 					(*proxy_conn_data)->global_trx.memcached_wkey_len, 1, &value)) == MEMCACHED_SUCCESS && value > 0) {
 				ol = snprintf(ot, MAXGTIDSIZE, "%s:%" PRIuMAX, (*proxy_conn_data)->global_trx.memcached_wkey, value);
-				char *val = mysqlnd_ms_cs_ss_gtid_build_val(*conn_data, gtid);
+				val = mysqlnd_ms_cs_ss_gtid_build_val(*conn_data, gtid);
 				rc = memcached_add(memc, ot, ol, val, strlen(val), (time_t)(*proxy_conn_data)->global_trx.running_ttl, (uint32_t)0);
 				DBG_INF_FMT("Memcached last token write %s %s len %d return %d.", ot, val, strlen(val), rc);
-				efree(val);
 			}
 			if (rc == MEMCACHED_SUCCESS) {
 				if ((*proxy_conn_data)->global_trx.auto_clean) {
 					ol = snprintf(ot, MAXGTIDSIZE, "%s:%" PRIuMAX, (*proxy_conn_data)->global_trx.memcached_wkey, value - 1);
-					memcached_delete(memc, ot, ol, (time_t)0);
+					/* With auto_clean, memcached_delete failure means that previous running process is still choosing a master, we add the key signaling the other process to clean it instead of add
+					 * See mysqlnd_ms_cs_ss_gtid_inject_before
+					 */
+					if (memcached_delete(memc, ot, ol, (time_t)0) != MEMCACHED_SUCCESS) {
+						memcached_add(memc, ot, ol, val, strlen(val), (time_t)(*proxy_conn_data)->global_trx.running_ttl, (uint32_t)0);
+					}
 					ol = snprintf(ot, MAXGTIDSIZE, "%s:%" PRIuMAX, (*proxy_conn_data)->global_trx.memcached_wkey, (*proxy_conn_data)->global_trx.owned_token - 1);
 					memcached_delete(memc, ot, ol, (time_t)0);
 				}
 				(*proxy_conn_data)->global_trx.owned_token = 0;
+				if (val) efree(val);
 			} else {
+				if (val) efree(val);
 				ret = FAIL;
 				php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Error adding memcached last token write %s %s.", ot, gtid);
 			}
-		} else {
-			ret = FAIL;
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Error writing last owned token %" PRIuMAX, (*proxy_conn_data)->global_trx.owned_token);
 		}
 	}
 	DBG_INF_FMT("ret=%s", ret == PASS? "PASS":"FAIL");
@@ -1812,11 +1816,17 @@ mysqlnd_ms_cs_ss_gtid_inject_before(MYSQLND_CONN_DATA * conn TSRMLS_DC)
 	DBG_ENTER("mysqlnd_ms_cs_ss_gtid_inject_before");
 	if ((*proxy_conn_data)->global_trx.memc && (*proxy_conn_data)->global_trx.memcached_wkey && (*proxy_conn_data)->global_trx.owned_token > 0 &&
 			snprintf(ot, MAXGTIDSIZE, "%s:%" PRIuMAX, (*proxy_conn_data)->global_trx.memcached_wkey, (*proxy_conn_data)->global_trx.owned_token) > 0) {
-		if ((rc = memcached_set((*proxy_conn_data)->global_trx.memc, ot, strlen(ot),
-				(*conn_data)->elm_pool_hash_key->c, (*conn_data)->elm_pool_hash_key->len-1/*do not include final null character*/,
-				(time_t)(*proxy_conn_data)->global_trx.running_ttl, (uint32_t)0 )) == MEMCACHED_SUCCESS) {
-			DBG_INF_FMT("Set pool key %s to memcached %s", (*conn_data)->elm_pool_hash_key->c, ot);
+		char *val = mysqlnd_ms_cs_ss_gtid_build_val(*conn_data, (*proxy_conn_data)->global_trx.last_ckgtid);
+		/* With auto_clean, memcached_add failure means that in the mean time a running process ended adding a new valid gtid token after this one, so we can safely delete it.
+		 * see mysqlnd_ms_cs_ss_gtid_set_last_write
+		*/
+		if ((rc = memcached_add((*proxy_conn_data)->global_trx.memc, ot, strlen(ot),
+				val, strlen(val), (time_t)(*proxy_conn_data)->global_trx.running_ttl, (uint32_t)0 )) == MEMCACHED_SUCCESS) {
+			DBG_INF_FMT("Added pool key %s to memcached %s", val, ot);
+		} else if ((*proxy_conn_data)->global_trx.auto_clean && (rc = memcached_delete((*proxy_conn_data)->global_trx.memc, ot, strlen(ot), (time_t)0)) == MEMCACHED_SUCCESS) {
+			DBG_INF_FMT("Deleted owned key %s", val, ot);
 		}
+		efree(val);
 		if (rc == MEMCACHED_SUCCESS && (*conn_data)->global_trx.on_commit_len > 0) {
 			MYSQLND_MS_LIST_DATA * gtid_conn_elm = (*conn_data)->global_trx.gtid_conn_elm;
 			char * onc;
@@ -1848,6 +1858,7 @@ mysqlnd_ms_cs_ss_gtid_inject_before(MYSQLND_CONN_DATA * conn TSRMLS_DC)
 			// (*conn_data)->global_trx.track_gtid = TRUE;
 		}
 		if (rc != MEMCACHED_SUCCESS) {
+			DBG_INF_FMT("Fail in memchached running key creation. key %s to memcached %s", (*conn_data)->elm_pool_hash_key->c, ot);
 			php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Fail in memchached running key creation.");
 			ret = FAIL;
 		}
@@ -1863,7 +1874,7 @@ mysqlnd_ms_cs_ss_gtid_decrement_running(struct st_mysqlnd_ms_global_trx_injectio
 {
 	char k[MEMCACHED_MAX_KEY] = "";
 	uint64_t time_cluster = 0;
-	memcached_return_t rc = MEMCACHED_FAILURE;
+	memcached_return_t rc = MEMCACHED_SUCCESS;
 	int len = 0;
 	DBG_ENTER("mysqlnd_ms_cs_ss_gtid_decrement_running");
 	if (trx->run_time) {
@@ -1898,17 +1909,21 @@ mysqlnd_ms_cs_ss_gtid_inject_after(MYSQLND_CONN_DATA * conn, enum_func_status st
 	MS_DECLARE_AND_LOAD_CONN_DATA(proxy_conn_data, (*conn_data)->proxy_conn);
 	DBG_ENTER("mysqlnd_ms_cs_ss_gtid_inject_after");
 	if ((*proxy_conn_data)->global_trx.owned_token > 0) {
-		char ot[MAXGTIDSIZE];
+/*		char ot[MAXGTIDSIZE];
 		memcached_st *memc = (*proxy_conn_data)->global_trx.memc;
-		size_t ol = snprintf(ot, MAXGTIDSIZE, "%s:%" PRIuMAX, (*proxy_conn_data)->global_trx.memcached_wkey, (*proxy_conn_data)->global_trx.owned_token);
+		size_t ol;
+		ol = snprintf(ot, MAXGTIDSIZE, "%s:%" PRIuMAX, (*proxy_conn_data)->global_trx.memcached_wkey, (*proxy_conn_data)->global_trx.owned_token);
 		char *val = mysqlnd_ms_cs_ss_gtid_build_val(*conn_data, (*proxy_conn_data)->global_trx.last_ckgtid);
 		rc = memcached_replace(memc, ot, ol, val, strlen(val), (time_t)(*proxy_conn_data)->global_trx.running_ttl, (uint32_t)0);
 		DBG_INF_FMT("Memcached owned token still present, this means a non effective write or some unexpected error for key %s, set value to %s", ot, val);
-		efree(val);
+		efree(val); */
 		if ((*proxy_conn_data)->global_trx.auto_clean) {
-			ol = snprintf(ot, MAXGTIDSIZE, "%s:%" PRIuMAX, (*proxy_conn_data)->global_trx.memcached_wkey, (*proxy_conn_data)->global_trx.owned_token - 1);
+			char ot[MAXGTIDSIZE];
+			memcached_st *memc = (*proxy_conn_data)->global_trx.memc;
+			size_t ol = snprintf(ot, MAXGTIDSIZE, "%s:%" PRIuMAX, (*proxy_conn_data)->global_trx.memcached_wkey, (*proxy_conn_data)->global_trx.owned_token - 1);
 			memcached_delete(memc, ot, ol, (time_t)0);
 		}
+		(*proxy_conn_data)->global_trx.owned_token = 0;
 	}
 	if ((rc = mysqlnd_ms_cs_ss_gtid_decrement_running(&(*proxy_conn_data)->global_trx, &value TSRMLS_CC)) != MEMCACHED_SUCCESS) {
 		ret = FAIL;
@@ -2187,17 +2202,20 @@ mysqlnd_ms_cs_ss_gtid_reset(MYSQLND_CONN_DATA * conn, enum_func_status status TS
 	MS_DECLARE_AND_LOAD_CONN_DATA(conn_data, conn);
 	MS_DECLARE_AND_LOAD_CONN_DATA(proxy_conn_data, (*conn_data)->proxy_conn);
 	if (!(*proxy_conn_data)->stgy.in_transaction && (*proxy_conn_data)->global_trx.owned_token > 0) {
-		char ot[MAXGTIDSIZE];
 		memcached_return_t rc;
-		memcached_st *memc = (*proxy_conn_data)->global_trx.memc;
 		uint64_t value = 0;
+/*		char ot[MAXGTIDSIZE];
+		memcached_st *memc = (*proxy_conn_data)->global_trx.memc;
 		size_t ol = snprintf(ot, MAXGTIDSIZE, "%s:%" PRIuMAX, (*proxy_conn_data)->global_trx.memcached_wkey, (*proxy_conn_data)->global_trx.owned_token);
 		char *val = mysqlnd_ms_cs_ss_gtid_build_val(*conn_data, (*proxy_conn_data)->global_trx.last_ckgtid);
 		rc = memcached_replace(memc, ot, ol, val, strlen(val), (time_t)(*proxy_conn_data)->global_trx.running_ttl, (uint32_t)0);
 		DBG_INF_FMT("Memcached owned token still present, this means a non effective write or some unexpected error for key %s, set value to %s", ot, val);
-		efree(val);
+		efree(val);*/
 		if ((*proxy_conn_data)->global_trx.auto_clean) {
-			ol = snprintf(ot, MAXGTIDSIZE, "%s:%" PRIuMAX, (*proxy_conn_data)->global_trx.memcached_wkey, (*proxy_conn_data)->global_trx.owned_token - 1);
+			char ot[MAXGTIDSIZE];
+			memcached_st *memc = (*proxy_conn_data)->global_trx.memc;
+			uint64_t value = 0;
+			size_t 	ol = snprintf(ot, MAXGTIDSIZE, "%s:%" PRIuMAX, (*proxy_conn_data)->global_trx.memcached_wkey, (*proxy_conn_data)->global_trx.owned_token - 1);
 			memcached_delete(memc, ot, ol, (time_t)0);
 		}
 		rc = mysqlnd_ms_cs_ss_gtid_decrement_running(&(*proxy_conn_data)->global_trx, &value TSRMLS_CC);
