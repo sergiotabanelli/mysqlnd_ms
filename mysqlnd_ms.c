@@ -1626,7 +1626,11 @@ mysqlnd_ms_cs_ss_gtid_set_last_write(MYSQLND_CONN_DATA * connection, char * gtid
 					(*proxy_conn_data)->global_trx.memcached_wkey_len, 1, &value)) == MEMCACHED_SUCCESS && value > 0) {
 				ol = snprintf(ot, MAXGTIDSIZE, "%s:%" PRIuMAX, (*proxy_conn_data)->global_trx.memcached_wkey, value);
 				val = mysqlnd_ms_cs_ss_gtid_build_val(*conn_data, gtid);
-				if ((rc = memcached_add(memc, ot, ol, val, strlen(val), (time_t)(*proxy_conn_data)->global_trx.running_ttl, (uint32_t)0)) != MEMCACHED_SUCCESS) {
+				if ((rc = memcached_add(memc, ot, ol, val, strlen(val), (time_t)(*proxy_conn_data)->global_trx.running_ttl, (uint32_t)0)) == MEMCACHED_SUCCESS) {
+					DBG_INF_FMT("Added valid gtid key %s to memcached %s", val, ot);
+				} else if ((*proxy_conn_data)->global_trx.auto_clean && (rc = memcached_delete(memc, ot, ol, (time_t)0)) == MEMCACHED_SUCCESS) {
+					DBG_INF_FMT("Deleted new owned key  %s", val, ot);
+				} else {
 					php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Error adding memcached last token write %s %s %d.", ot, gtid, rc);
 				}
 				DBG_INF_FMT("Memcached last token write %s %s len %d return %d.", ot, val, strlen(val), rc);
