@@ -1576,9 +1576,11 @@ mysqlnd_ms_cs_ss_gtid_build_val(MYSQLND_MS_CONN_DATA * conn_data, const char *gt
 	struct st_mysqlnd_ms_global_trx_injection * trx = &conn_data->global_trx;
 	_ms_smart_type * hash_key = conn_data->elm_pool_hash_key;
 	size_t gl = gtid ? strlen(gtid) : 0;
-	size_t l = hash_key->len + gl + 1 + trx->last_gtid_len + 1 + trx->last_ckgtid_len + 1;
+    char th[10];
+	size_t thl = snprintf(th, 10, "%llu", conn_data->proxy_conn->thread_id);
+	size_t l = hash_key->len + gl + 1 + trx->last_gtid_len + 1 + trx->last_ckgtid_len + 1 + thl + 1;
     char * ret, * val;
-	DBG_ENTER("mysqlnd_ms_cs_ss_gtid_build_val");
+    DBG_ENTER("mysqlnd_ms_cs_ss_gtid_build_val");
     ret = val = emalloc(l);
 	memcpy(val, hash_key->c, hash_key->len - 1);
 	val += hash_key->len - 1; //hash_key->len include null termination
@@ -1598,6 +1600,11 @@ mysqlnd_ms_cs_ss_gtid_build_val(MYSQLND_MS_CONN_DATA * conn_data, const char *gt
 	if (trx->last_ckgtid_len)
 		memcpy(val, trx->last_ckgtid, trx->last_ckgtid_len);
 	val += trx->last_ckgtid_len;
+	*val = GTID_GTID_MARKER;
+	val++;
+	if (thl)
+		memcpy(val, th, thl);
+	val += thl;
 	// END TEMPORARY HACK
 	*val = 0;
 	DBG_RETURN(ret);
