@@ -5908,6 +5908,8 @@ mysqlnd_ms_protocol_rset_header_read(_MS_PROTOCOL_CONN_READ_D TSRMLS_DC)
 					zend_uchar * sp;
 					unsigned long total_len = my_php_mysqlnd_net_field_length(&p);
 					unsigned long type;
+					char * gtid = NULL;
+					size_t gtid_len = 0;
 					BAIL_IF_NO_MORE_DATA;
 					DBG_INF_FMT("State changed: total len %lu", total_len);
 
@@ -5915,7 +5917,6 @@ mysqlnd_ms_protocol_rset_header_read(_MS_PROTOCOL_CONN_READ_D TSRMLS_DC)
 						sp = p;
 						type = (enum enum_session_state_type) my_php_mysqlnd_net_field_length(&p);
 						if (type == SESSION_TRACK_GTIDS) {
-							char * gtid = NULL;
 							/* Move past the total length of the changed entity. */
 
 							(void) my_php_mysqlnd_net_field_length(&p);
@@ -5932,18 +5933,11 @@ mysqlnd_ms_protocol_rset_header_read(_MS_PROTOCOL_CONN_READ_D TSRMLS_DC)
 							/* read the length of the encoded string. */
 							len = my_php_mysqlnd_net_field_length(&p);
 							len = MIN(len, buf_len - (p - begin));
-							gtid = mnd_pestrndup((char *)p, len, FALSE);
-							if (FAIL == (*conn_data)->global_trx.m->gtid_set_last_write(conn, gtid TSRMLS_CC)) {
-								php_error_docref(NULL TSRMLS_CC, E_WARNING, "OK packet set GTID failed %s", gtid);
-								if ((*conn_data)->global_trx.report_error == TRUE) {
-									if ((MYSQLND_MS_ERROR_INFO(conn)).error_no == 0) {
-										SET_CLIENT_ERROR(_ms_p_ei (conn->error_info), CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, "Error on gtid_set_last_write");
-									}
-									ret = FAIL;
-								}
+							if (len) {
+								gtid = (char *)p;
+								gtid_len = len;
+								DBG_INF_FMT("Found gtid %.*s len %d", gtid_len, gtid, gtid_len);
 							}
-							mnd_pefree(gtid, FALSE);
-							break;
 						} else {
 							/*
 							   Unneeded/unsupported type received, get the total length and move on
@@ -5953,6 +5947,19 @@ mysqlnd_ms_protocol_rset_header_read(_MS_PROTOCOL_CONN_READ_D TSRMLS_DC)
 						}
 						p += len;
 						total_len -= (p - sp);
+					}
+					if (gtid && gtid_len) {
+						gtid = mnd_pestrndup(gtid, gtid_len, FALSE);
+						if (FAIL == (*conn_data)->global_trx.m->gtid_set_last_write(conn, gtid TSRMLS_CC)) {
+							php_error_docref(NULL TSRMLS_CC, E_WARNING, "OK packet set GTID failed %s", gtid);
+							if ((*conn_data)->global_trx.report_error == TRUE) {
+								if ((MYSQLND_MS_ERROR_INFO(conn)).error_no == 0) {
+									SET_CLIENT_ERROR(_ms_p_ei (conn->error_info), CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, "Error on gtid_set_last_write");
+								}
+								ret = FAIL;
+							}
+						}
+						mnd_pefree(gtid, FALSE);
 					}
 				}
 			} else {
