@@ -1962,22 +1962,23 @@ mysqlnd_ms_cs_ss_gtid_increment_running(struct st_mysqlnd_ms_global_trx_injectio
 		time_cluster = run_time/trx->running_ttl;
 	}
 	len = snprintf(k, MEMCACHED_MAX_KEY, "%s.%" PRIuMAX, trx->memcached_wkey, time_cluster);
-	if (len > 0) {
+	rc = memcached_increment(trx->memc, k, len, 1, value);
+	if (rc != MEMCACHED_SUCCESS) {
+		DBG_INF_FMT("increment failed must add ret=%d last key %s", rc, k);
+		rc = memcached_add(trx->memc, k, len, "0", 1, (time_t)trx->running_ttl*2, (uint32_t)0 );
+		DBG_INF_FMT("Add running key return ret=%d last key %s", rc, k);
 		rc = memcached_increment(trx->memc, k, len, 1, value);
-		if (rc != MEMCACHED_SUCCESS) {
-			DBG_INF_FMT("increment failed must add ret=%d last key %s", rc, k);
-			rc = memcached_add(trx->memc, k, len, "0", 1, (time_t)trx->running_ttl*2, (uint32_t)0 );
-			DBG_INF_FMT("Add running key return ret=%d last key %s", rc, k);
-			rc = memcached_increment(trx->memc, k, len, 1, value);
-			DBG_INF_FMT("Second increment for running key return ret=%d last key %s", rc, k);
-		}
-		if (rc == MEMCACHED_SUCCESS && time_cluster > 0) {
+		DBG_INF_FMT("Second increment for running key return ret=%d last key %s", rc, k);
+	}
+	if (rc == MEMCACHED_SUCCESS) {
+		trx->run_time = run_time;
+		if (time_cluster > 0) {
 			memcached_return_t rc1 = MEMCACHED_FAILURE;
 			uint32_t flags;
 			size_t wgtid_len = 0;
 			char * wgtid = NULL;
 			len = snprintf(k, MEMCACHED_MAX_KEY, "%s.%" PRIuMAX, trx->memcached_wkey, time_cluster-1);
-			if (len > 0 && (wgtid = memcached_get(trx->memc,  k, len, &wgtid_len, &flags, &rc1)) && rc1 == MEMCACHED_SUCCESS) {
+			if ((wgtid = memcached_get(trx->memc,  k, len, &wgtid_len, &flags, &rc1)) && rc1 == MEMCACHED_SUCCESS) {
 				uintmax_t num = strtoumax(wgtid, NULL, 10);
 				DBG_INF_FMT("Found previous counter for key %s value %s", k, wgtid);
 				if (num != UINTMAX_MAX && errno != ERANGE) {
@@ -1987,9 +1988,6 @@ mysqlnd_ms_cs_ss_gtid_increment_running(struct st_mysqlnd_ms_global_trx_injectio
 				DBG_INF_FMT("Previous counter not found for key %s", k);
 			}
 		}
-	}
-	if (rc == MEMCACHED_SUCCESS) {
-		trx->run_time = run_time;
 	}
 	DBG_INF_FMT("ret=%d last key %s returned value=%" PRIuMAX, rc, k, *value);
 	DBG_RETURN(rc);
@@ -2115,7 +2113,7 @@ mysqlnd_ms_cs_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, const 
 									value = 0;
 								}
 								if (!(*fgtid)) {
-									php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX "DEBUG WARNING Found empty on key %s gtid %s : $d", ot, wgtid, running);
+									php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX "DEBUG WARNING Found empty on key %s gtid %s : %d", ot, wgtid, running);
 								}
 								wgtid_len = strlen(wgtid) + 1; // Include null in host hash key
 								break;
@@ -2128,8 +2126,11 @@ mysqlnd_ms_cs_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, const 
 							value--;
 							snprintf(ot, MAXGTIDSIZE, "%s:%" PRIuMAX, (*proxy_conn_data)->global_trx.memcached_wkey, value);
 							continue;*/
-						} else if (rc == MEMCACHED_NOTFOUND && running > 1) {
+						} else if (rc == MEMCACHED_NOTFOUND) {
 							if (wait_time && !zend_llist_count(selected_masters)) {
+								/* TODO: The running counter increment should be made atomic with the owned_token increment, this is possible but, so far, we sleep exactly one second to avoid wrong running==1 counters */
+								if (running == 1)
+									wait_time = 0;
 								MS_TIME_DIFF(run_time);
 								total_time += run_time;
 								if (my_wait_time > total_time) {
