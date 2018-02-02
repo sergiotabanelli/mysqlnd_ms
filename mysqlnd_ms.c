@@ -1956,8 +1956,10 @@ mysqlnd_ms_cs_ss_gtid_increment_running(struct st_mysqlnd_ms_global_trx_injectio
 	uint64_t time_cluster = 0;
 	memcached_return_t rc = MEMCACHED_SUCCESS;
 	int len = 0;
-	time_t run_time = time(NULL);
+	time_t run_time
 	DBG_ENTER("mysqlnd_ms_cs_ss_gtid_increment_running");
+
+	run_time = time(NULL);
 	if (trx->running_ttl > 0) {
 		time_cluster = run_time/trx->running_ttl;
 	}
@@ -2108,7 +2110,7 @@ mysqlnd_ms_cs_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, const 
 									*igtid = 0;
 								*fgtid = 0;
 								fgtid++;
-								if (!(*fgtid) && running == 1) {// Empty gtid with running 1 means no previous write history
+								if (!(*fgtid) && running == 1) {// Empty gtid with running==1 means no previous write history
 									DBG_INF_FMT("Found empty on key %s gtid %s : $d", ot, wgtid, running);
 									value = 0;
 								}
@@ -2128,9 +2130,6 @@ mysqlnd_ms_cs_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, const 
 							continue;*/
 						} else if (rc == MEMCACHED_NOTFOUND) {
 							if (wait_time && !zend_llist_count(selected_masters)) {
-								/* TODO: The running counter increment should be made atomic with the owned_token increment, this is possible but, so far, we sleep exactly one second to avoid wrong running==1 counters */
-								if (running == 1)
-									wait_time = 0;
 								MS_TIME_DIFF(run_time);
 								total_time += run_time;
 								if (my_wait_time > total_time) {
@@ -2143,6 +2142,15 @@ mysqlnd_ms_cs_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, const 
 #endif
 									continue;
 								}
+							}
+							/* TODO: The running counter increment should be made atomic with the owned_token increment,
+							 * this is possible but, so far, we increment running by 1 to avoid wrong running==1 counters,
+							 * indeed we are here only if owned_token > 1 and previous token was not found, this is a little bit strange,
+							 * it should happens only if previous token has expired its ttl.
+							 * */
+							if (running == 1) {
+								wait_time=0; // NO more wait time, one second should be enought to avoid wrong running==1 counters
+								running++;
 							}
 						}
 						break;
