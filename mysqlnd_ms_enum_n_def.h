@@ -1130,6 +1130,7 @@ typedef struct st_mysqlnd_ms_conn_data
 		char * last_wckgtid;
 		size_t last_wckgtid_len;
 		time_t run_time;
+		unsigned int running;
 		zend_bool injectable_query;
 		zend_bool is_prepare;
 		//END HACK

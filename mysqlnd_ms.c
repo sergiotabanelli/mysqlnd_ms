@@ -521,6 +521,7 @@ mysqlnd_ms_init_connection_global_trx(struct st_mysqlnd_ms_global_trx_injection 
 	new_global_trx->last_wckgtid = NULL;
 	new_global_trx->last_wckgtid_len = 0;
 	new_global_trx->run_time = 0;
+	new_global_trx->running = 0;
 	new_global_trx->gtid_block_size = orig_global_trx->gtid_block_size;
 	new_global_trx->running_ttl = orig_global_trx->running_ttl;
 	new_global_trx->memcached_debug_ttl = orig_global_trx->memcached_debug_ttl;
@@ -1578,8 +1579,9 @@ mysqlnd_ms_cs_ss_gtid_build_val(MYSQLND_MS_CONN_DATA * conn_data, const char *gt
 	struct st_mysqlnd_ms_global_trx_injection * trx = &conn_data->global_trx;
 	_ms_smart_type * hash_key = conn_data->elm_pool_hash_key;
 	size_t gl = gtid ? strlen(gtid) : 0;
-    char th[10];
-	size_t thl = snprintf(th, 10, "%llu", conn_data->proxy_conn->thread_id);
+    char th[20];
+	MS_DECLARE_AND_LOAD_CONN_DATA(proxy_conn_data, conn_data->proxy_conn);
+	size_t thl = snprintf(th, 20, "%llu:%d", conn_data->proxy_conn->thread_id, (*proxy_conn_data)->global_trx.running);
 	size_t l = hash_key->len + gl + 1 + trx->last_gtid_len + 1 + trx->last_ckgtid_len + 1 + thl + 1;
     char * ret, * val;
     DBG_ENTER("mysqlnd_ms_cs_ss_gtid_build_val");
@@ -2112,9 +2114,6 @@ mysqlnd_ms_cs_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, const 
 									DBG_INF_FMT("Found empty on key %s gtid %s : $d", ot, wgtid, running);
 									value = 0;
 								}
-								if (!(*fgtid)) {
-									php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX "DEBUG WARNING Found empty on key %s gtid %s : %d", ot, wgtid, running);
-								}
 								wgtid_len = strlen(wgtid) + 1; // Include null in host hash key
 								break;
 							} else {
@@ -2148,21 +2147,19 @@ mysqlnd_ms_cs_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, const 
 							 * */
 							if (running == 1) {
 								wait_time=0; // NO more wait time, one second should be enought to avoid wrong running==1 counters
-								running++;
+								running = 99;
 							}
 						}
 						break;
 					} while (1);
 					found_error = (rc == MEMCACHED_NOTFOUND);
-					if (rc != MEMCACHED_SUCCESS)
-						php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX "DEBUG WARNING Something wrong: previous key not found %s. rc %d running %d", ot, rc, running);
-
 					if (rc == MEMCACHED_NOTFOUND && running > 1) {
 						php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Something wrong: previous key not found %s. Maybe you need to increase wait_for_wgtid_timeout or cache timeout", ot);
 					}
 				} else {
 					php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Something wrong: running increment fails %d", rc);
 				}
+				(*proxy_conn_data)->global_trx.running = running;
 				if ((*proxy_conn_data)->global_trx.last_wckgtid) {
 					mnd_pefree((*proxy_conn_data)->global_trx.last_wckgtid, conn->persistent);
 					(*proxy_conn_data)->global_trx.last_wckgtid = NULL;
@@ -2722,6 +2719,7 @@ mysqlnd_ms_init_trx_to_null(struct st_mysqlnd_ms_global_trx_injection * trx TSRM
 	trx->last_wckgtid_len = 0;
 	trx->gtid_block_size = 0;
 	trx->run_time = 0;
+	trx->running = 0;
 	trx->running_ttl = 600; // 10 minutes
 	trx->memcached_debug_ttl = 0; // Disabled
 	trx->wait_for_wgtid_timeout = 5; // 5 seconds
