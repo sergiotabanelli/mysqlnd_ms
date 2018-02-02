@@ -1956,10 +1956,8 @@ mysqlnd_ms_cs_ss_gtid_increment_running(struct st_mysqlnd_ms_global_trx_injectio
 	uint64_t time_cluster = 0;
 	memcached_return_t rc = MEMCACHED_SUCCESS;
 	int len = 0;
-	time_t run_time
+	time_t run_time  = time(NULL);
 	DBG_ENTER("mysqlnd_ms_cs_ss_gtid_increment_running");
-
-	run_time = time(NULL);
 	if (trx->running_ttl > 0) {
 		time_cluster = run_time/trx->running_ttl;
 	}
