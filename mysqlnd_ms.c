@@ -2114,6 +2114,9 @@ mysqlnd_ms_cs_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, const 
 									DBG_INF_FMT("Found empty on key %s gtid %s : $d", ot, wgtid, running);
 									value = 0;
 								}
+								if (!(*fgtid)) {
+									php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX "DEBUG WARNING Found empty on key %s gtid %s : $d", ot, wgtid, running);
+								}
 								wgtid_len = strlen(wgtid) + 1; // Include null in host hash key
 								break;
 							} else {
@@ -2144,6 +2147,9 @@ mysqlnd_ms_cs_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, const 
 						break;
 					} while (1);
 					found_error = (rc == MEMCACHED_NOTFOUND);
+					if (rc != MEMCACHED_SUCCESS)
+						php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX "DEBUG WARNING Something wrong: previous key not found %s. rc %d", ot, rc);
+
 					if (rc == MEMCACHED_NOTFOUND && running > 1) {
 						php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Something wrong: previous key not found %s. Maybe you need to increase wait_for_wgtid_timeout or cache timeout", ot);
 					}
@@ -2199,8 +2205,6 @@ mysqlnd_ms_cs_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, const 
 					}
 				} else if (!value || found_error) {
 					DBG_INF_FMT("No valid write history, last key %s value %s: fallback to read consistency rgtid %s", ot, hgtid, gtid);
-/*					if (found_error)
-						php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX "No valid write history, found error token %s for key %s: fallback to read consistency rgtid %s", hgtid, ot, gtid);*/
 					mysqlnd_ms_aux_gtid_choose_connection(conn, gtid, master_list, selected_masters, is_write TSRMLS_CC);
 				}
 			} else {
