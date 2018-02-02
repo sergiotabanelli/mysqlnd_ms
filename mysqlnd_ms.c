@@ -2148,7 +2148,7 @@ mysqlnd_ms_cs_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, const 
 					} while (1);
 					found_error = (rc == MEMCACHED_NOTFOUND);
 					if (rc != MEMCACHED_SUCCESS)
-						php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX "DEBUG WARNING Something wrong: previous key not found %s. rc %d", ot, rc);
+						php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX "DEBUG WARNING Something wrong: previous key not found %s. rc %d running %d", ot, rc, running);
 
 					if (rc == MEMCACHED_NOTFOUND && running > 1) {
 						php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Something wrong: previous key not found %s. Maybe you need to increase wait_for_wgtid_timeout or cache timeout", ot);
