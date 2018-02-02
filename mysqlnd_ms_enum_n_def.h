@@ -1127,6 +1127,8 @@ typedef struct st_mysqlnd_ms_conn_data
 		size_t last_wgtid_len;
 		char * last_ckgtid;
 		size_t last_ckgtid_len;
+		char * last_wckgtid;
+		size_t last_wckgtid_len;
 		time_t run_time;
 		zend_bool injectable_query;
 		zend_bool is_prepare;
