@@ -2137,17 +2137,17 @@ mysqlnd_ms_cs_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, const 
 #else
 									sleep(1);
 #endif
+									/* TODO: The running counter increment should be made atomic with the owned_token increment,
+									 * this is possible but, so far, we increment running by 1 to avoid wrong running==1 counters,
+									 * indeed we are here only if owned_token > 1 and previous token was not found, this is a little bit strange,
+									 * it should happens only if previous token has expired its ttl.
+									 * */
+									if (running == 1) {
+										wait_time=0; // NO more wait time, one second should be enought to avoid wrong running==1 counters
+										running = 99;
+									}
 									continue;
 								}
-							}
-							/* TODO: The running counter increment should be made atomic with the owned_token increment,
-							 * this is possible but, so far, we increment running by 1 to avoid wrong running==1 counters,
-							 * indeed we are here only if owned_token > 1 and previous token was not found, this is a little bit strange,
-							 * it should happens only if previous token has expired its ttl.
-							 * */
-							if (running == 1) {
-								wait_time=0; // NO more wait time, one second should be enought to avoid wrong running==1 counters
-								running = 99;
 							}
 						}
 						break;
