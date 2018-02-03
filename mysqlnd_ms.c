@@ -1012,7 +1012,9 @@ mysqlnd_ms_aux_gtid_trace(MYSQLND_CONN_DATA * conn, const char * key, size_t key
 	MS_DECLARE_AND_LOAD_CONN_DATA(proxy_conn_data, (*conn_data)->proxy_conn);
 	struct st_mysqlnd_ms_global_trx_injection * trx = &(*conn_data)->global_trx;
 	_ms_smart_type * hash_key = (*conn_data)->elm_pool_hash_key;
-	size_t l = hash_key->len + trx->memcached_key_len + 1 + trx->memcached_wkey_len + 1 + trx->last_wgtid_len + 1 + trx->last_gtid_len + 1 + trx->last_ckgtid_len + 1 + query_len + 1;
+    char th[40];
+	size_t thl = snprintf(th, 40, "%llu:%llu:%d", (*proxy_conn_data)->global_trx.owned_token, (*conn_data)->proxy_conn->thread_id, (*proxy_conn_data)->global_trx.running);
+	size_t l = hash_key->len + thl + 1 + trx->memcached_key_len + 1 + trx->memcached_wkey_len + 1 + trx->last_wgtid_len + 1 + trx->last_gtid_len + 1 + trx->last_ckgtid_len + 1 + query_len + 1;
     char * ret, * val;
 	char ot[MAXGTIDSIZE];
 	memcached_st *memc = (*proxy_conn_data)->global_trx.memc;
@@ -1036,6 +1038,11 @@ mysqlnd_ms_aux_gtid_trace(MYSQLND_CONN_DATA * conn, const char * key, size_t key
 		if (trx->memcached_key_len)
 			memcpy(val, trx->memcached_key, trx->memcached_key_len);
 		val +=trx->memcached_key_len;
+		*val = GTID_GTID_MARKER;
+		val++;
+		if (thl)
+			memcpy(val, th, thl);
+		val += thl;
 		*val = GTID_GTID_MARKER;
 		val++;
 		if (trx->memcached_wkey_len)
