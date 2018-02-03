@@ -489,7 +489,7 @@ extern struct st_mysqlnd_conn_methods * ms_orig_mysqlnd_conn_handle_methods;
 #define GTID_RUNNING_MARKER 'R'
 #define GTID_WAIT_MARKER 'W'
 #define GTID_GTID_MARKER '?'
-#define GTID_RUNNING_HACK_COUNTER 0xFFFFFFFF
+#define GTID_RUNNING_HACK_COUNTER -1
 
 #define MEMCACHED_DEBUG_KEY "__debug__"
 #define MEMCACHED_ERROR_KEY "__error__"
@@ -1131,7 +1131,7 @@ typedef struct st_mysqlnd_ms_conn_data
 		char * last_wckgtid;
 		size_t last_wckgtid_len;
 		time_t run_time;
-		unsigned int running;
+		int running;
 		zend_bool injectable_query;
 		zend_bool is_prepare;
 		//END HACK

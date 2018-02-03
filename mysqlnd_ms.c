@@ -1670,21 +1670,25 @@ mysqlnd_ms_cs_ss_gtid_set_last_write(MYSQLND_CONN_DATA * connection, char * gtid
 			}
 			if (rc == MEMCACHED_SUCCESS) {
 				uint64_t running = 0;
-				if ((rc = mysqlnd_ms_cs_ss_gtid_decrement_running(&(*proxy_conn_data)->global_trx, &running TSRMLS_CC)) != MEMCACHED_SUCCESS) {
-					php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Error decrementing running counter %d", rc);
-				}
 				if ((*proxy_conn_data)->global_trx.auto_clean) {
-					ol = snprintf(ot, MAXGTIDSIZE, "%s:%" PRIuMAX, (*proxy_conn_data)->global_trx.memcached_wkey, value - 1);
-					/* With auto_clean, memcached_delete failure means that previous running process is still choosing a master, we add the key signaling the other process to clean it instead of add
-					 * See mysqlnd_ms_cs_ss_gtid_inject_before
-					 */
-					if (memcached_delete(memc, ot, ol, (time_t)0) != MEMCACHED_SUCCESS) {
-						memcached_add(memc, ot, ol, val, strlen(val), (time_t)(*proxy_conn_data)->global_trx.running_ttl, (uint32_t)0);
-					}
 					ol = snprintf(ot, MAXGTIDSIZE, "%s:%" PRIuMAX, (*proxy_conn_data)->global_trx.memcached_wkey, (*proxy_conn_data)->global_trx.owned_token - 1);
 					memcached_delete(memc, ot, ol, (time_t)0);
 				}
-				(*proxy_conn_data)->global_trx.owned_token = 0;
+				/* This is to avoid decrementing running counter before process with token=value-1 increment the running counter */
+				if ((value - (*proxy_conn_data)->global_trx.owned_token) != 2) {
+					if ((*proxy_conn_data)->global_trx.auto_clean) {
+						ol = snprintf(ot, MAXGTIDSIZE, "%s:%" PRIuMAX, (*proxy_conn_data)->global_trx.memcached_wkey, value - 1);
+						memcached_delete(memc, ot, ol, (time_t)0);
+					}
+					if ((rc = mysqlnd_ms_cs_ss_gtid_decrement_running(&(*proxy_conn_data)->global_trx, &running TSRMLS_CC)) != MEMCACHED_SUCCESS) {
+						php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Error decrementing running counter %d", rc);
+					}
+					(*proxy_conn_data)->global_trx.owned_token = 0;
+				} else {
+//					/* Running counter will be decremented in inject_after step */
+					(*proxy_conn_data)->global_trx.running = GTID_RUNNING_HACK_COUNTER - 1;
+					(*proxy_conn_data)->global_trx.owned_token = value;
+				}
 				if (val) efree(val);
 			}
 			if (rc != MEMCACHED_SUCCESS) {
@@ -1864,10 +1868,10 @@ mysqlnd_ms_cs_ss_gtid_inject_before(MYSQLND_CONN_DATA * conn TSRMLS_DC)
 		if ((rc = memcached_replace((*proxy_conn_data)->global_trx.memc, ot, strlen(ot),
 				val, strlen(val), (time_t)(*proxy_conn_data)->global_trx.running_ttl, (uint32_t)0 )) == MEMCACHED_SUCCESS) {
 			DBG_INF_FMT("Replaced pool key %s to memcached %s", val, ot);
-		} else if ((rc = memcached_add((*proxy_conn_data)->global_trx.memc, ot, strlen(ot),
+		}/* else if ((rc = memcached_add((*proxy_conn_data)->global_trx.memc, ot, strlen(ot),
 				val, strlen(val), (time_t)(*proxy_conn_data)->global_trx.running_ttl, (uint32_t)0 )) == MEMCACHED_SUCCESS) {
 			DBG_INF_FMT("Added pool key %s to memcached %s", val, ot);
-		}
+		}*/
 		efree(val);
 		if (rc == MEMCACHED_SUCCESS && (*conn_data)->global_trx.on_commit_len > 0) {
 			MYSQLND_MS_LIST_DATA * gtid_conn_elm = (*conn_data)->global_trx.gtid_conn_elm;
@@ -1930,11 +1934,38 @@ mysqlnd_ms_cs_ss_gtid_inject_after(MYSQLND_CONN_DATA * conn, enum_func_status st
 		rc = memcached_replace(memc, ot, ol, val, strlen(val), (time_t)(*proxy_conn_data)->global_trx.running_ttl, (uint32_t)0);
 		DBG_INF_FMT("Memcached owned token still present, this means a non effective write or some unexpected error for key %s, set value to %s", ot, val);
 		efree(val); */
-		if ((*proxy_conn_data)->global_trx.auto_clean) {
+		if ((*proxy_conn_data)->global_trx.auto_clean || ((*proxy_conn_data)->global_trx.running == GTID_RUNNING_HACK_COUNTER - 1)) {
 			char ot[MAXGTIDSIZE];
+			memcached_return_t rcr ;
 			memcached_st *memc = (*proxy_conn_data)->global_trx.memc;
+			unsigned int wait_time = (*proxy_conn_data)->global_trx.wait_for_wgtid_timeout;
+			uint64_t total_time = 0, run_time = 0, my_wait_time = wait_time * 1000000;
+
 			size_t ol = snprintf(ot, MAXGTIDSIZE, "%s:%" PRIuMAX, (*proxy_conn_data)->global_trx.memcached_wkey, (*proxy_conn_data)->global_trx.owned_token - 1);
-			memcached_delete(memc, ot, ol, (time_t)0);
+			do {
+				if ((*proxy_conn_data)->global_trx.auto_clean) {
+					rcr = memcached_delete(memc, ot, ol, (time_t)0);
+				} else {
+					rcr = memcached_exist(memc, ot, ol);
+				}
+				if (((*proxy_conn_data)->global_trx.running == GTID_RUNNING_HACK_COUNTER - 1) && rcr == MEMCACHED_NOTFOUND) {
+					if (wait_time) {
+						MS_TIME_DIFF(run_time);
+						total_time += run_time;
+						if (my_wait_time > total_time) {
+							DBG_INF_FMT("Decrement: waiting previous token, sleep and retry, time left=" MYSQLND_LLU_SPEC, (my_wait_time - total_time));
+							MS_TIME_SET(run_time);
+	#ifdef PHP_WIN32
+							Sleep(1);
+	#else
+							sleep(1);
+	#endif
+							continue;
+						}
+					}
+				}
+				break;
+			} while(1);
 		}
 		(*proxy_conn_data)->global_trx.owned_token = 0;
 		if ((rc = mysqlnd_ms_cs_ss_gtid_decrement_running(&(*proxy_conn_data)->global_trx, &value TSRMLS_CC)) != MEMCACHED_SUCCESS) {
@@ -2061,78 +2092,83 @@ mysqlnd_ms_cs_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, const 
 				}
 				if (value > 0) {
 					snprintf(ot, MAXGTIDSIZE, "%s:%" PRIuMAX, (*proxy_conn_data)->global_trx.memcached_wkey, value);
-					do {
-						if (wgtid) {
-							free(wgtid);
-							wgtid = NULL;
-							wgtid_len = 0;
-						}
-						wgtid = memcached_get((*proxy_conn_data)->global_trx.memc,  ot, strlen(ot), &wgtid_len, &flags, &rc);
-						if (running == 0) {
-							if ((rcr = mysqlnd_ms_cs_ss_gtid_increment_running(&(*proxy_conn_data)->global_trx, &running TSRMLS_CC) != MEMCACHED_SUCCESS)) {
-								php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Something wrong: running increment fails %d", rcr);
-								rc = rcr;
-								break;
-							}
-							if (rc == MEMCACHED_NOTFOUND && running <= 1) {
-								/* HACK: The running counter increment should be atomic with the owned_token increment,
-								 * but, to avoid wait time, if previous wait running (see mysqlnd_ms_cs_ss_gtid_increment_running) is not found
-								 * we do not trust returned counter.
-								 * */
-								running = GTID_RUNNING_HACK_COUNTER;
-							}
-						}
-						if (rc == MEMCACHED_SUCCESS && *wgtid == GTID_RUNNING_MARKER) {
-							DBG_INF_FMT("Found key %s value %s", ot, wgtid);
-							if (*wgtid == GTID_RUNNING_MARKER && (fgtid = strchr(wgtid, GTID_GTID_MARKER))) {
-								DBG_INF_FMT("Found valid on key %s gtid %s : break", ot, wgtid);
-								char * igtid = *(fgtid + 1) ? strchr(fgtid + 1, GTID_GTID_MARKER) : NULL;
-								if (igtid)
-									*igtid = 0;
-								*fgtid = 0;
-								fgtid++;
-								if (!(*fgtid) && running == 1) {// Empty gtid with running==1 means no previous write history
-									DBG_INF_FMT("Found empty on key %s gtid %s : $d", ot, wgtid, running);
-									value = 0;
-								}
-								wgtid_len = strlen(wgtid) + 1; // Include null in host hash key
-								break;
-							} else {
-								php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Something wrong: running token without gtid marker, not a recognized value for key %s value %s", ot, wgtid);
-								break;
-							}
-						} else if (rc == MEMCACHED_NOTFOUND || *wgtid == GTID_WAIT_MARKER) {
-							if (wait_time && !zend_llist_count(selected_masters)) {
-								MS_TIME_DIFF(run_time);
-								total_time += run_time;
-								if (my_wait_time > total_time) {
-									DBG_INF_FMT("sleep and retry, time left=" MYSQLND_LLU_SPEC, (my_wait_time - total_time));
-									MS_TIME_SET(run_time);
-#ifdef PHP_WIN32
-									Sleep(1);
-#else
-									sleep(1);
-#endif
-									/* TODO: The running counter increment should be made atomic with the owned_token increment,
-									 * this is possible but, so far, we increment running by 1 to avoid wrong running==1 counters,
-									 * indeed we are here only if owned_token > 1 and previous token was not found, this is a little bit strange,
-									 * it should happens only if previous token has expired its ttl.
-									 * */
-									if (running == GTID_RUNNING_HACK_COUNTER) {
-										wait_time=0; // NO more wait time, one second should be enough to avoid wrong running==1 counters
-									}
-									continue;
-								}
-							}
-						} else  if (rc == MEMCACHED_SUCCESS) {
-							php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Something wrong: not a recognized value for key %s value %s", ot, wgtid);
-						}
-						break;
-					} while (1);
-					found_error = (rc == MEMCACHED_NOTFOUND);
-					if (rc == MEMCACHED_NOTFOUND && running > 1) {
-						php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Something wrong: previous key not found %s. Maybe you need to increase wait_for_wgtid_timeout or cache timeout", ot);
+				}
+				do {
+					if (wgtid) {
+						free(wgtid);
+						wgtid = NULL;
+						wgtid_len = 0;
 					}
+					if (value > 0) {
+						wgtid = memcached_get((*proxy_conn_data)->global_trx.memc,  ot, strlen(ot), &wgtid_len, &flags, &rc);
+					}
+					if (running == 0) {
+						if ((rcr = mysqlnd_ms_cs_ss_gtid_increment_running(&(*proxy_conn_data)->global_trx, &running TSRMLS_CC) != MEMCACHED_SUCCESS)) {
+							php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Something wrong: running increment fails %d", rcr);
+							rc = rcr;
+							break;
+						}
+						if (value <= 0) {
+							break;
+						}
+						if (rc == MEMCACHED_NOTFOUND && running <= 1) {
+							/* HACK: The running counter increment should be atomic with the owned_token increment,
+							 * but, to avoid wait time, if previous wait running (see mysqlnd_ms_cs_ss_gtid_increment_running) is not found
+							 * we do not trust returned counter.
+							 * */
+							running = GTID_RUNNING_HACK_COUNTER;
+						}
+					}
+					if (rc == MEMCACHED_SUCCESS && *wgtid == GTID_RUNNING_MARKER) {
+						DBG_INF_FMT("Found key %s value %s", ot, wgtid);
+						if (*wgtid == GTID_RUNNING_MARKER && (fgtid = strchr(wgtid, GTID_GTID_MARKER))) {
+							DBG_INF_FMT("Found valid on key %s gtid %s : break", ot, wgtid);
+							char * igtid = *(fgtid + 1) ? strchr(fgtid + 1, GTID_GTID_MARKER) : NULL;
+							if (igtid)
+								*igtid = 0;
+							*fgtid = 0;
+							fgtid++;
+							if (!(*fgtid) && running == 1) {// Empty gtid with running==1 means no previous write history
+								DBG_INF_FMT("Found empty on key %s gtid %s : $d", ot, wgtid, running);
+								value = 0;
+							}
+							wgtid_len = strlen(wgtid) + 1; // Include null in host hash key
+							break;
+						} else {
+							php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Something wrong: running token without gtid marker, not a recognized value for key %s value %s", ot, wgtid);
+							break;
+						}
+					} else if (rc == MEMCACHED_NOTFOUND || *wgtid == GTID_WAIT_MARKER) {
+						if (wait_time && !zend_llist_count(selected_masters)) {
+							MS_TIME_DIFF(run_time);
+							total_time += run_time;
+							if (my_wait_time > total_time) {
+								DBG_INF_FMT("sleep and retry, time left=" MYSQLND_LLU_SPEC, (my_wait_time - total_time));
+								MS_TIME_SET(run_time);
+#ifdef PHP_WIN32
+								Sleep(1);
+#else
+								sleep(1);
+#endif
+								/* TODO: The running counter increment should be made atomic with the owned_token increment,
+								 * this is possible but, so far, we increment running by 1 to avoid wrong running==1 counters,
+								 * indeed we are here only if owned_token > 1 and previous token was not found, this is a little bit strange,
+								 * it should happens only if previous token has expired its ttl.
+								 * */
+								if (running == GTID_RUNNING_HACK_COUNTER) {
+									wait_time=0; // NO more wait time, one second should be enough to avoid wrong running==1 counters
+								}
+								continue;
+							}
+						}
+					} else  if (rc == MEMCACHED_SUCCESS) {
+						php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Something wrong: not a recognized value for key %s value %s", ot, wgtid);
+					}
+					break;
+				} while (1);
+				found_error = (rc == MEMCACHED_NOTFOUND && value > 0);
+				if (rc == MEMCACHED_NOTFOUND && running > 1) {
+					php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Something wrong: previous key not found %s. Maybe you need to increase wait_for_wgtid_timeout or cache timeout", ot);
 				}
 				(*proxy_conn_data)->global_trx.running = running;
 				if ((*proxy_conn_data)->global_trx.last_wckgtid) {
