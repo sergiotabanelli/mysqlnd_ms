@@ -2162,9 +2162,9 @@ mysqlnd_ms_cs_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, const 
 								 * indeed we are here only if owned_token > 1 and previous token was not found, this is a little bit strange,
 								 * it should happens only if previous token has expired its ttl.
 								 * */
-								if (running == GTID_RUNNING_HACK_COUNTER) {
+/*								if (running == GTID_RUNNING_HACK_COUNTER) {
 									wait_time=0; // NO more wait time, one second should be enough to avoid wrong running==1 counters
-								}
+								}*/
 								continue;
 							}
 						}
@@ -2175,7 +2175,7 @@ mysqlnd_ms_cs_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, const 
 				} while (1);
 				found_error = (rc == MEMCACHED_NOTFOUND && value > 0);
 				if (running > 1 && (rc == MEMCACHED_NOTFOUND || *wgtid == GTID_WAIT_MARKER)) {
-					php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Something wrong: previous key not found %s. Maybe you need to increase wait_for_wgtid_timeout or cache timeout", ot);
+					php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Something wrong: previous key not found %s. Maybe you need to increase wait_for_wgtid_timeout or cache timeout %d", ot, wait_time);
 				}
 				(*proxy_conn_data)->global_trx.running = running;
 				if ((*proxy_conn_data)->global_trx.last_wckgtid) {
