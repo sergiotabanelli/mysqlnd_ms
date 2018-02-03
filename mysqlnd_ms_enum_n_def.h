@@ -489,6 +489,7 @@ extern struct st_mysqlnd_conn_methods * ms_orig_mysqlnd_conn_handle_methods;
 #define GTID_RUNNING_MARKER 'R'
 #define GTID_WAIT_MARKER 'W'
 #define GTID_GTID_MARKER '?'
+#define GTID_RUNNING_HACK_COUNTER 0xFFFFFFFF
 
 #define MEMCACHED_DEBUG_KEY "__debug__"
 #define MEMCACHED_ERROR_KEY "__error__"
