@@ -1912,8 +1912,8 @@ mysqlnd_ms_cs_ss_gtid_inject_before(MYSQLND_CONN_DATA * conn TSRMLS_DC)
 		}
 		if (rc != MEMCACHED_SUCCESS) {
 			DBG_INF_FMT("Fail in memchached running key creation. key %s to memcached %s", (*conn_data)->elm_pool_hash_key->c, ot);
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Fail in memchached running key creation.");
-			ret = FAIL;
+//			php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Fail in memchached running key creation.");
+//			ret = FAIL;
 		}
 
 	}
