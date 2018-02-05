@@ -320,6 +320,10 @@ static zend_always_inline int _ms_hash_str_get_current_key(HashTable *ht, char *
 #endif
 #define MYSQLND_MS_ADD_ASSOC_CONN_STRING(arg, key, str) MYSQLND_MS_ADD_ASSOC_STRING(arg, key, MYSQLND_MS_CONN_STRING((str)))
 
+#define MYSQLND_MS_GTID_CALL_FAIL(meth, ...) ((meth) ? meth(__VA_ARGS__) : FAIL)
+#define MYSQLND_MS_GTID_CALL_PASS(meth, ...) ((meth) ? meth(__VA_ARGS__) : PASS)
+#define MYSQLND_MS_GTID_CALL(meth, ...) if (meth) meth(__VA_ARGS__)
+
 //END HACK
 
 #define MS_DECLARE_AND_LOAD_CONN_DATA(conn_data, connection) \
@@ -853,6 +857,7 @@ enum mysqlnd_ms_gtid_type
 	GTID_CLIENT,
 	GTID_SERVER,
 	GTID_CLIENT_SERVER,
+	GTID_XX_CLIENT,
 	GTID_LAST_ENUM_ENTRY
 };
 
@@ -1009,6 +1014,7 @@ typedef struct st_mysqlnd_ms_gtid_trx_methods {
 	void (*gtid_reset)(MYSQLND_CONN_DATA * conn, enum_func_status status TSRMLS_DC);
 	void (*gtid_trace)(MYSQLND_CONN_DATA * conn, const char * key, size_t key_len, unsigned int ttl, const char * query, size_t query_len TSRMLS_DC);
 	void (*gtid_race_add_active)(MYSQLND_CONN_DATA * conn, zend_llist * server_list, zend_llist * selected_servers, zend_bool is_write TSRMLS_DC);
+	MYSQLND_CONN_DATA * (*gtid_validate)(MYSQLND_CONN_DATA * conn TSRMLS_DC);
 } MYSQLND_MS_GTID_TRX_METHODS;
 
 // END HACK

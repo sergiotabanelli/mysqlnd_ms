@@ -622,18 +622,18 @@ mysqlnd_ms_choose_connection_qos(MYSQLND_CONN_DATA * conn, void * f_data, const 
 					if (which_server == USE_MASTER || which_server == USE_SLAVE) {
 						zend_bool is_write = (USE_MASTER == which_server) ||
 								((*conn_data)->stgy.trx_stickiness_strategy != TRX_STICKINESS_STRATEGY_DISABLED && (*conn_data)->stgy.in_transaction && ((*conn_data)->stgy.trx_stickiness_strategy == TRX_STICKINESS_STRATEGY_MASTER || (*conn_data)->stgy.trx_read_only == FALSE));
-						(*conn_data)->global_trx.m->gtid_filter(conn, filter_data->option_data.gtid, *query, *query_len, slave_list, master_list, selected_slaves, selected_masters, is_write TSRMLS_CC);
+						MYSQLND_MS_GTID_CALL((*conn_data)->global_trx.m->gtid_filter, conn, filter_data->option_data.gtid, *query, *query_len, slave_list, master_list, selected_slaves, selected_masters, is_write TSRMLS_CC);
 						if ((zend_llist_count(selected_masters) + zend_llist_count(selected_slaves)) <= 0) {
 							php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Something wrong no valid selection");
 							if ((*conn_data)->global_trx.race_avoid_strategy & GTID_RACE_AVOID_ADD_ERROR) {
 								DBG_INF_FMT("Race avoid: add error marker %s", MEMCACHED_ERROR_KEY);
-								(*conn_data)->global_trx.m->gtid_trace(conn, MEMCACHED_ERROR_KEY, sizeof(MEMCACHED_ERROR_KEY) - 1, 0, *query, *query_len TSRMLS_CC);
+								MYSQLND_MS_GTID_CALL((*conn_data)->global_trx.m->gtid_trace, conn, MEMCACHED_ERROR_KEY, sizeof(MEMCACHED_ERROR_KEY) - 1, 0, *query, *query_len TSRMLS_CC);
 							}
 							if ((*conn_data)->global_trx.race_avoid_strategy & GTID_RACE_AVOID_ADD_ACTIVE) {
 								DBG_INF("Race avoid: add active servers");
-								(*conn_data)->global_trx.m->gtid_race_add_active(conn, master_list, selected_masters, is_write TSRMLS_CC);
+								MYSQLND_MS_GTID_CALL((*conn_data)->global_trx.m->gtid_race_add_active, conn, master_list, selected_masters, is_write TSRMLS_CC);
 								if ((USE_SLAVE == which_server)) {
-									(*conn_data)->global_trx.m->gtid_race_add_active(conn, slave_list, selected_slaves, FALSE TSRMLS_CC);
+									MYSQLND_MS_GTID_CALL((*conn_data)->global_trx.m->gtid_race_add_active, conn, slave_list, selected_slaves, FALSE TSRMLS_CC);
 								}
 							}
 						}

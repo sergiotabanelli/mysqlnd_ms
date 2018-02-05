@@ -932,7 +932,7 @@ return_connection:
 			if (conn_data && *conn_data && (*conn_data)->global_trx.type != GTID_NONE && (*conn_data)->global_trx.is_master) {
 				/* If we were switching and now we stop this should mean autocommit off, begin or implicit commit */
 				DBG_INF("Delayed gtid INJECT");
-				if (FAIL == (*conn_data)->global_trx.m->gtid_inject_before(conn TSRMLS_CC)) {
+				if (FAIL == MYSQLND_MS_GTID_CALL_PASS((*conn_data)->global_trx.m->gtid_inject_before, conn TSRMLS_CC)) {
 					DBG_INF("Failed delayed gtid INJECT");
 					mysqlnd_ms_client_n_php_error(error_info, CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, E_WARNING TSRMLS_CC,
 															MYSQLND_MS_ERROR_PREFIX " Failed delayed gtid inject after choosing a server");

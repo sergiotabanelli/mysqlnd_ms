@@ -261,7 +261,7 @@ mysqlnd_ms_unset_tx(MYSQLND_CONN_DATA * proxy_conn, zend_bool commit TSRMLS_DC)
 	}
 	if (conn_data && *conn_data) {
 		if (CONN_DATA_TRX_SET(conn_data) && TRUE == commit && TRUE == (*conn_data)->stgy.in_transaction  && (*conn_data)->global_trx.is_master) {
-			enum_func_status jret = (*conn_data)->global_trx.m->gtid_inject_after(conn, ret TSRMLS_CC);
+			enum_func_status jret = MYSQLND_MS_GTID_CALL_PASS((*conn_data)->global_trx.m->gtid_inject_after, conn, ret TSRMLS_CC);
 			MYSQLND_MS_INC_STATISTIC((PASS == jret) ? MS_STAT_GTID_COMMIT_SUCCESS : MS_STAT_GTID_COMMIT_FAILURE);
 			if (FAIL == jret) {
 				if (TRUE == (*conn_data)->global_trx.report_error) {
@@ -936,13 +936,115 @@ mysqlnd_ms_aux_gtid_choose_connection(MYSQLND_CONN_DATA * conn, const char * gti
 				|| mysqlnd_ms_aux_gtid_chk_last((*conn_data)->global_trx.last_wgtid, (*conn_data)->global_trx.last_wgtid_len, gtid, strlen(gtid), NULL, (*conn_data)->global_trx.gtid_block_size) == PASS)) {
 			DBG_INF_FMT("Gtid %s already checked, valid server rgtid %s wgtid %s %s %u %s", (*conn_data)->global_trx.last_gtid, (*conn_data)->global_trx.last_wgtid, gtid, MYSQLND_MS_CONN_STRING(element->host), element->port, MYSQLND_MS_CONN_STRING(element->socket));
 			zend_llist_add_element(selected_servers, &element);
-		} else if (PASS == 	(*conn_data)->global_trx.m->gtid_get_last(element, NULL TSRMLS_CC) && PASS == mysqlnd_ms_aux_gtid_chk_last((*conn_data)->global_trx.last_gtid, (*conn_data)->global_trx.last_gtid_len, gtid, strlen(gtid), NULL, (*conn_data)->global_trx.gtid_block_size)) {
+		} else if (PASS == MYSQLND_MS_GTID_CALL_PASS((*conn_data)->global_trx.m->gtid_get_last, element, NULL TSRMLS_CC) && PASS == mysqlnd_ms_aux_gtid_chk_last((*conn_data)->global_trx.last_gtid, (*conn_data)->global_trx.last_gtid_len, gtid, strlen(gtid), NULL, (*conn_data)->global_trx.gtid_block_size)) {
 			DBG_INF_FMT("Gtid %s found, valid server %s %s %u %s", (*conn_data)->global_trx.last_gtid, gtid, MYSQLND_MS_CONN_STRING(element->host), element->port, MYSQLND_MS_CONN_STRING(element->socket));
 			zend_llist_add_element(selected_servers, &element);
 		} else {
 			DBG_INF_FMT("Gtid %s not found, invalid server %s %s %u %s", (*conn_data)->global_trx.last_gtid, gtid, MYSQLND_MS_CONN_STRING(element->host), element->port, MYSQLND_MS_CONN_STRING(element->socket));
 		}
 	END_ITERATE_OVER_SERVER_LIST;
+	DBG_VOID_RETURN;
+}
+/* }}} */
+
+/* {{{ mysqlnd_ms_aux_gtid_validate */
+static MYSQLND_CONN_DATA *
+mysqlnd_ms_aux_gtid_validate(MYSQLND_CONN_DATA * conn TSRMLS_DC)
+{
+	MS_DECLARE_AND_LOAD_CONN_DATA(conn_data, conn);
+	MYSQLND_CONN_DATA * ret = NULL;
+	DBG_ENTER("mysqlnd_ms_aux_gtid_validate");
+	(*conn_data)->global_trx.m->gtid_validate = NULL;
+
+	if ((*conn_data)->global_trx.memcached_wkey_len > 0)  {
+		memcached_st *memc = (*conn_data)->global_trx.memc;
+		if (memc) {
+			memcached_return_t rc;
+			uint32_t flags;
+			size_t master_len = 0;
+			char * master = NULL;
+			_ms_smart_type * hash_key = (*conn_data)->elm_pool_hash_key;
+			master = memcached_get(memc, (*conn_data)->global_trx.memcached_wkey, (*conn_data)->global_trx.memcached_wkey_len, &master_len, &flags, &rc);
+			if (rc == MEMCACHED_NOTFOUND) {
+				rc = memcached_add(memc, (*conn_data)->global_trx.memcached_wkey, (*conn_data)->global_trx.memcached_wkey_len,
+						hash_key->c, hash_key->len - 1, (time_t)(*conn_data)->global_trx.running_ttl, (uint32_t)0);
+				master = memcached_get(memc, (*conn_data)->global_trx.memcached_wkey, (*conn_data)->global_trx.memcached_wkey_len, &master_len, &flags, &rc);
+			}
+			if (rc == MEMCACHED_SUCCESS) {
+				if  (master_len == (hash_key->len - 1) && strncmp(hash_key->c, master, master_len) == 0) {
+					ret = conn;
+				} else {
+					zend_bool exists = FALSE, is_master = FALSE, is_active = FALSE, is_removed = FALSE;
+					_ms_smart_type ph = {master, master_len + 1 ,  master_len + 1 }; // Include null in host hash key
+					MYSQLND_MS_LIST_DATA * data;
+					DBG_INF_FMT("Found master key %s value %s", (*conn_data)->global_trx.memcached_wkey, master);
+					exists = (*conn_data)->pool->connection_exists((*conn_data)->pool, &ph, &data, &is_master, &is_active, &is_removed TSRMLS_CC);
+					DBG_INF_FMT("hash_key=%s exists=%d is_master=%d is_active=%d is_removed=%d ", master, exists, is_master, is_active, is_removed);
+					if (exists && is_active && !is_removed && is_master &&
+						_MS_CONN_GET_STATE(data->conn) != CONN_QUIT_SENT &&
+						(_MS_CONN_GET_STATE(data->conn) > CONN_ALLOCED || PASS == mysqlnd_ms_lazy_connect(data, TRUE TSRMLS_CC))) {
+						ret = data->conn;
+					}
+				}
+			}
+		}
+	}
+	DBG_RETURN(ret);
+}
+/* }}} */
+
+/* {{{ mysqlnd_ms_aux_gtid_choose_write_master */
+static void
+mysqlnd_ms_aux_gtid_choose_write_master(MYSQLND_CONN_DATA * conn, zend_llist * master_list, zend_llist * selected_masters TSRMLS_DC)
+{
+	MS_DECLARE_AND_LOAD_CONN_DATA(conn_data, conn);
+	DBG_ENTER("mysqlnd_ms_aux_gtid_choose_write_master");
+
+	if ((*conn_data)->global_trx.memcached_wkey_len > 0)  {
+		memcached_st *memc = (*conn_data)->global_trx.memc;
+		if (memc) {
+			memcached_return_t rc;
+			uint32_t flags;
+			size_t master_len = 0;
+			char * master = NULL;
+			master = memcached_get(memc, (*conn_data)->global_trx.memcached_wkey, (*conn_data)->global_trx.memcached_wkey_len, &master_len, &flags, &rc);
+			if (rc == MEMCACHED_SUCCESS && master_len > 1) {
+				zend_bool exists = FALSE, is_master = FALSE, is_active = FALSE, is_removed = FALSE;
+				_ms_smart_type ph = {master, master_len + 1 ,  master_len + 1 }; // Include null in host hash key
+				MYSQLND_MS_LIST_DATA * data;
+				DBG_INF_FMT("Found master key %s value %s", (*conn_data)->global_trx.memcached_wkey, master);
+				exists = (*conn_data)->pool->connection_exists((*conn_data)->pool, &ph, &data, &is_master, &is_active, &is_removed TSRMLS_CC);
+				DBG_INF_FMT("hash_key=%s exists=%d is_master=%d is_active=%d is_removed=%d ", master, exists, is_master, is_active, is_removed);
+				if (exists && is_active && !is_removed && is_master &&
+					_MS_CONN_GET_STATE(data->conn) != CONN_QUIT_SENT &&
+					(_MS_CONN_GET_STATE(data->conn) > CONN_ALLOCED || PASS == mysqlnd_ms_lazy_connect(data, TRUE TSRMLS_CC))) {
+					if ((*conn_data)->global_trx.race_avoid_strategy) {
+						zend_llist stage1_servers;
+						zend_llist_init(&stage1_servers, sizeof(MYSQLND_MS_LIST_DATA *), NULL /*dtor*/, 0);
+						zend_llist_add_element(&stage1_servers, &data);
+						mysqlnd_ms_aux_gtid_add_active(conn, &stage1_servers, selected_masters, TRUE TSRMLS_CC);
+						zend_llist_clean(&stage1_servers);
+					} else {
+						zend_llist_add_element(selected_masters, &data);
+					}
+				}
+				if (master) free(master);
+				if (zend_llist_count(selected_masters) < 1) { // Possible race condition this is an hack to reduce it
+					master = memcached_get(memc, (*conn_data)->global_trx.memcached_wkey, (*conn_data)->global_trx.memcached_wkey_len, &master_len, &flags, &rc);
+					if  (rc == MEMCACHED_SUCCESS && master_len == (ph.len - 1) && !strncmp(ph.c, master, master_len)) {
+						memcached_delete(memc, (*conn_data)->global_trx.memcached_wkey, (*conn_data)->global_trx.memcached_wkey_len, (time_t)0);
+					}
+				} else {
+					memcached_touch(memc, (*conn_data)->global_trx.memcached_wkey, (*conn_data)->global_trx.memcached_wkey_len, (time_t)(*conn_data)->global_trx.running_ttl);
+				}
+			}
+			if (zend_llist_count(selected_masters) < 1) {
+				(*conn_data)->global_trx.m->gtid_validate = mysqlnd_ms_aux_gtid_validate;
+				mysqlnd_ms_aux_gtid_add_active(conn, master_list, selected_masters, TRUE TSRMLS_CC);
+			}
+			if (master) free(master);
+		}
+	}
 	DBG_VOID_RETURN;
 }
 /* }}} */
@@ -993,7 +1095,11 @@ mysqlnd_ms_aux_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, const ch
 		} while (1);
 	}
 	if (zend_llist_count(master_list) > 1) {
-		mysqlnd_ms_aux_gtid_choose_connection(conn, gtid, master_list, selected_masters, is_write TSRMLS_CC);
+		if (is_write && MYSQLND_MS_G(multi_master) && (*conn_data)->global_trx.injectable_query && (*conn_data)->global_trx.memc && (*conn_data)->global_trx.memcached_wkey_len) {
+			mysqlnd_ms_aux_gtid_choose_write_master(conn, master_list, selected_masters);
+		} else {
+			mysqlnd_ms_aux_gtid_choose_connection(conn, gtid, master_list, selected_masters, is_write TSRMLS_CC);
+		}
 	} else {
 		MYSQLND_MS_LIST_DATA * element;
 		BEGIN_ITERATE_OVER_SERVER_LIST(element, master_list)
@@ -2273,6 +2379,91 @@ mysqlnd_ms_cs_ss_gtid_trace(MYSQLND_CONN_DATA * conn, const char * key, size_t k
 }
 /* }}} */
 
+
+
+
+/*
+ * 		GTID_SERVER,
+		mysqlnd_ms_ss_gtid_get_last,
+		mysqlnd_ms_ss_gtid_set_last_write,
+		mysqlnd_ms_ss_gtid_init,
+		mysqlnd_ms_ss_gtid_connect,
+		mysqlnd_ms_ss_gtid_inject_before,
+		mysqlnd_ms_ss_gtid_inject_after,
+		mysqlnd_ms_ss_gtid_filter,
+		mysqlnd_ms_ss_gtid_reset,
+		mysqlnd_ms_ss_gtid_trace,
+		mysqlnd_ms_aux_gtid_add_active,
+		NULL,
+ *
+ */
+
+/* {{{ mysqlnd_ms_xx_cs_gtid_trace */
+static void
+mysqlnd_ms_xx_cs_gtid_trace(MYSQLND_CONN_DATA * conn, const char * key, size_t key_len, unsigned int ttl, const char * query, size_t query_len TSRMLS_DC)
+{
+	DBG_ENTER("mysqlnd_ms_xx_cs_gtid_trace");
+	mysqlnd_ms_aux_gtid_trace(conn, key, key_len, ttl, query, query_len TSRMLS_CC);
+	DBG_VOID_RETURN;
+}
+/* }}} */
+
+/* {{{ mysqlnd_ms_xx_cs_gtid_filter */
+static void
+mysqlnd_ms_xx_cs_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, const char *query, size_t query_len,
+								 zend_llist * slave_list, zend_llist * master_list, zend_llist * selected_slaves, zend_llist * selected_masters, zend_bool is_write TSRMLS_DC)
+{
+	DBG_ENTER("mysqlnd_ms_xx_cs_gtid_filter");
+	mysqlnd_ms_aux_gtid_filter(conn, gtid, query, query_len, slave_list, master_list, selected_slaves, selected_masters, is_write TSRMLS_CC);
+	DBG_VOID_RETURN;
+}
+/* }}} */
+
+/* {{{ mysqlnd_ms_xx_cs_gtid_connect */
+static enum_func_status
+mysqlnd_ms_xx_cs_gtid_connect(MYSQLND_CONN_DATA * proxy_conn, MYSQLND_MS_LIST_DATA * new_element, zend_bool is_master,
+                               zend_bool lazy_connections TSRMLS_DC)
+{
+	enum_func_status ret = PASS;
+	MS_DECLARE_AND_LOAD_CONN_DATA(proxy_conn_data, proxy_conn);
+	struct st_mysqlnd_ms_global_trx_injection * global_trx = &(*proxy_conn_data)->global_trx;
+	struct st_mysqlnd_ms_conn_credentials * cred =  &(*proxy_conn_data)->cred;
+	MS_DECLARE_AND_LOAD_CONN_DATA(conn_data, new_element->conn);
+	DBG_ENTER("mysqlnd_ms_xx_cs_gtid_connect");
+	if (is_master && global_trx->memcached_wkey_len > 0 && !global_trx->memc) {
+		memcached_st *memc;
+		char * mchost = MYSQLND_MS_CONN_STRING(new_element->host);
+		unsigned int mcport = 11211;
+		memcached_return_t rc;
+		if (global_trx->memcached_port) {
+			mcport = global_trx->memcached_port;
+		}
+		if (global_trx->memcached_host) {
+			mchost = global_trx->memcached_host;
+		}
+		DBG_INF("Start xx_cs gtid_memcached creation");
+		memc = memcached_create(NULL);
+		if (memc) {
+			DBG_INF_FMT("Connect to xx_cs Memcached %s %d", mchost, mcport);
+			rc = memcached_server_add(memc, mchost, mcport);
+			if (rc == MEMCACHED_SUCCESS) {
+				global_trx->memc = memc;
+			} else {
+				memcached_free(memc);
+				php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Failed gtid memcached connect to host.");
+				ret = FAIL;
+			}
+		} else {
+			php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Failed gtid memcached create.");
+			ret = FAIL;
+		}
+	}
+	DBG_INF_FMT("ret=%s", ret == PASS? "PASS":"FAIL");
+	DBG_RETURN(ret);
+}
+/* }}} */
+
+
 static
 MYSQLND_MS_GTID_TRX_METHODS gtid_methods[GTID_LAST_ENUM_ENTRY] =
 {
@@ -2288,11 +2479,12 @@ MYSQLND_MS_GTID_TRX_METHODS gtid_methods[GTID_LAST_ENUM_ENTRY] =
 		NULL, /* gtid_reset */
 		NULL, /* gtid_trace */
 		NULL, /* gtid_race_add_active */
+		NULL, /* gtid_validate */
 	},
 	{
 		GTID_CLIENT, /* type */
 		mysqlnd_ms_cs_gtid_get_last, /* gtid_get_last */
-		mysqlnd_ms_cs_gtid_set_last_write, /* gtid_set_last_write */
+		NULL, /* gtid_set_last_write */
 		mysqlnd_ms_cs_gtid_init, /* gtid_init */
 		mysqlnd_ms_cs_gtid_connect, /* gtid_connect */
 		mysqlnd_ms_cs_gtid_inject_before, /* gtid_inject_before */
@@ -2301,6 +2493,7 @@ MYSQLND_MS_GTID_TRX_METHODS gtid_methods[GTID_LAST_ENUM_ENTRY] =
 		mysqlnd_ms_cs_gtid_reset, /* gtid_reset */
 		mysqlnd_ms_cs_gtid_trace, /* gtid_trace */
 		mysqlnd_ms_aux_gtid_add_active, /* gtid_race_add_active */
+		NULL, /* gtid_validate */
 	},
 	{
 		GTID_SERVER, /* type */
@@ -2314,6 +2507,7 @@ MYSQLND_MS_GTID_TRX_METHODS gtid_methods[GTID_LAST_ENUM_ENTRY] =
 		mysqlnd_ms_ss_gtid_reset, /* gtid_reset */
 		mysqlnd_ms_ss_gtid_trace, /* gtid_trace */
 		mysqlnd_ms_aux_gtid_add_active, /* gtid_race_add_active */
+		NULL, /* gtid_validate */
 	},
 	{
 		GTID_CLIENT_SERVER, /* type */
@@ -2327,6 +2521,21 @@ MYSQLND_MS_GTID_TRX_METHODS gtid_methods[GTID_LAST_ENUM_ENTRY] =
 		mysqlnd_ms_cs_ss_gtid_reset, /* gtid_reset */
 		mysqlnd_ms_cs_ss_gtid_trace, /* gtid_trace */
 		mysqlnd_ms_aux_gtid_add_active, /* gtid_race_add_active */
+		NULL, /* gtid_validate */
+	},
+	{
+		GTID_XX_CLIENT, /* type */
+		NULL, /* gtid_get_last */
+		NULL, /* gtid_set_last_write */
+		NULL, /* gtid_init */
+		mysqlnd_ms_xx_cs_gtid_connect, /* gtid_connect */
+		NULL, /* gtid_inject_before */
+		NULL, /* gtid_inject_after */
+		mysqlnd_ms_xx_cs_gtid_filter, /* gtid_filter */
+		NULL, /* gtid_reset */
+		mysqlnd_ms_xx_cs_gtid_trace, /* gtid_trace */
+		mysqlnd_ms_aux_gtid_add_active, /* gtid_race_add_active */
+		NULL, /* gtid_validate */
 	}
 };
 /* }}} */
@@ -2472,7 +2681,7 @@ mysqlnd_ms_connect_to_host_aux(MYSQLND_CONN_DATA * proxy_conn, MYSQLND_CONN_DATA
 		MS_DECLARE_AND_LOAD_CONN_DATA(conn_data, new_element->conn);
 		(*conn_data)->elm_pool_hash_key = &(new_element->pool_hash_key);
 		if (global_trx->type != GTID_NONE) {
-			ret = global_trx->m->gtid_connect(proxy_conn, new_element, is_master, lazy_connections);
+			ret = MYSQLND_MS_GTID_CALL_PASS(global_trx->m->gtid_connect, proxy_conn, new_element, is_master, lazy_connections);
 		}
 	}
 //END HACK
@@ -3211,7 +3420,7 @@ mysqlnd_ms_init_without_fabric(struct st_mysqlnd_ms_config_json_entry * the_sect
 
     // BEGIN HACK
 	if (ret == PASS && conn_data->global_trx.gtid_on_connect && mysqlnd_ms_section_filters_is_gtid_qos(conn TSRMLS_CC) == PASS) {
-		if (conn_data->global_trx.m->gtid_init(conn TSRMLS_CC) == FAIL && conn_data->global_trx.report_error == TRUE) {
+		if (MYSQLND_MS_GTID_CALL_PASS(conn_data->global_trx.m->gtid_init, conn TSRMLS_CC) == FAIL && conn_data->global_trx.report_error == TRUE) {
 			if ((MYSQLND_MS_ERROR_INFO(conn)).error_no == 0) {
 				SET_CLIENT_ERROR(_ms_p_ei (conn->error_info), CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, "Error on gtid_init");
 			}
@@ -3512,8 +3721,12 @@ MYSQLND_METHOD(mysqlnd_ms, connect)(MYSQLND_CONN_DATA * conn,
 		} else {
 			// BEGIN HACK
 			// ret = mysqlnd_ms_init_without_fabric(the_section, conn, *conn_data, host TSRMLS_CC);
-			char * hosts_group = mysqlnd_ms_config_json_string_from_section(the_section, HOSTS_GROUP, sizeof(HOSTS_GROUP) - 1, 0,
+			char * hosts_group = NULL, * json_value = mysqlnd_ms_config_json_string_from_section(the_section, HOSTS_GROUP, sizeof(HOSTS_GROUP) - 1, 0,
 													NULL, NULL TSRMLS_CC);
+			if (json_value) {
+				hosts_group = mysqlnd_ms_parse_gtid_string(conn, json_value, FALSE);
+				mnd_efree(json_value);
+			}
 			/* ignore if lazy_connections ini entry exists or not */
 			if (hosts_group) {
 				struct st_mysqlnd_ms_config_json_entry * hosts_section = mysqlnd_ms_config_json_section(mysqlnd_ms_json_config, hosts_group, strlen(hosts_group), NULL TSRMLS_CC);
@@ -3637,14 +3850,14 @@ MYSQLND_METHOD(mysqlnd_ms, query)(MYSQLND_CONN_DATA * conn, const char * query, 
 		}
 		//BEGIN HACK
 		if (CONN_DATA_TRX_SET(conn_data)) {
-			(*conn_data)->global_trx.m->gtid_reset((*conn_data)->proxy_conn, ret TSRMLS_CC);
+			MYSQLND_MS_GTID_CALL((*conn_data)->global_trx.m->gtid_reset, (*conn_data)->proxy_conn, ret TSRMLS_CC);
 		}
 		//END HACK
 		DBG_RETURN(ret);
 	}
 	//BEGIN HACK
 	if (CONN_DATA_TRX_SET(conn_data) && (*conn_data)->global_trx.memcached_debug_ttl) {
-		(*conn_data)->global_trx.m->gtid_trace(connection, MEMCACHED_DEBUG_KEY, sizeof(MEMCACHED_DEBUG_KEY) - 1, (*conn_data)->global_trx.memcached_debug_ttl, query, query_len TSRMLS_CC);
+		MYSQLND_MS_GTID_CALL((*conn_data)->global_trx.m->gtid_trace, connection, MEMCACHED_DEBUG_KEY, sizeof(MEMCACHED_DEBUG_KEY) - 1, (*conn_data)->global_trx.memcached_debug_ttl, query, query_len TSRMLS_CC);
 	}
 	//END HACK
 
@@ -3655,7 +3868,7 @@ MYSQLND_METHOD(mysqlnd_ms, query)(MYSQLND_CONN_DATA * conn, const char * query, 
 		}
 		//BEGIN HACK
 		if (CONN_DATA_TRX_SET(conn_data)) {
-			(*conn_data)->global_trx.m->gtid_reset((*conn_data)->proxy_conn, ret TSRMLS_CC);
+			MYSQLND_MS_GTID_CALL((*conn_data)->global_trx.m->gtid_reset, (*conn_data)->proxy_conn, ret TSRMLS_CC);
 		}
 		//END HACK
 		DBG_RETURN(ret);
@@ -3718,7 +3931,7 @@ MYSQLND_METHOD(mysqlnd_ms, query)(MYSQLND_CONN_DATA * conn, const char * query, 
 		if (FALSE == (*proxy_conn_data)->stgy.in_transaction && (*proxy_conn_data)->global_trx.injectable_query == TRUE) {
 			/* autocommit mode */
 			inject = TRUE;
-			ret = (*proxy_conn_data)->global_trx.m->gtid_inject_before(connection TSRMLS_CC);
+			ret = MYSQLND_MS_GTID_CALL_PASS((*proxy_conn_data)->global_trx.m->gtid_inject_before, connection TSRMLS_CC);
 			if (FAIL == ret) {
 				inject = FALSE;
 				MYSQLND_MS_INC_STATISTIC(MS_STAT_GTID_AUTOCOMMIT_FAILURE);
@@ -3770,7 +3983,7 @@ MYSQLND_METHOD(mysqlnd_ms, query)(MYSQLND_CONN_DATA * conn, const char * query, 
 //	if (ret == PASS && CONN_DATA_TRX_SET(conn_data) && FALSE == (*conn_data)->stgy.in_transaction && FALSE == (*conn_data)->global_trx.stop_inject && (*conn_data)->global_trx.injectable_query == TRUE) {
 	if (CONN_DATA_TRX_SET(proxy_conn_data) && inject == TRUE) {
 		/* autocommit mode */
-		enum_func_status jret = (*proxy_conn_data)->global_trx.m->gtid_inject_after(connection, ret TSRMLS_CC);
+		enum_func_status jret = MYSQLND_MS_GTID_CALL_PASS((*proxy_conn_data)->global_trx.m->gtid_inject_after, connection, ret TSRMLS_CC);
 		if (ret == PASS) {
 			MYSQLND_MS_INC_STATISTIC((PASS == jret) ? MS_STAT_GTID_AUTOCOMMIT_SUCCESS :
 				MS_STAT_GTID_AUTOCOMMIT_FAILURE);
@@ -5428,12 +5641,12 @@ MYSQLND_METHOD(mysqlnd_ms_stmt, execute)(MYSQLND_STMT * const s TSRMLS_DC)
 				efree((void *)query);
 			}
 			if (CONN_DATA_TRX_SET(conn_data)) {
-				(*conn_data)->global_trx.m->gtid_reset((*conn_data)->proxy_conn, FAIL TSRMLS_CC);
+				MYSQLND_MS_GTID_CALL((*conn_data)->global_trx.m->gtid_reset, (*conn_data)->proxy_conn, FAIL TSRMLS_CC);
 			}
 			DBG_RETURN(FAIL);
 		}
 		if (CONN_DATA_TRX_SET(conn_data) && (*conn_data)->global_trx.memcached_debug_ttl) {
-			(*conn_data)->global_trx.m->gtid_trace(connection, MEMCACHED_DEBUG_KEY, sizeof(MEMCACHED_DEBUG_KEY) - 1, (*conn_data)->global_trx.memcached_debug_ttl, query, query_len TSRMLS_CC);
+			MYSQLND_MS_GTID_CALL((*conn_data)->global_trx.m->gtid_trace, connection, MEMCACHED_DEBUG_KEY, sizeof(MEMCACHED_DEBUG_KEY) - 1, (*conn_data)->global_trx.memcached_debug_ttl, query, query_len TSRMLS_CC);
 		}
 		DBG_INF_FMT("After pick server conn="MYSQLND_LLU_SPEC, connection->thread_id);
 		if (connection != s->data->conn) {
@@ -5492,7 +5705,7 @@ MYSQLND_METHOD(mysqlnd_ms_stmt, execute)(MYSQLND_STMT * const s TSRMLS_DC)
 			}
 			if (ret == FAIL) {
 				if (CONN_DATA_TRX_SET(conn_data)) {
-					(*conn_data)->global_trx.m->gtid_reset((*conn_data)->proxy_conn, FAIL TSRMLS_CC);
+					MYSQLND_MS_GTID_CALL((*conn_data)->global_trx.m->gtid_reset, (*conn_data)->proxy_conn, FAIL TSRMLS_CC);
 				}
 				DBG_RETURN(FAIL);
 			}
@@ -5532,7 +5745,7 @@ MYSQLND_METHOD(mysqlnd_ms_stmt, execute)(MYSQLND_STMT * const s TSRMLS_DC)
 		if ((*proxy_conn_data)->global_trx.injectable_query == TRUE) {
 			inject = TRUE;
 			/* autocommit mode */
-			ret = (*conn_data)->global_trx.m->gtid_inject_before(connection TSRMLS_CC);
+			ret = MYSQLND_MS_GTID_CALL_PASS((*conn_data)->global_trx.m->gtid_inject_before, connection TSRMLS_CC);
 			if (FAIL == ret) {
 				inject = FALSE;
 				MYSQLND_MS_INC_STATISTIC(MS_STAT_GTID_AUTOCOMMIT_FAILURE);
@@ -5580,7 +5793,7 @@ MYSQLND_METHOD(mysqlnd_ms_stmt, execute)(MYSQLND_STMT * const s TSRMLS_DC)
 
 	if (CONN_DATA_TRX_SET(conn_data) && inject == TRUE) {
 		/* autocommit mode */
-		enum_func_status jret = (*conn_data)->global_trx.m->gtid_inject_after(connection, ret TSRMLS_CC);
+		enum_func_status jret = MYSQLND_MS_GTID_CALL_PASS((*conn_data)->global_trx.m->gtid_inject_after, connection, ret TSRMLS_CC);
 		if (ret == PASS) {
 			MYSQLND_MS_INC_STATISTIC((PASS == jret) ? MS_STAT_GTID_AUTOCOMMIT_SUCCESS :
 				MS_STAT_GTID_AUTOCOMMIT_FAILURE);
