@@ -952,23 +952,25 @@ static MYSQLND_CONN_DATA *
 mysqlnd_ms_aux_gtid_validate(MYSQLND_CONN_DATA * conn TSRMLS_DC)
 {
 	MS_DECLARE_AND_LOAD_CONN_DATA(conn_data, conn);
+	MS_DECLARE_AND_LOAD_CONN_DATA(proxy_conn_data, (*conn_data)->proxy_conn);
 	MYSQLND_CONN_DATA * ret = NULL;
 	DBG_ENTER("mysqlnd_ms_aux_gtid_validate");
-	(*conn_data)->global_trx.m->gtid_validate = NULL;
+	(*proxy_conn_data)->global_trx.m->gtid_validate = NULL;
 
-	if ((*conn_data)->global_trx.memcached_wkey_len > 0)  {
-		memcached_st *memc = (*conn_data)->global_trx.memc;
+	if ((*proxy_conn_data)->global_trx.memcached_wkey_len > 0)  {
+		memcached_st *memc = (*proxy_conn_data)->global_trx.memc;
 		if (memc) {
 			memcached_return_t rc;
 			uint32_t flags;
 			size_t master_len = 0;
 			char * master = NULL;
 			_ms_smart_type * hash_key = (*conn_data)->elm_pool_hash_key;
-			master = memcached_get(memc, (*conn_data)->global_trx.memcached_wkey, (*conn_data)->global_trx.memcached_wkey_len, &master_len, &flags, &rc);
+			master = memcached_get(memc, (*proxy_conn_data)->global_trx.memcached_wkey, (*proxy_conn_data)->global_trx.memcached_wkey_len, &master_len, &flags, &rc);
 			if (rc == MEMCACHED_NOTFOUND) {
-				rc = memcached_add(memc, (*conn_data)->global_trx.memcached_wkey, (*conn_data)->global_trx.memcached_wkey_len,
-						hash_key->c, hash_key->len - 1, (time_t)(*conn_data)->global_trx.running_ttl, (uint32_t)0);
-				master = memcached_get(memc, (*conn_data)->global_trx.memcached_wkey, (*conn_data)->global_trx.memcached_wkey_len, &master_len, &flags, &rc);
+				rc = memcached_add(memc, (*proxy_conn_data)->global_trx.memcached_wkey, (*proxy_conn_data)->global_trx.memcached_wkey_len,
+						hash_key->c, hash_key->len - 1, (time_t)(*proxy_conn_data)->global_trx.running_ttl, (uint32_t)0);
+				DBG_INF_FMT("Add master key %s value %s return %d", (*proxy_conn_data)->global_trx.memcached_wkey, hash_key->c, rc);
+				master = memcached_get(memc, (*proxy_conn_data)->global_trx.memcached_wkey, (*proxy_conn_data)->global_trx.memcached_wkey_len, &master_len, &flags, &rc);
 			}
 			if (rc == MEMCACHED_SUCCESS) {
 				if  (master_len == (hash_key->len - 1) && strncmp(hash_key->c, master, master_len) == 0) {
@@ -977,8 +979,8 @@ mysqlnd_ms_aux_gtid_validate(MYSQLND_CONN_DATA * conn TSRMLS_DC)
 					zend_bool exists = FALSE, is_master = FALSE, is_active = FALSE, is_removed = FALSE;
 					_ms_smart_type ph = {master, master_len + 1 ,  master_len + 1 }; // Include null in host hash key
 					MYSQLND_MS_LIST_DATA * data;
-					DBG_INF_FMT("Found master key %s value %s", (*conn_data)->global_trx.memcached_wkey, master);
-					exists = (*conn_data)->pool->connection_exists((*conn_data)->pool, &ph, &data, &is_master, &is_active, &is_removed TSRMLS_CC);
+					DBG_INF_FMT("Found master key %s value %s", (*proxy_conn_data)->global_trx.memcached_wkey, master);
+					exists = (*proxy_conn_data)->pool->connection_exists((*proxy_conn_data)->pool, &ph, &data, &is_master, &is_active, &is_removed TSRMLS_CC);
 					DBG_INF_FMT("hash_key=%s exists=%d is_master=%d is_active=%d is_removed=%d ", master, exists, is_master, is_active, is_removed);
 					if (exists && is_active && !is_removed && is_master &&
 						_MS_CONN_GET_STATE(data->conn) != CONN_QUIT_SENT &&
