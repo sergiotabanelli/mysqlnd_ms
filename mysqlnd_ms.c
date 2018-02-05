@@ -1028,12 +1028,12 @@ mysqlnd_ms_aux_gtid_choose_write_master(MYSQLND_CONN_DATA * conn, zend_llist * m
 						zend_llist_add_element(selected_masters, &data);
 					}
 				}
-				if (master) free(master);
 				if (zend_llist_count(selected_masters) < 1) { // Possible race condition this is an hack to reduce it
-					master = memcached_get(memc, (*conn_data)->global_trx.memcached_wkey, (*conn_data)->global_trx.memcached_wkey_len, &master_len, &flags, &rc);
-					if  (rc == MEMCACHED_SUCCESS && master_len == (ph.len - 1) && !strncmp(ph.c, master, master_len)) {
+					char * master1 = memcached_get(memc, (*conn_data)->global_trx.memcached_wkey, (*conn_data)->global_trx.memcached_wkey_len, &master_len, &flags, &rc);
+					if  (rc == MEMCACHED_SUCCESS && master_len == (ph.len - 1) && !strncmp(ph.c, master1, master_len)) {
 						memcached_delete(memc, (*conn_data)->global_trx.memcached_wkey, (*conn_data)->global_trx.memcached_wkey_len, (time_t)0);
 					}
+					if (master1) free(master1);
 				} else {
 					memcached_touch(memc, (*conn_data)->global_trx.memcached_wkey, (*conn_data)->global_trx.memcached_wkey_len, (time_t)(*conn_data)->global_trx.running_ttl);
 				}
