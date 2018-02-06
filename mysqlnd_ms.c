@@ -1776,7 +1776,7 @@ mysqlnd_ms_cs_ss_gtid_set_last_write(MYSQLND_CONN_DATA * connection, char * gtid
 					(*proxy_conn_data)->global_trx.memcached_wkey_len, 1, &value)) == MEMCACHED_SUCCESS && value > 0) {
 				ol = snprintf(ot, MAXGTIDSIZE, "%s:%" PRIuMAX, (*proxy_conn_data)->global_trx.memcached_wkey, value);
 				val = mysqlnd_ms_cs_ss_gtid_build_val(*conn_data, gtid);
-				if (trx->auto_clean) {
+				if ((*proxy_conn_data)->global_trx.auto_clean) {
 					/* in auto_clean mode, an already present key means that a previous running write has ended with a valid gtid and has incremented the token counter to trx->owned_token + 1
 					 * This means that our key is no more needed.
 					 * if we really want to delete all unused keys, we need to try add the key and delete if fails (see also mysqlnd_ms_cs_ss_gtid_set_last_write)
