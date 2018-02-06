@@ -2,7 +2,7 @@
 
 >NOTE: Together with strictly related [service level and consistency](REF:../CONCEPTS) the [global transaction IDs](REF:../CONCEPTS) feature is one of the most changed areas of the  `mymysqlnd_ms` fork. Functionlities like [server side read consistency](REFA:GLOBAL-TRANSACTION-IDS.md) and [server side write consistency](REFA:GLOBAL-TRANSACTION-IDS.md) allow transparent migration to MySQL clusters in almost all use cases with no or at most extremely small effort and application changes.
 
->The code should be considered of beta quality. We use it in our restricted intranet production enviroment, but we are the developers so, if we find bugs, we can patch our code almost immediatly. The feature is not required for synchronous clusters, such as MySQL Cluster.
+>The code should be considered of beta quality. We use it in our restricted intranet production enviroment, but we are the developers so, if we find bugs, we can patch our code as soon as possible. This feature is not required for synchronous clusters, such as MySQL Cluster.
 
 >BEWARE: Global transaction ID features works only together with the [quality_of_service](REFA:../PLUGIN-CONFIGURATION-FILE.md) filter with [session_consistency](REFA:../PLUGIN-CONFIGURATION-FILE.md) service level.
 
@@ -318,7 +318,7 @@ The [fetch_last_gtid](REFA:../PLUGIN-CONFIGURATION-FILE.md) is used to retrive l
 	}
 	...
 ```
-In previous example, GTID table counter is relative to the used php `session_id`, `trx_id` counter is retrived using a `WHERE` clause.
+In previous example, GTID table counter is relative to the used php `session_id`, `trx_id` counter is retrieved using a `WHERE` clause.
 
 
 little or no use of function  mysqlnd_ms_get_last_gtid and option GTID for session consistency.

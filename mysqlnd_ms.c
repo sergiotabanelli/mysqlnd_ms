@@ -2228,7 +2228,7 @@ mysqlnd_ms_cs_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, const 
 						}
 						if (rc == MEMCACHED_NOTFOUND && running <= 1) {
 							/* HACK: The running counter increment should be atomic with the owned_token increment,
-							 * but, to avoid wait time, if previous wait running (see mysqlnd_ms_cs_ss_gtid_increment_running) is not found
+							 * but, to avoid wait time, if previous wait running key (see mysqlnd_ms_cs_ss_gtid_increment_running) is not found
 							 * we do not trust returned counter.
 							 * */
 							running = GTID_RUNNING_HACK_COUNTER;
@@ -2270,9 +2270,9 @@ mysqlnd_ms_cs_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, const 
 								 * indeed we are here only if owned_token > 1 and previous token was not found, this is a little bit strange,
 								 * it should happens only if previous token has expired its ttl.
 								 * */
-/*								if (running == GTID_RUNNING_HACK_COUNTER) {
+								if (running == GTID_RUNNING_HACK_COUNTER) {
 									wait_time=0; // NO more wait time, one second should be enough to avoid wrong running==1 counters
-								}*/
+								}
 								continue;
 							}
 						}
