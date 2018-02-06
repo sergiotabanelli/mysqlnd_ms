@@ -2124,10 +2124,10 @@ mysqlnd_ms_cs_ss_gtid_increment_running(struct st_mysqlnd_ms_global_trx_injectio
 		if (trx->auto_clean) {
 			/* in auto_clean mode, an already present key means that a previous running write has ended with a valid gtid and has incremented the token counter to trx->owned_token + 1
 			 * This means that our key is no more needed.
-			 * if we really want to delete all unused keys, we need to try first a delete and only if it fails we add the key (see also mysqlnd_ms_cs_ss_gtid_set_last_write)
+			 * if we really want to delete all unused keys, we need to try add the key and delete if fails (see also mysqlnd_ms_cs_ss_gtid_set_last_write)
 			 */
-			if ((rc = memcached_delete(trx->memc, ot, ol, (time_t)0)) != MEMCACHED_SUCCESS) {
-				rc = memcached_add(trx->memc, ot, ol, val, 1, (time_t)trx->running_ttl, (uint32_t)0 );
+			if ((rc = memcached_add(trx->memc, ot, ol, val, 1, (time_t)trx->running_ttl, (uint32_t)0 )) == MEMCACHED_NOTSTORED) {
+				rc = memcached_delete(trx->memc, ot, ol, (time_t)0);
 			}
 		} else {
 			rc = memcached_add(trx->memc, ot, ol, val, 1, (time_t)trx->running_ttl, (uint32_t)0 );
