@@ -2312,6 +2312,9 @@ mysqlnd_ms_cs_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, const 
 #endif
 								continue;
 							}
+							if (waitr_time) {
+								MS_TIME_SET(runr_time);
+							}
 						}
 						if (running == GTID_RUNNING_HACK_COUNTER) {
 							waitr_time=0; // NO more wait time, wait token timeout should be enough to avoid wrong running==1 counters
