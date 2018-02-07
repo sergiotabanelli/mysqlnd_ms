@@ -2083,7 +2083,7 @@ mysqlnd_ms_cs_ss_gtid_inject_after(MYSQLND_CONN_DATA * conn, enum_func_status st
 			char ot[MAXGTIDSIZE];
 			memcached_return_t rcr ;
 			memcached_st *memc = (*proxy_conn_data)->global_trx.memc;
-			unsigned int wait_time = (*proxy_conn_data)->global_trx.wait_for_wgtid_timeout/2; // We wait only until wait token write because we don't need the running token
+			unsigned int wait_time = (*proxy_conn_data)->global_trx.wait_for_wgtid_timeout/3; // We wait only until wait token write because we don't need the running token
 			uint64_t total_time = 0, run_time = 0, my_wait_time = wait_time * 1000000;
 			size_t ol = snprintf(ot, MAXGTIDSIZE, "%s:%" PRIuMAX, (*proxy_conn_data)->global_trx.memcached_wkey, (*proxy_conn_data)->global_trx.owned_token - 1);
 			do {
@@ -2226,7 +2226,7 @@ mysqlnd_ms_cs_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, const 
 			DBG_INF_FMT("Not an injectable query %s", query);
 			mysqlnd_ms_aux_gtid_filter(conn, gtid, query, query_len, slave_list, master_list, selected_slaves, selected_masters, is_write TSRMLS_CC);
 		} else if ((*proxy_conn_data)->global_trx.memc && (*proxy_conn_data)->global_trx.memcached_wkey) {
-			unsigned int waitw_time = (*conn_data)->global_trx.wait_for_wgtid_timeout/2; // waitw_time is the timeout to wait for wait token
+			unsigned int waitw_time = (*conn_data)->global_trx.wait_for_wgtid_timeout/3; // waitw_time is the timeout to wait for wait token
 			unsigned int waitr_time = (*conn_data)->global_trx.wait_for_wgtid_timeout - waitw_time; // waitr_time is the timeout to wait for running token
 			uint64_t totalw_time = 0, runw_time = 0, my_waitw_time = waitw_time * 1000000;
 			uint64_t totalr_time = 0, runr_time = 0, my_waitr_time = waitr_time * 1000000;
@@ -2995,7 +2995,7 @@ mysqlnd_ms_init_trx_to_null(struct st_mysqlnd_ms_global_trx_injection * trx TSRM
 	trx->running = 0;
 	trx->running_ttl = 600; // 10 minutes
 	trx->memcached_debug_ttl = 0; // Disabled
-	trx->wait_for_wgtid_timeout = 5; // 5 seconds
+	trx->wait_for_wgtid_timeout = 6; // 6 seconds
 	trx->throttle_wgtid_timeout = 0;
 	trx->race_avoid_strategy = GTID_RACE_AVOID_DISABLED;
 	trx->injectable_query = FALSE;
