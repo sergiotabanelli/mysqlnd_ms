@@ -2338,7 +2338,7 @@ mysqlnd_ms_cs_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, const 
 				} while (1);
 				found_error = (rc == MEMCACHED_NOTFOUND && value > 0);
 				if (running > 1 && (rc == MEMCACHED_NOTFOUND || *wgtid == GTID_WAIT_MARKER)) {
-					php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Something wrong: previous key not found %s $s %d. Maybe you need to increase wait_for_wgtid_timeout %d %d or cache timeout", ot, wgtid, rc, waitw_time, waitr_time);
+					php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Something wrong: previous key not found %s %s %d. Maybe you need to increase wait_for_wgtid_timeout %d %d or cache timeout", ot, wgtid, rc, waitw_time, waitr_time);
 				}
 				(*proxy_conn_data)->global_trx.running = running;
 				if ((*proxy_conn_data)->global_trx.last_wckgtid) {
