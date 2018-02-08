@@ -522,6 +522,7 @@ mysqlnd_ms_init_connection_global_trx(struct st_mysqlnd_ms_global_trx_injection 
 	new_global_trx->last_wckgtid_len = 0;
 	new_global_trx->run_time = 0;
 	new_global_trx->running = 0;
+	new_global_trx->running_id = 0;
 	new_global_trx->gtid_block_size = orig_global_trx->gtid_block_size;
 	new_global_trx->running_ttl = orig_global_trx->running_ttl;
 	new_global_trx->memcached_debug_ttl = orig_global_trx->memcached_debug_ttl;
@@ -1696,7 +1697,7 @@ mysqlnd_ms_cs_ss_gtid_build_val(MYSQLND_MS_CONN_DATA * conn_data, const char *gt
 	size_t gl = gtid ? strlen(gtid) : 0;
     char th[20];
 	MS_DECLARE_AND_LOAD_CONN_DATA(proxy_conn_data, conn_data->proxy_conn);
-	size_t thl = snprintf(th, 20, "%llu:%d", conn_data->proxy_conn->thread_id, (*proxy_conn_data)->global_trx.running);
+	size_t thl = snprintf(th, 20, "%llu:%d:%d", conn_data->proxy_conn->thread_id, (*proxy_conn_data)->global_trx.running, (*proxy_conn_data)->global_trx.running_id);
 	size_t l = hash_key->len + gl + 1 + trx->last_gtid_len + 1 + trx->last_ckgtid_len + 1 + thl + 1;
     char * ret, * val;
     DBG_ENTER("mysqlnd_ms_cs_ss_gtid_build_val");
@@ -1746,7 +1747,7 @@ mysqlnd_ms_cs_ss_gtid_decrement_running(struct st_mysqlnd_ms_global_trx_injectio
 		trx->run_time = 0;
 		len = snprintf(k, MEMCACHED_MAX_KEY, "%s.%" PRIuMAX, trx->memcached_wkey, time_cluster);
 		if (len > 0) {
-			rc = memcached_decrement(trx->memc, k, len, trx->owned_token, value);
+			rc = memcached_decrement(trx->memc, k, len, trx->running_id, value);
 		}
 	}
 	{ // DEBUG HACK
@@ -2141,12 +2142,13 @@ mysqlnd_ms_cs_ss_gtid_increment_running(struct st_mysqlnd_ms_global_trx_injectio
 		time_cluster = run_time/trx->running_ttl;
 	}
 	len = snprintf(k, MEMCACHED_MAX_KEY, "%s.%" PRIuMAX, trx->memcached_wkey, time_cluster);
-	rc = memcached_increment(trx->memc, k, len, trx->owned_token, value);
+	trx->running_id = rand() % GTID_RUNNING_RANDOMID;
+	rc = memcached_increment(trx->memc, k, len, trx->running_id, value);
 	if (rc != MEMCACHED_SUCCESS) {
 		DBG_INF_FMT("increment failed must add ret=%d last key %s", rc, k);
 		rc = memcached_add(trx->memc, k, len, "0", 1, (time_t)trx->running_ttl*2, (uint32_t)0 );
 		DBG_INF_FMT("Add running key return ret=%d last key %s", rc, k);
-		rc = memcached_increment(trx->memc, k, len, 1, value);
+		rc = memcached_increment(trx->memc, k, len, trx->running_id, value);
 		DBG_INF_FMT("Second increment for running key return ret=%d last key %s", rc, k);
 	}
 	if (rc == MEMCACHED_SUCCESS) {
@@ -2278,7 +2280,7 @@ mysqlnd_ms_cs_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, const 
 						if (value <= 0) {
 							break;
 						}
-						if (rc == MEMCACHED_NOTFOUND && running == (*proxy_conn_data)->global_trx.owned_token) {
+						if (rc == MEMCACHED_NOTFOUND && running == (*proxy_conn_data)->global_trx.running_id) {
 							/* HACK: The running counter increment should be atomic with the owned_token increment,
 							 * but, to avoid wait time, if previous wait running key (see mysqlnd_ms_cs_ss_gtid_increment_running) is not found
 							 * we do not trust returned counter.
@@ -2295,7 +2297,7 @@ mysqlnd_ms_cs_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, const 
 								*igtid = 0;
 							*fgtid = 0;
 							fgtid++;
-							if (!(*fgtid) && running == (*proxy_conn_data)->global_trx.owned_token) {// Empty gtid with running==owned_token means no previous write history
+							if (!(*fgtid) && running == (*proxy_conn_data)->global_trx.running_id) {// Empty gtid with running==running_id means no previous write history
 								DBG_INF_FMT("Found empty on key %s gtid %s : %d", ot, wgtid, running);
 								value = 0;
 							}
@@ -2325,7 +2327,7 @@ mysqlnd_ms_cs_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, const 
 							}
 						}
 						if (running == GTID_RUNNING_HACK_COUNTER) {
-							waitr_time=0; // NO more wait time, wait token timeout should be enough to avoid wrong running==owned_token counters
+							waitr_time=0; // NO more wait time, wait token timeout should be enough to avoid wrong running==running_id counters
 						}
 					} else  if (*wgtid == GTID_WAIT_MARKER) {
 						if (waitr_time && !zend_llist_count(selected_masters)) {
@@ -2364,7 +2366,7 @@ mysqlnd_ms_cs_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, const 
 				}
 				hgtid = wgtid;
 				if (value && hgtid && wgtid_len && *hgtid == GTID_RUNNING_MARKER) {
-					if (rc == MEMCACHED_SUCCESS && running == (*proxy_conn_data)->global_trx.owned_token && fgtid && *fgtid) {
+					if (rc == MEMCACHED_SUCCESS && running == (*proxy_conn_data)->global_trx.running_id && fgtid && *fgtid) {
 						mysqlnd_ms_aux_gtid_choose_connection(conn, fgtid, master_list, selected_masters, is_write TSRMLS_CC);
 					} else {
 						MYSQLND_MS_LIST_DATA * data;
@@ -3000,6 +3002,7 @@ mysqlnd_ms_init_trx_to_null(struct st_mysqlnd_ms_global_trx_injection * trx TSRM
 	trx->gtid_block_size = 0;
 	trx->run_time = 0;
 	trx->running = 0;
+	trx->running_id = 0;
 	trx->running_ttl = 600; // 10 minutes
 	trx->memcached_debug_ttl = 0; // Disabled
 	trx->wait_for_wgtid_timeout = 6; // 6 seconds
