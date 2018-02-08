@@ -1793,9 +1793,6 @@ mysqlnd_ms_cs_ss_gtid_set_last_write(MYSQLND_CONN_DATA * connection, char * gtid
 			if ((rc = memcached_increment((*proxy_conn_data)->global_trx.memc, (*proxy_conn_data)->global_trx.memcached_wkey,
 					(*proxy_conn_data)->global_trx.memcached_wkey_len, 1, &value)) == MEMCACHED_SUCCESS && value > 0) {
 				/* This is to avoid decrementing running counter before process with token=value-1 increment the running counter */
-				if ((value - (*proxy_conn_data)->global_trx.owned_token) == 2) {
-					(*proxy_conn_data)->global_trx.running = GTID_RUNNING_HACK_COUNTER - 1;
-				}
 				ol = snprintf(ot, MAXGTIDSIZE, "%s:%" PRIuMAX, (*proxy_conn_data)->global_trx.memcached_wkey, value);
 				val = mysqlnd_ms_cs_ss_gtid_build_val(*conn_data, gtid);
 				if ((*proxy_conn_data)->global_trx.auto_clean) {
