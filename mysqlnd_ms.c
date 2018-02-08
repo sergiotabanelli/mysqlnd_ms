@@ -1749,6 +1749,13 @@ mysqlnd_ms_cs_ss_gtid_decrement_running(struct st_mysqlnd_ms_global_trx_injectio
 			rc = memcached_decrement(trx->memc, k, len, 1, value);
 		}
 	}
+	{ // DEBUG HACK
+		char v[10];
+		size_t vl = 0;
+		len = snprintf(k, MEMCACHED_MAX_KEY, "%s:%" PRIuMAX, trx->memcached_wkey, trx->owned_token);
+		vl = snprintf(v, 10, ":%d", *value);
+		memcached_append(trx->memc, k, len, v, vl, (time_t)trx->running_ttl, (uint32_t)0);
+	}
 	DBG_INF_FMT("ret=%d decrement last key %s returned value=%" PRIuMAX, rc, k, *value);
 	if (trx->auto_clean && trx->owned_token) {
 		/* in auto_clean mode, a not present key means that the write with trx->owned_token - 1 is still writing its key which is not needed any more.
