@@ -2172,7 +2172,7 @@ mysqlnd_ms_cs_ss_gtid_increment_running(struct st_mysqlnd_ms_global_trx_injectio
 			rc = memcached_add(trx->memc, ot, ol, val, 1, (time_t)trx->running_ttl, (uint32_t)0 );
 			if (*value == trx->running_id) { // Check if this is a race condition
 				ol = snprintf(ot, MAXGTIDSIZE, "%s:%" PRIuMAX, trx->memcached_wkey, trx->owned_token + 1);
-				if ((wgtid = memcached_get(trx->memc,  ot, ol, &len, &flags, &rc1)) && rc1 == MEMCACHED_SUCCESS && *wgtid != GTID_WAIT_MARKER) { //this is a race condition, we can't trust returned value
+				if ((wgtid = memcached_get(trx->memc,  ot, ol, &wgtid_len, &flags, &rc1)) && rc1 == MEMCACHED_SUCCESS && *wgtid != GTID_WAIT_MARKER) { //this is a race condition, we can't trust returned value
 					*value = GTID_RUNNING_HACK_COUNTER;
 				}
 				if (wgtid) free(wgtid);
