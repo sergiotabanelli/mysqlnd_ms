@@ -2136,6 +2136,10 @@ mysqlnd_ms_cs_ss_gtid_increment_running(struct st_mysqlnd_ms_global_trx_injectio
 	time_t run_time  = time(NULL);
 	char ot[MAXGTIDSIZE];
 	char val[2] = {GTID_WAIT_MARKER, 0};
+	uint32_t flags;
+	memcached_return_t rc1 = MEMCACHED_FAILURE;
+	size_t wgtid_len = 0;
+	char * wgtid = NULL;
 	size_t ol;
 	DBG_ENTER("mysqlnd_ms_cs_ss_gtid_increment_running");
 	if (trx->running_ttl > 0) {
@@ -2160,9 +2164,19 @@ mysqlnd_ms_cs_ss_gtid_increment_running(struct st_mysqlnd_ms_global_trx_injectio
 			 */
 			if ((rc = memcached_add(trx->memc, ot, ol, val, 1, (time_t)trx->running_ttl, (uint32_t)0 )) == MEMCACHED_NOTSTORED) {
 				rc = memcached_delete(trx->memc, ot, ol, (time_t)0);
+				if (*value == trx->running_id) { // This is a race condition, we can't trust returned value
+					*value = GTID_RUNNING_HACK_COUNTER;
+				}
 			}
 		} else {
 			rc = memcached_add(trx->memc, ot, ol, val, 1, (time_t)trx->running_ttl, (uint32_t)0 );
+			if (*value == trx->running_id) { // Check if this is a race condition
+				ol = snprintf(ot, MAXGTIDSIZE, "%s:%" PRIuMAX, trx->memcached_wkey, trx->owned_token + 1);
+				if ((wgtid = memcached_get(trx->memc,  ot, ol, &len, &flags, &rc1)) && rc1 == MEMCACHED_SUCCESS && *wgtid != GTID_WAIT_MARKER) { //this is a race condition, we can't trust returned value
+					*value = GTID_RUNNING_HACK_COUNTER;
+				}
+				if (wgtid) free(wgtid);
+			}
 		}
 		if (rc != MEMCACHED_SUCCESS) {
 			php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Something wrong: failure adding wait pool key %s to memcached %s %d", val, ot, rc);
@@ -2177,10 +2191,6 @@ mysqlnd_ms_cs_ss_gtid_increment_running(struct st_mysqlnd_ms_global_trx_injectio
 	if (rc == MEMCACHED_SUCCESS) {
 		trx->run_time = run_time;
 		if (time_cluster > 0) {
-			memcached_return_t rc1 = MEMCACHED_FAILURE;
-			uint32_t flags;
-			size_t wgtid_len = 0;
-			char * wgtid = NULL;
 			len = snprintf(k, MEMCACHED_MAX_KEY, "%s.%" PRIuMAX, trx->memcached_wkey, time_cluster-1);
 			if ((wgtid = memcached_get(trx->memc,  k, len, &wgtid_len, &flags, &rc1)) && rc1 == MEMCACHED_SUCCESS) {
 				uintmax_t num = strtoumax(wgtid, NULL, 10);
@@ -2191,6 +2201,7 @@ mysqlnd_ms_cs_ss_gtid_increment_running(struct st_mysqlnd_ms_global_trx_injectio
 			} else {
 				DBG_INF_FMT("Previous counter not found for key %s", k);
 			}
+			if (wgtid) free(wgtid);
 		}
 	}
 	DBG_INF_FMT("ret=%d last key %s returned value=%" PRIuMAX, rc, k, *value);
