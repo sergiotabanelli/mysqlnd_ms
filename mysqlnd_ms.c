@@ -260,8 +260,8 @@ mysqlnd_ms_unset_tx(MYSQLND_CONN_DATA * proxy_conn, zend_bool commit TSRMLS_DC)
 		conn_data = proxy_conn_data;
 	}
 	if (conn_data && *conn_data) {
-		if (CONN_DATA_TRX_SET(conn_data) && TRUE == commit && TRUE == (*conn_data)->stgy.in_transaction  && (*conn_data)->global_trx.is_master) {
-			enum_func_status jret = MYSQLND_MS_GTID_CALL_PASS((*conn_data)->global_trx.m->gtid_inject_after, conn, ret TSRMLS_CC);
+		if (CONN_DATA_TRX_SET(conn_data) && TRUE == commit && TRUE == (*proxy_conn_data)->stgy.in_transaction  && (*conn_data)->global_trx.is_master) {
+			enum_func_status jret = MYSQLND_MS_GTID_CALL_PASS((*conn_data)->global_trx.m->gtid_inject_after, conn, (ret == PASS && commit == TRUE ? PASS : FAIL) TSRMLS_CC);
 			MYSQLND_MS_INC_STATISTIC((PASS == jret) ? MS_STAT_GTID_COMMIT_SUCCESS : MS_STAT_GTID_COMMIT_FAILURE);
 			if (FAIL == jret) {
 				if (TRUE == (*conn_data)->global_trx.report_error) {
@@ -5179,8 +5179,9 @@ mysqlnd_ms_tx_commit_or_rollback(MYSQLND_CONN_DATA * proxy_conn, zend_bool commi
 		(*conn_data)->skip_ms_calls = skip_ms_calls;
 		//BEGIN HACK
 //		if (ret == PASS && CONN_DATA_TRX_SET(conn_data) && TRUE == commit && TRUE == (*conn_data)->stgy.in_transaction && FALSE == (*conn_data)->global_trx.stop_inject) {
-		if (CONN_DATA_TRX_SET(conn_data) && TRUE == commit && TRUE == (*conn_data)->stgy.in_transaction  && (*conn_data)->global_trx.is_master) {
-			enum_func_status jret = (*conn_data)->global_trx.m->gtid_inject_after(conn, ret TSRMLS_CC);
+		DBG_INF_FMT("commit=%d in_transaction=%d is_master=%d", commit, (*proxy_conn_data)->stgy.in_transaction, (*conn_data)->global_trx.is_master);
+		if (CONN_DATA_TRX_SET(conn_data) && TRUE == (*proxy_conn_data)->stgy.in_transaction  && (*conn_data)->global_trx.is_master) {
+			enum_func_status jret = MYSQLND_MS_GTID_CALL_PASS((*conn_data)->global_trx.m->gtid_inject_after, conn, (ret == PASS && commit == TRUE ? PASS : FAIL) TSRMLS_CC);
 			if (ret == PASS) {
 				MYSQLND_MS_INC_STATISTIC((PASS == jret) ? MS_STAT_GTID_COMMIT_SUCCESS : MS_STAT_GTID_COMMIT_FAILURE);
 				if (FAIL == jret) {
