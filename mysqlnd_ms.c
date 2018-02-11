@@ -1758,7 +1758,7 @@ mysqlnd_ms_cs_ss_gtid_decrement_running(struct st_mysqlnd_ms_global_trx_injectio
 		memcached_append(trx->memc, k, len, v, vl, (time_t)trx->running_ttl, (uint32_t)0);
 	}*/
 	DBG_INF_FMT("ret=%d decrement last key %s returned value=%" PRIuMAX, rc, k, *value);
-	if (trx->auto_clean && trx->owned_token) {
+	if (trx->auto_clean && trx->owned_token > 1) {
 		/* in auto_clean mode, a not present key means that the write with trx->owned_token - 1 is still writing its key which is not needed any more.
 		 * so we add the key to signal that it must be deleted instead off added (see also mysqlnd_ms_cs_ss_gtid_increment_running).
 		 */
@@ -2176,6 +2176,7 @@ mysqlnd_ms_cs_ss_gtid_increment_running(struct st_mysqlnd_ms_global_trx_injectio
 					*value = GTID_RUNNING_HACK_COUNTER;
 				}
 				if (wgtid) free(wgtid);
+				wgtid = NULL;
 			}
 		}
 		if (rc != MEMCACHED_SUCCESS) {
@@ -2354,7 +2355,7 @@ mysqlnd_ms_cs_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, const 
 #endif
 								continue;
 							}
-							php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " DEBUG WARNING: Wait running token %d", totalr_time);
+							php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " DEBUG WARNING: Wait running token %d %s", totalr_time, wgtid);
 						}
 					} else  if (rc == MEMCACHED_SUCCESS) {
 						php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Something wrong: not a recognized value for key %s value %s", ot, wgtid);
