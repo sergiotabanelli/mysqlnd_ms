@@ -2333,7 +2333,7 @@ mysqlnd_ms_cs_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, const 
 #endif
 								continue;
 							}
-							php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " DEBUG WARNING: Wait wait token %d", totalw_time);
+							//php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " DEBUG WARNING: Wait wait token %d", totalw_time);
 							if (waitr_time) {
 								MS_TIME_SET(runr_time);
 							}
@@ -2355,7 +2355,7 @@ mysqlnd_ms_cs_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, const 
 #endif
 								continue;
 							}
-							php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " DEBUG WARNING: Wait running token %d %s", totalr_time, wgtid);
+							//php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " DEBUG WARNING: Wait running token %d %s", totalr_time, wgtid);
 						}
 					} else  if (rc == MEMCACHED_SUCCESS) {
 						php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Something wrong: not a recognized value for key %s value %s", ot, wgtid);
