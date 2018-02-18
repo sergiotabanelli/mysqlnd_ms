@@ -1,11 +1,11 @@
 # Introduction
-The mymysqlnd\_ms is a fork of the mysqlnd replication and load balancing plugin \(mysqlnd\_ms\) it adds easy to use MySQL replication support to all PHP MySQL extensions that use mysqlnd. Most of the mymysqlnd\_ms changes are in [Global transaction IDs](REF:CONCEPTS) and session consistency implementation of the Quality Of Service [filter](REF:CONCEPTS). The mymysqlnd\_ms plugin has been tested on PHP5.x \(5.5, 5.6\) and PHP7.x \(7.0, 7.1, 7.2\) with no ZTS and ONLY ON LINUX \(centos 6 but i hope it works on any linux distribution\). Requires libxm2 and libmemcached.
+The `mymysqlnd_ms` is a fork of the mysqlnd replication and load balancing plugin (`mysqlnd_ms`) it adds easy to use MySQL replication support to all PHP MySQL extensions that use mysqlnd. Most of the `mymysqlnd_ms` changes are in [Global transaction IDs](REF:CONCEPTS) and session consistency implementation of the Quality Of Service [service level and consistency](REF:CONCEPTS). The `mymysqlnd_ms` plugin has been tested on PHP5.x (5.5, 5.6) and PHP7.x (7.0, 7.1, 7.2) with no ZTS and ONLY ON LINUX (centos 6 but i hope it works on any linux distribution). Requires libxm2 and libmemcached.
 
-As of version PHP 5.3.3 the MySQL native driver for PHP \(mysqlnd\) features an internal plugin C API. C plugins, such as the replication and load balancing plugin, can extend the functionality of mysqlnd.
+As of version PHP 5.3.3 the MySQL native driver for PHP (mysqlnd) features an internal plugin C API. C plugins, such as the replication and load balancing plugin, can extend the functionality of mysqlnd.
 
-The MySQL native driver for PHP is a C library that ships together with PHP as of PHP 5.3.0. It serves as a drop-in replacement for the MySQL Client Library \(libmysqlclient\). Using mysqlnd has several advantages: no extra downloads are required because it's bundled with PHP, it's under the PHP license, there is lower memory consumption in certain cases, and it contains new functionality such as asynchronous queries.
+The MySQL native driver for PHP is a C library that ships together with PHP as of PHP 5.3.0. It serves as a drop-in replacement for the MySQL Client Library (libmysqlclient). Using mysqlnd has several advantages: no extra downloads are required because it's bundled with PHP, it's under the PHP license, there is lower memory consumption in certain cases, and it contains new functionality such as asynchronous queries.
 
-Mysqlnd plugins like mymysqlnd\_ms operate, for the most part, transparently from a user perspective. The replication and load balancing plugin supports all PHP applications, and all MySQL PHP extensions. It does not change existing APIs. Therefore, it can easily be used with existing PHP applications.
+Mysqlnd plugins like `mymysqlnd_ms` operate, for the most part, transparently from a user perspective. The replication and load balancing plugin supports all PHP applications, and all MySQL PHP extensions. It does not change existing APIs. Therefore, it can easily be used with existing PHP applications.
 
 ## Key Features
 The key features of mymysqlnd\_ms are as follows.
@@ -59,11 +59,9 @@ The key features of mymysqlnd\_ms are as follows.
      * Experimental support for MySQL Fabric is included.
 
 ## Limitations
-The built-in read-write-split mechanism is very basic. By default, every query which starts with SELECT is considered a read request to be sent to a MySQL slave server. All other queries (such as SHOW statements) are considered as write requests that are sent to the MySQL master server. The build-in behavior can be overruled using SQL hints, or a user-defined callback function or with the new [mysqlnd_ms.master_on](REFA:INSTALLING-CONFIGURING/RUNTIME-CONFIGURATION.md)
+The built-in read-write-split mechanism is very basic. By default, every query which starts with SELECT is considered a read request to be sent to a MySQL slave server. All other queries (such as SHOW statements) are considered as write requests that are sent to the MySQL master server. The build-in behavior can be overruled using SQL hints, or a user-defined callback function or with the new [mysqlnd_ms.master_on](REFA:INSTALLING-CONFIGURING/RUNTIME-CONFIGURATION.md) ini directive
 
-The read-write splitter is not aware of multi-statements. Multi-statements are considered as one statement. The decision of where to run the statement will be based on the beginning of the statement string. For example, if using mysqli_multi_query() to execute the multi-statement SELECT id FROM test ; INSERT INTO test(id) VALUES (1), the statement will be redirected to a slave server because it begins with SELECT. The INSERT statement, which is also part of the multi-statement, will not be redirected to a master server.
+The read-write splitter is not aware of multi-statements. Multi-statements are considered as one statement. The decision of where to run the statement will be based on the beginning of the statement string. For example, if using `mysqli_multi_query()` to execute the multi-statement `SELECT id FROM test ; INSERT INTO test(id) VALUES (1)`, the statement will be redirected to a slave server because it begins with `SELECT`. The `INSERT` statement, which is also part of the multi-statement, will not be redirected to a master server.
 
-> Note: 
->
-> Applications must be aware of the consequences of connection switches that are performed for load balancing purposes. Please check the documentation on [Connection pooling and switching](REF:CONCEPTS), [Local transaction handling](REF:CONCEPTS), [Failover](REF:CONCEPTS), [Load balancing](REF:CONCEPTS) and [Read-write splitting](REF:CONCEPTS).
+> NOTE: Applications must be aware of the consequences of connection switches that are performed for load balancing purposes. Please check the documentation on [Connection pooling and switching](REF:CONCEPTS), [Local transaction handling](REF:CONCEPTS), [Failover](REF:CONCEPTS), [Load balancing](REF:CONCEPTS) and [Read-write splitting](REF:CONCEPTS).
 
