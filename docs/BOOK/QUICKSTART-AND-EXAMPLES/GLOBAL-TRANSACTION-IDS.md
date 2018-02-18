@@ -8,7 +8,7 @@
 
 As of MySQL 5.6.5 the MySQL server features built-in global transaction identifiers (GTID). However the feature set found in MySQL < 5.7.6 was not enough to support an effective server side consistency enforcing.
 
-Starting from MySQL 5.7.6 the MySQL server features the [session-track-gtids](https://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html#sysvar_session_track_gtids) system variable, which, if set, will allow a client to be aware of GTID assigned by MySQL to an executed transaction. This will allow the plugin to support effective server side GTIDs consistency scenarios without the need of client side GTID emulation. This is a big advantage in terms of safeness and  write loads. Indeed the **client side emulation** add an SQL write for every explicit transaction and, in autocommit mode, for every query not evaluated as read-only, that is, in default configuration, on every non `SELECT` query. Potentialy there are some tricks to reduce writes due to GTID client side emulation, but, IMHO, use of server side GTID is far more better.    
+Starting from MySQL 5.7.6 the MySQL server features the [session-track-gtids](https://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html#sysvar_session_track_gtids) system variable, which, if set, will allow a client to be aware of GTID assigned by MySQL to an executed transaction. This will allow the plugin to support effective server side GTIDs consistency scenarios without the need of client side GTID emulation. This is a big advantage in terms of safeness and  write loads. Indeed the **client side emulation** add an SQL write for every explicit transaction and, in autocommit mode, for every query not evaluated as read-only, that is, in default configuration, on every non `SELECT` query. Potentially there are some tricks to reduce writes due to GTID client side emulation, but, IMHO, use of server side GTID is far more better.    
 
 The `mymysqlnd_ms` plugin can either use the global transaction ID feature built-in to MySQL >= 5.7.6 or its own global transaction ID emulation. It use GTIDs to enforce three types of session consistency (see also [service level and consistency](REF:../CONCEPTS)).
 
@@ -351,6 +351,14 @@ printf("GTID after transaction %s\n", mysqlnd_ms_get_last_gtid($mysqli));
 Previous example prints GTIDs belonging to the `DROP TABLE IF EXISTS test` and `CREATE TABLE test(id INT)` write queries.
 
 ###### Error reporting
+Errors occurred during GTID injection are by default reported as warnings. The [report_error](REFA:../PLUGIN-CONFIGURATION-FILE.md) directive will force the plugin to report as errors instead of warnings.
 
-Enable reporting of errors that may occur when mysqlnd_ms does global transaction ID injection.
-
+```
+   ...
+	"global_transaction_id_injection": {
+	    ...
+       "report_error": 1,
+	    ...
+	}
+	...
+```
