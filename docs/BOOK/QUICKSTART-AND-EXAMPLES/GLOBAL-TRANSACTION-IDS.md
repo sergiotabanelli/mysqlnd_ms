@@ -1,6 +1,6 @@
 # Global transaction IDs
 
->NOTE: Together with strictly related [service level and consistency](REF:../CONCEPTS) the [global transaction IDs](REF:../CONCEPTS) feature is one of the most changed areas of the  `mymysqlnd_ms` fork. Functionlities like [server side read consistency](REFA:GLOBAL-TRANSACTION-IDS.md) and [server side write consistency](REFA:GLOBAL-TRANSACTION-IDS.md) allow transparent migration to MySQL clusters in almost all use cases with no or at most extremely small effort and application changes.
+>NOTE: Together with strictly related [service level and consistency](REF:../CONCEPTS) the [global transaction IDs](REF:../CONCEPTS) feature is one of the most changed areas of the  `mymysqlnd_ms` fork. Functionlities like [server side read consistency](REFA:SERVICE-LEVEL-AND-CONSISTENCY.md) and [server side write consistency](REFA:SERVICE-LEVEL-AND-CONSISTENCY.md) allow transparent migration to MySQL clusters in almost all use cases with no or at most extremely small effort and application changes.
 
 >The code should be considered of beta quality. We use it in our restricted intranet production enviroment, but we are the developers so, if we find bugs, we can patch our code as soon as possible. This feature is not required for synchronous clusters, such as MySQL Cluster.
 

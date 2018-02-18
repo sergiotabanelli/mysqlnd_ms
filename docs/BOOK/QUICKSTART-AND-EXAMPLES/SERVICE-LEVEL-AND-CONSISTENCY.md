@@ -1,6 +1,5 @@
 # Service level and consistency
-
->NOTE: Together with strictly related [global transaction IDs](REF:../CONCEPTS), the [service level and consistency](REF:../CONCEPTS) feature is one of the most changed areas of the `mymysqlnd_ms` fork. Functionlities like [server side read consistency](REFA:) and [server side write consistency](REFA:) allow transparent migration to MySQL clusters in almost all use cases with no or at most extremely small effort and application changes.
+>NOTE: Together with strictly related [global transaction IDs](REF:../CONCEPTS), the [service level and consistency](REF:../CONCEPTS) feature is one of the most changed areas of the `mymysqlnd_ms` fork. Functionalities like [server side read consistency](REFA:) and [server side write consistency](REFA:) allow transparent migration to MySQL clusters in almost all use cases with no or at most extremely small effort and application changes.
 
 >The code should be considered of beta quality. We use it in our restricted intranet production enviroment, but we are the developers so, if we find bugs, we can patch our code almost as soon as possible. This feature is not required for synchronous clusters, such as MySQL Cluster.
 
@@ -17,7 +16,7 @@ In read and write consistency `mymysqlnd_ms` takes the role of context coordinat
 ### Server side read consistency
 **[Requires MySQL >= 5.7.6 with --session-track-gtids=OWN_GTID](https://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html#sysvar_session_track_gtids)**.
 
-A read consistency context is a set of application reads made by a context participant that must always at least run against previous writes made by all other context participants. The `mymysqlnd_ms` plugin can transparently enforce this type of read consistency: 
+A read context partition is a set of application reads made by a context participant that must always at least run against previous writes made by all other context participants. The `mymysqlnd_ms` plugin can transparently enforce this type of read consistency: 
 * Reads belonging to a context partition can safely run only on cluster nodes that has already replicated all previous same context partition writes. 
 * Reads belonging to a context partition can safely run on cluster nodes that still has not replicated writes from all other contexts.
 
