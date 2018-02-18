@@ -220,15 +220,3 @@ MYSQLND_MS_STRONG_SWITCH "ms=strong": Switch to qos strong consistency
 MYSQLND_MS_SESSION_SWITCH "ms=session": Switch to qos session consistency
 MYSQLND_MS_EVENTUAL_SWITCH "ms=eventual": Switch to qos eventual consistency
 
-POSSIBLE FUTURE CHANGES (ANY SUGGESTIONS OR HINTS???)
------------------------------------------------------
-
----> Add fabric master slave group initialization. Actually fabric support is focused on shards, but fabric can be used also to initialize master slave groups on extension startup.
-
----> Port to php7 and add some phpt test automation. 
-
----> Take a look at statistics counters.
-
----> Add a new "slave_on" INI directive as an alternative to "master_on" INI directive.
-
----> Add a new "all_on" INI directive to dispatch query to all nodes on the cluster.
