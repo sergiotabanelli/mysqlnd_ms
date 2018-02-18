@@ -1,5 +1,5 @@
 # Service level and consistency
->NOTE: Together with strictly related [global transaction IDs](REF:../CONCEPTS), the [service level and consistency](REF:../QUICKSTART-AND-EXAMPLES.md) feature is one of the most changed areas of the `mymysqlnd_ms` fork. Functionalities like [server side read consistency](REFA:) and [server side write consistency](REFA:) allow transparent migration to MySQL clusters in almost all use cases with no or at most extremely small effort and application changes.
+>NOTE: Together with strictly related [global transaction IDs](REF:../CONCEPTS), the [service level and consistency](../QUICKSTART-AND-EXAMPLES/SERVICE-LEVEL-AND-CONSISTENCY.md) feature is one of the most changed areas of the `mymysqlnd_ms` fork. Functionalities like [server side read consistency](REFA:) and [server side write consistency](REFA:) allow transparent migration to MySQL clusters in almost all use cases with no or at most extremely small effort and application changes.
 
 Different types of MySQL cluster solutions offer different service and data consistency levels to their users. Any asynchronous MySQL replication cluster offers eventual consistency by default. A read executed on an asynchronous slave may return current, stale or no data at all, depending on whether the slave has replayed all changesets from master or not.
 
