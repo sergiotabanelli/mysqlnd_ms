@@ -61,6 +61,8 @@ In server side write consistency a context partition state is composed by a runn
 6. The associated GTID is written as current state for the query id and the running counter is atomically decremented.
 7. if [auto_clean](REFA:../PLUGIN-CONFIGURATION-FILE.md) directive is active the state of the previous write query (id - 1) is deleted from the state store.
 
+In non autocommit mode step 1 to 5 is executed on transaction init, step 6 and 7 when transaction ends.
+
 ##### Performance considerations
 
 ### Client side read consistency
