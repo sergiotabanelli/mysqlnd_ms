@@ -25,7 +25,7 @@ Any suggestions or comments are very welcome.
 >**DOCUMENTATION IS SLIGHTLY DIFFERNET FROM ORIGINAL ONE AND IT IS STILL NOT READY, YOU CAN FIND IT STARTING FROM [DOCS](docs/BOOK.md) DIRECTORY**
 
 
->**WORK IN PROGESS**
+>**WORK IN PROGRESS**
 ## PHP7.x porting
 The mymysqlnd_ms extension has been tested on PHP5.x \(5.5, 5.6\) and PHP7.x \(7.0, 7.1, 7.2\) with no ZTS and ONLY ON LINUX \(centos 6 but i hope it works on any linux distribution\). Requires libxm2 and libmemcached. 
 
