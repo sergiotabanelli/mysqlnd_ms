@@ -10,7 +10,7 @@
      * [Global transaction IDs](BOOK/QUICKSTART-AND-EXAMPLES/GLOBAL-TRANSACTION-IDS.md)
      * [Cache integration](BOOK/QUICKSTART-AND-EXAMPLES/CACHE-INTEGRATION.md)
      * [Failover](BOOK/QUICKSTART-AND-EXAMPLES/FAILOVER.md)
-     * [Partitioning and Sharding](REF:)
+     * [Partitioning and Sharding](BOOK/QUICKSTART-AND-EXAMPLES/PARTITIONING-AND-SHARDING.md)
      * [MySQL Fabric](BOOK/QUICKSTART-AND-EXAMPLES/MYSQL-FABRIC.md)
 * [Concepts](BOOK/CONCEPTS.md)
      * [Architecture](REF:)

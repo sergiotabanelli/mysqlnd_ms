@@ -10,7 +10,7 @@
 * [Global transaction IDs](QUICKSTART-AND-EXAMPLES/GLOBAL-TRANSACTION-IDS.md)
 * [Cache integration](QUICKSTART-AND-EXAMPLES/CACHE-INTEGRATION.md)
 * [Failover](QUICKSTART-AND-EXAMPLES/FAILOVER.md)
-* [Partitioning and Sharding](REF:)
+* [Partitioning and Sharding](QUICKSTART-AND-EXAMPLES/PARTITIONING-AND-SHARDING.md)
 * [MySQL Fabric](QUICKSTART-AND-EXAMPLES/MYSQL-FABRIC.md)
 
 The mysqlnd replication load balancing plugin is easy to use. This quickstart will demo typical use-cases, and provide practical advice on getting started.
