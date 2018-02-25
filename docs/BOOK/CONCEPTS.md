@@ -9,7 +9,7 @@
 * [Load balancing](REF:)
 * [Read-write splitting](REF:)
 * [Filter](REF:)
-* [Service level and consistency](REF:)
+* [Service level and consistency](CONCEPTS/SERVICE-LEVEL-AND-CONSISTENCY.md)
 * [Global transaction IDs](REF:)
 * [Cache integration](REF:)
 * [Supported clusters](REF:)

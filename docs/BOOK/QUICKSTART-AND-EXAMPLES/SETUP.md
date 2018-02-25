@@ -77,4 +77,3 @@ The MySQL master and MySQL slave servers, which you configure, do not need to be
     }
 }
 ```
-The plugin attempts to notify you of invalid configurations. It will throw a warning during PHP startup if the configuration file cannot be read, is empty or parsing the JSON failed. Depending on your PHP settings those errors may appear in some log files only. Further validation is done when a connection is to be established and the configuration file is searched for valid sections. Setting [mysqlnd_ms.force_config_usage](REFA:../INSTALLING-CONFIGURING/RUNTIME-CONFIGURATION.md) may help debugging a faulty setup.

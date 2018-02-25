@@ -59,4 +59,4 @@ The next statement is `SELECT @myrole AS _role`. The plugin recognize it as a re
 
 It is the responsibility of the application developer to take care of the connection state. The plugin does not monitor all connection state changing activities. Monitoring all possible cases would be a very CPU intensive task, if it could be done at all.
 
-The pitfalls can easily be worked around using [SQL Hints](REF:).
+The pitfalls can easily be worked around using [SQL Hints](SQL-HINTS.md).

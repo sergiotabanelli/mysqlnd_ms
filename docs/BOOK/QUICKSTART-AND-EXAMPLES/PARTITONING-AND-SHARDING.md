@@ -7,7 +7,7 @@ The `mymysqlnd_ms` plugin aims to support a wide variety of MySQL database clust
 
 MySQL Replication supports partitioning as filters that allow you to create slaves that replicate all or specific databases of the master, or tables. It is then in the responsibility of the application to choose a slave according to the filter rules. You can either use the `mymysqlnd_ms` [node_groups](REFA:../PLUGIN-CONFIGURATION-FILE.md) filter to manually support this, or use the experimental table filter.
 
-Manual partitioning or sharding is supported through the node grouping filter, and [SQL hints](REF:). The [node_groups](REFA:../PLUGIN-CONFIGURATION-FILE.md) filter lets you assign a symbolic name to a group of master and slave servers. In the example, the master `master_0` and `slave_0` form a group with the name `Partition_A`. It is entirely up to you to decide what makes up a group. For example, you may use node groups for sharding, and use the group names to address shards like `Shard_A_Range_0_100`.
+Manual partitioning or sharding is supported through the node grouping filter, and [SQL hints](SQL-HINTS.md). The [node_groups](REFA:../PLUGIN-CONFIGURATION-FILE.md) filter lets you assign a symbolic name to a group of master and slave servers. In the example, the master `master_0` and `slave_0` form a group with the name `Partition_A`. It is entirely up to you to decide what makes up a group. For example, you may use node groups for sharding, and use the group names to address shards like `Shard_A_Range_0_100`.
 
 Configuration #1 Cluster node groups
 

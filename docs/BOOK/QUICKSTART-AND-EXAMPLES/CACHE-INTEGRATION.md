@@ -1,9 +1,9 @@
 # Cache integration
 >Note: Please, find more about version requirements, extension load order dependencies and the current status in the concepts section!
 
-Databases clusters can deliver different levels of consistency. It is possible to advice the plugin to consider only cluster nodes that can deliver the consistency level requested. For example, if using asynchronous MySQL Replication with its cluster-wide eventual consistency, it is possible to request session consistency (read your writes) at any time using [mysqlnd_ms_set_qos](REF:../MYSQLND_MS-FUNCTIONS/) (see [service level and consistency](REF:)).
+Databases clusters can deliver different levels of consistency. It is possible to advice the plugin to consider only cluster nodes that can deliver the consistency level requested. For example, if using asynchronous MySQL Replication with its cluster-wide eventual consistency, it is possible to request session consistency (read your writes) at any time using [mysqlnd_ms_set_qos](REF:../MYSQLND_MS-FUNCTIONS/) (see [service level and consistency](SERVICE-LEVEL-AND-CONSISTENCY.md)).
 
-Assuming `mymysqlnd` has been explicitly told to deliver no consistency level higher than eventual consistency, it is possible to replace a database node read access with a client-side cache using time-to-live (TTL) as its invalidation strategy. Both the database node and the cache may or may not serve current data as this is what eventual consistency defines (see [service level and consistency](REF:)).
+Assuming `mymysqlnd` has been explicitly told to deliver no consistency level higher than eventual consistency, it is possible to replace a database node read access with a client-side cache using time-to-live (TTL) as its invalidation strategy. Both the database node and the cache may or may not serve current data as this is what eventual consistency defines (see [service level and consistency](SERVICE-LEVEL-AND-CONSISTENCY.md)).
 
 Replacing a database node read access with a local cache access can improve overall performance and lower the database load. If the cache entry is every reused by other clients than the one creating the cache entry, a database access is saved and thus database load is lowered. Furthermore, system performance can become better if computation and delivery of a database query is slower than a local cache access.
 
@@ -139,4 +139,3 @@ var_dump($res->fetch_assoc());
 ?>
 ```
 
-The quality of service can be changed at any time to avoid further cache usage. If needed, you can switch to read your writes (session consistency). In that case, the cache will not be used and fresh data is read.
