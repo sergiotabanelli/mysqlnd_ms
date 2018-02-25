@@ -1,6 +1,8 @@
 # mymysqlnd_ms
 This is a fork of the mysqlnd replication and load balancing plugin pecl extension (mysqlnd_ms http://php.net/manual/en/book.mysqlnd-ms.php). 
 
+>**DOCUMENTATION IS SLIGHTLY DIFFERNET FROM ORIGINAL ONE AND IT IS STILL NOT READY, YOU CAN FIND IT STARTING FROM [DOCS](docs/BOOK.md) DIRECTORY**
+
 # MAJOR CHANGES
 Most changes are in global transaction GTID injection implementation (see: http://php.net/manual/en/mysqlnd-ms.quickstart.gtid.php) and session consistency implementation of the Quality Of Service filter (see: http://php.net/manual/en/mysqlnd-ms.qos-consistency.php).
 
