@@ -4,7 +4,7 @@ This is a fork of the mysqlnd replication and load balancing plugin pecl extensi
 >**DOCUMENTATION IS SLIGHTLY DIFFERNET FROM ORIGINAL ONE AND IT IS STILL NOT READY, YOU CAN FIND IT STARTING FROM [DOCS](docs/BOOK.md) DIRECTORY**
 
 # MAJOR CHANGES
-Most changes are in global transaction GTID injection implementation (see: http://php.net/manual/en/mysqlnd-ms.quickstart.gtid.php) and session consistency implementation of the Quality Of Service filter (see: http://php.net/manual/en/mysqlnd-ms.qos-consistency.php).
+Most changes are in [Global transaction IDs](docs/BOOK/QUICKSTART-AND-EXAMPLES/GLOBAL-TRANSACTION-IDS.md) injection implementation and session consistency implementation of the [Quality Of Service filter](docs/BOOK/QUICKSTART-AND-EXAMPLES/SERVICE-LEVEL-AND-CONSISTENCY.md).
 
 * PHP7.x porting
 * New QOS session consinstency and transaction id injection
