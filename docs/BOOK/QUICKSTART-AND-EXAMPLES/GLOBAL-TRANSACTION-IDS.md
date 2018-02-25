@@ -1,6 +1,6 @@
 # Global transaction IDs
 
->NOTE: Together with strictly related [service level and consistency](REF:../CONCEPTS) the [global transaction IDs](REF:../CONCEPTS) feature is one of the most changed areas of the  `mymysqlnd_ms` fork. Functionlities like [server side read consistency](REFA:SERVICE-LEVEL-AND-CONSISTENCY.md) and [server side write consistency](REFA:SERVICE-LEVEL-AND-CONSISTENCY.md) allow transparent migration to MySQL clusters in almost all use cases with no or at most extremely small effort and application changes.
+>NOTE: Together with strictly related [service level and consistency](REF:../CONCEPTS/) the [global transaction IDs](REF:../CONCEPTS/) feature is one of the most changed areas of the  `mymysqlnd_ms` fork. Functionlities like [server side read consistency](REFA:SERVICE-LEVEL-AND-CONSISTENCY.md) and [server side write consistency](REFA:SERVICE-LEVEL-AND-CONSISTENCY.md) allow transparent migration to MySQL clusters in almost all use cases with no or at most extremely small effort and application changes.
 
 >The code should be considered of beta quality. We use it in our restricted intranet production enviroment, but we are the developers so, if we find bugs, we can patch our code as soon as possible. This feature is not required for synchronous clusters, such as MySQL Cluster.
 
@@ -10,7 +10,7 @@ As of MySQL 5.6.5 the MySQL server features built-in global transaction identifi
 
 Starting from MySQL 5.7.6 the MySQL server features the [session-track-gtids](https://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html#sysvar_session_track_gtids) system variable, which, if set, will allow a client to be aware of GTID assigned by MySQL to an executed transaction. This will allow the plugin to support effective server side GTIDs consistency scenarios without the need of client side GTID emulation. This is a big advantage in terms of safeness and  write loads. Indeed the **client side emulation** add an SQL write for every explicit transaction and, in autocommit mode, for every query not evaluated as read-only, that is, in default configuration, on every non `SELECT` query. Potentially there are some tricks to reduce writes due to GTID client side emulation, but, IMHO, use of server side GTID is far more better.    
 
-The `mymysqlnd_ms` plugin can either use the global transaction ID feature built-in to MySQL >= 5.7.6 or its own global transaction ID emulation. It use GTIDs to enforce three types of session consistency (see also [service level and consistency](REF:../CONCEPTS)).
+The `mymysqlnd_ms` plugin can either use the global transaction ID feature built-in to MySQL >= 5.7.6 or its own global transaction ID emulation. It use GTIDs to enforce three types of session consistency (see also [service level and consistency](REF:../CONCEPTS)/).
 
 ### Session consistency configuration directives
 The [global_transaction_id_injection](REFA:../PLUGIN-CONFIGURATION-FILE.md) section must include all configurations data needed by the QOS filter to enforce session consitency. 
@@ -39,7 +39,7 @@ Placeholders are reserved tokens used in configuration values of the [memcached_
 ### Server side GTIDs
 **[Requires MySQL >= 5.7.6 with --session-track-gtids=OWN_GTID](https://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html#sysvar_session_track_gtids)**.
 
-To use server side gtids you must set the [type](REFA:../PLUGIN-CONFIGURATION-FILE.md) directive to value 2 or 3 depending on you cluster type and desired [service level and consistency](REF:../CONCEPTS). 
+To use server side gtids you must set the [type](REFA:../PLUGIN-CONFIGURATION-FILE.md) directive to value 2 or 3 depending on you cluster type and desired [service level and consistency](REF:../CONCEPTS/). 
 
 Configuration #1 Server side read consistency
 
@@ -321,9 +321,9 @@ The [fetch_last_gtid](REFA:../PLUGIN-CONFIGURATION-FILE.md) is used to retrive l
 In previous example, GTID table counter is relative to the user php `session_id` and `trx_id` counter is retrieved using a `WHERE` clause.
 
 ###### Obtaining GTID after injection
->NOTE: In `mymysqlnd_ms` fork the [mysqlnd_ms_get_last_gtid](REF:../MYSQLND_MS-FUNCTIONS) is of little or no use, the plugin transparently enforce the configured [service level and consistency](REF:) and does not need that applications set the GTID returned by [mysqlnd_ms_get_last_gtid](REF:../MYSQLND_MS-FUNCTIONS) as an option for the session consistency service level.
+>NOTE: In `mymysqlnd_ms` fork the [mysqlnd_ms_get_last_gtid](REF:../MYSQLND_MS-FUNCTIONS/) is of little or no use, the plugin transparently enforce the configured [service level and consistency](REF:) and does not need that applications set the GTID returned by [mysqlnd_ms_get_last_gtid](REF:../MYSQLND_MS-FUNCTIONS/) as an option for the session consistency service level.
 
-With the [mysqlnd_ms_get_last_gtid](REF:../MYSQLND_MS-FUNCTIONS) applications can ask mymysqlnd_ms for the GTID which belongs to the last write operation performed by the application
+With the [mysqlnd_ms_get_last_gtid](REF:../MYSQLND_MS-FUNCTIONS/) applications can ask mymysqlnd_ms for the GTID which belongs to the last write operation performed by the application
 
 ```
 <?php

@@ -1,7 +1,7 @@
 # Cache integration
 >Note: Please, find more about version requirements, extension load order dependencies and the current status in the concepts section!
 
-Databases clusters can deliver different levels of consistency. It is possible to advice the plugin to consider only cluster nodes that can deliver the consistency level requested. For example, if using asynchronous MySQL Replication with its cluster-wide eventual consistency, it is possible to request session consistency (read your writes) at any time using [mysqlnd_ms_set_qos](REF:../MYSQLND_MS-FUNCTIONS) (see [service level and consistency](REF:)).
+Databases clusters can deliver different levels of consistency. It is possible to advice the plugin to consider only cluster nodes that can deliver the consistency level requested. For example, if using asynchronous MySQL Replication with its cluster-wide eventual consistency, it is possible to request session consistency (read your writes) at any time using [mysqlnd_ms_set_qos](REF:../MYSQLND_MS-FUNCTIONS/) (see [service level and consistency](REF:)).
 
 Assuming `mymysqlnd` has been explicitly told to deliver no consistency level higher than eventual consistency, it is possible to replace a database node read access with a client-side cache using time-to-live (TTL) as its invalidation strategy. Both the database node and the cache may or may not serve current data as this is what eventual consistency defines (see [service level and consistency](REF:)).
 
@@ -71,9 +71,9 @@ var_dump($res->fetch_assoc());
 $res = $mysqli->query("SELECT id FROM test");
 ?>
 ```
-The example shows how to use the cache feature. First, you have to set the quality of service to eventual consistency and explicitly allow for caching. This is done by calling [mysqlnd_ms_set_qos](REF:../MYSQLND_MS-FUNCTIONS). Then, the result set of every read-only statement is cached for upto that many seconds as allowed with [mysqlnd_ms_set_qos](REF:../MYSQLND_MS-FUNCTIONS).
+The example shows how to use the cache feature. First, you have to set the quality of service to eventual consistency and explicitly allow for caching. This is done by calling [mysqlnd_ms_set_qos](REF:../MYSQLND_MS-FUNCTIONS/). Then, the result set of every read-only statement is cached for upto that many seconds as allowed with [mysqlnd_ms_set_qos](REF:../MYSQLND_MS-FUNCTIONS/).
 
-The actual TTL is lower or equal to the value set with [mysqlnd_ms_set_qos](REF:../MYSQLND_MS-FUNCTIONS). The value passed to the function sets the maximum age (seconds) of the data delivered. To calculate the actual TTL value the replication lag on a slave is checked and subtracted from the given value. If, for example, the maximum age is set to 60 seconds and the slave reports a lag of 10 seconds the resulting TTL is 50 seconds. The TTL is calculated individually for every cached query.
+The actual TTL is lower or equal to the value set with [mysqlnd_ms_set_qos](REF:../MYSQLND_MS-FUNCTIONS/). The value passed to the function sets the maximum age (seconds) of the data delivered. To calculate the actual TTL value the replication lag on a slave is checked and subtracted from the given value. If, for example, the maximum age is set to 60 seconds and the slave reports a lag of 10 seconds the resulting TTL is 50 seconds. The TTL is calculated individually for every cached query.
 
 Example #2 Read your writes and caching combined
 

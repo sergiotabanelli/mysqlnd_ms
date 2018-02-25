@@ -1,5 +1,5 @@
 # Service level and consistency
->NOTE: Together with strictly related [global transaction IDs](REF:../CONCEPTS), the [service level and consistency](REF:../CONCEPTS) feature is one of the most changed areas of the `mymysqlnd_ms` fork. Functionalities like [server side read consistency](REFA:) and [server side write consistency](REFA:) allow transparent migration to MySQL clusters in almost all use cases with no or at most extremely small effort and application changes.
+>NOTE: Together with strictly related [global transaction IDs](REF:../CONCEPTS/), the [service level and consistency](REF:../CONCEPTS/) feature is one of the most changed areas of the `mymysqlnd_ms` fork. Functionalities like [server side read consistency](REFA:) and [server side write consistency](REFA:) allow transparent migration to MySQL clusters in almost all use cases with no or at most extremely small effort and application changes.
 
 >The code should be considered of beta quality. We use it in our restricted intranet production enviroment, but we are the developers so, if we find bugs, we can patch our code almost as soon as possible. This feature is not required for synchronous clusters, such as MySQL Cluster.
 
@@ -293,7 +293,7 @@ Configuration #5: Timeouts and failures
 In previous configuration, if no slave is found consistent, read queries will wait at most 4 seconds that at least one slave become consistent. Write queries will wait at most 10 seconds that the previous one same context write choose a consistent master. After timeouts and no consistent node has been found the plugin will add all masters. Further, if a crash happens after a same context write has chosen a master, the write context will remain sticky, to the crashed instance chosen master, for at most 2 minutes.
 
 ### Requesting configured session consistency
-Service levels can be set in the plugin configuration file and at runtime using [mysqlnd_ms_set_qos](REF:../MYSQLND_MS-FUNCTIONS). If you do not need session consistency for all your application but only for limited code sections, you should not configure the [quality_of_service](REFA:../PLUGIN-CONFIGURATION-FILE.md) filter with enabled [session_consistency](REFA:../PLUGIN-CONFIGURATION-FILE.md), but set it at run time only when needed. 
+Service levels can be set in the plugin configuration file and at runtime using [mysqlnd_ms_set_qos](REF:../MYSQLND_MS-FUNCTIONS/). If you do not need session consistency for all your application but only for limited code sections, you should not configure the [quality_of_service](REFA:../PLUGIN-CONFIGURATION-FILE.md) filter with enabled [session_consistency](REFA:../PLUGIN-CONFIGURATION-FILE.md), but set it at run time only when needed. 
 
 Example #1 Requesting configured session consistency
 
@@ -333,7 +333,7 @@ if (!$res = $mysqli->query("SELECT item, price FROM specials")) {
 }
 ?>
 ```
-In the example the [mysqlnd_ms_set_qos](REF:../MYSQLND_MS-FUNCTIONS) function is used to enforce session consistency for all future statements until further notice, the enforced consistency type depends on the configured [type](REFA:../PLUGIN-CONFIGURATION-FILE.md) directive. The `INSERT` and `SELECT` statement on the orders table run on nodes which ensure the write can be seen by the client. Read-write splitting logic has been adapted to fulfill the service level and configured consistency.
+In the example the [mysqlnd_ms_set_qos](REF:../MYSQLND_MS-FUNCTIONS/) function is used to enforce session consistency for all future statements until further notice, the enforced consistency type depends on the configured [type](REFA:../PLUGIN-CONFIGURATION-FILE.md) directive. The `INSERT` and `SELECT` statement on the orders table run on nodes which ensure the write can be seen by the client. Read-write splitting logic has been adapted to fulfill the service level and configured consistency.
 
 After the application has read its changes from the orders table it returns to the default service level, which is eventual consistency. Eventual consistency puts no restrictions on choosing a node for statement execution. Thus, the SELECT statement on the specials table is executed on any node.
 

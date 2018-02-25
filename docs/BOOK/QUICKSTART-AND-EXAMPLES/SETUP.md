@@ -1,5 +1,5 @@
 # Setup
-The plugin is implemented as a PHP extension. See also the [installation](REF:../INSTALLING-CONFIGURING) instructions to install the `mymysqlnd_ms` extension.
+The plugin is implemented as a PHP extension. See also the [installation](REF:../INSTALLING-CONFIGURING/) instructions to install the `mymysqlnd_ms` extension.
 
 Compile or configure the PHP MySQL extension (API) ([mysqli](http://php.net/manual/en/ref.mysqli.php), [mysql](http://php.net/manual/en/ref.mysql.php), [PDO_MYSQL](http://php.net/manual/en/ref.pdo-mysql.php)) that you plan to use with support for the [mysqlnd](http://php.net/manual/en/book.mysqlnd.php) library. `mymysqlnd_ms` is a plugin for the mysqlnd library. To use the plugin with any of the PHP MySQL extensions, the extension has to use the mysqlnd library.
 
@@ -13,7 +13,7 @@ The plugin uses its own configuration file. Use the PHP configuration directive 
 
 Create a plugin-specific configuration file. Save the file to the path set by the PHP configuration directive [mysqlnd_ms.config_file](REFA:../INSTALLING-CONFIGURING/RUNTIME-CONFIGURATION.md).
 
-The [plugin configuration file](REF:../) is JSON based. It is divided into one or more cluster sections. Each cluster section has a name, for example, `myapp`. Every cluster section makes its own set of configuration settings.
+The [plugin configuration file](REF:..//) is JSON based. It is divided into one or more cluster sections. Each cluster section has a name, for example, `myapp`. Every cluster section makes its own set of configuration settings.
 
 A section must, at a minimum, list the MySQL replication master server, and set a list of slaves. The plugin supports using only one master server per section. Multi-master MySQL replication setups are not yet fully supported. Use the configuration setting master to set the hostname, and the port or socket of the MySQL master server. MySQL slave servers are configured using the slave keyword.
 
@@ -52,7 +52,7 @@ Instead of using a global configuration file with multiple named cluster section
 }
 ```
 
-If in a configured cluster there are at least two servers, the plugin can start to load balance and switch connections. Switching connections is not always transparent and can cause issues in certain cases. The reference sections about [connection pooling and switching](REF:../CONCEPTS), [local transaction handling](REF:../CONCEPTS), [failover](REF:../CONCEPTS), [load balancing](REF:../CONCEPTS) and [read-write splitting](REF:../CONCEPTS) all provide more details. And potential pitfalls are described later in this guide.
+If in a configured cluster there are at least two servers, the plugin can start to load balance and switch connections. Switching connections is not always transparent and can cause issues in certain cases. The reference sections about [connection pooling and switching](REF:../CONCEPTS/), [local transaction handling](REF:../CONCEPTS/), [failover](REF:../CONCEPTS/), [load balancing](REF:../CONCEPTS/) and [read-write splitting](REF:../CONCEPTS/) all provide more details. And potential pitfalls are described later in this guide.
 
 It is the responsibility of the application to handle potential issues caused by connection switches, by configuring a master with at least one slave server, which allows switching to work therefore related problems can be found.
 

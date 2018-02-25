@@ -52,13 +52,13 @@ $pdo = new PDO('mysql:host=myapp;dbname=database', 'username', 'password');
 $mysql = mysql_connect("myapp", "username", "password");
 ?>
 ```
-The connection examples above will be load balanced. The plugin will send read-only statements (by default a read-only statement is a `SELECT` statement) to the MySQL slave server with the IP `192.168.2.27` port `3306`. All other statements will be directed to the MySQL master server running on the host `localhost` socket `/tmp/mysql.sock`. This is the defaut behaviour but the plugin [read-write splitting](REF:../CONCEPTS) logic can also be reversed and instructed to send statements specified in the [mysqlnd_ms.master_on](REFA:../INSTALLING-CONFIGURING/RUNTIME-CONFIGURATION.md) ini directive to the master/s and all other statements to the slave/s. 
+The connection examples above will be load balanced. The plugin will send read-only statements (by default a read-only statement is a `SELECT` statement) to the MySQL slave server with the IP `192.168.2.27` port `3306`. All other statements will be directed to the MySQL master server running on the host `localhost` socket `/tmp/mysql.sock`. This is the defaut behaviour but the plugin [read-write splitting](REF:../CONCEPTS/) logic can also be reversed and instructed to send statements specified in the [mysqlnd_ms.master_on](REFA:../INSTALLING-CONFIGURING/RUNTIME-CONFIGURATION.md) ini directive to the master/s and all other statements to the slave/s. 
 
 The plugin will use the user name `username` and the password `password` to connect to any of the MySQL servers listed in the configured cluster section myapp. Upon connect, the plugin will select `database` as the current schemata.
 
 The username, password and schema name are taken from the connect API calls and used for all servers. In other words: you must use the same username and password for every MySQL server listed in a plugin configuration file section. This is not a general limitation, it is possible to set the username and password for any server in the plugin configuration files, to be used instead of the credentials passed to the API call.
 
-The plugin does not change the API for running statements. [Read-write splitting](REF:../CONCEPTS) works out of the box. The following example assumes that there is no significant replication lag between the master and the slave.
+The plugin does not change the API for running statements. [Read-write splitting](REF:../CONCEPTS/) works out of the box. The following example assumes that there is no significant replication lag between the master and the slave.
 
 ###### Example 3
 ```

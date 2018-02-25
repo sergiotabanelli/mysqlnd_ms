@@ -1,7 +1,7 @@
 # Connection state
 The plugin changes the semantics of a PHP MySQL connection handle. A new connection handle represents a connection pool, instead of a single MySQL client-server network connection. At least the connection pool consists of as many connections as the number of configured masters plus the number o configured slaves.
 
-Every connection from the connection pool has its own state. For example, SQL user variables, temporary tables and transactions are part of the state. For a complete list of items that belong to the state of a connection, see the [Connection pooling and switching](REF:../CONCEPTS) concepts documentation. If the plugin decides to switch connections for load balancing, the application could be given a connection which has a different state. Applications must be made aware of this.
+Every connection from the connection pool has its own state. For example, SQL user variables, temporary tables and transactions are part of the state. For a complete list of items that belong to the state of a connection, see the [Connection pooling and switching](REF:../CONCEPTS/) concepts documentation. If the plugin decides to switch connections for load balancing, the application could be given a connection which has a different state. Applications must be made aware of this.
 
 ###### Configuration
 ```

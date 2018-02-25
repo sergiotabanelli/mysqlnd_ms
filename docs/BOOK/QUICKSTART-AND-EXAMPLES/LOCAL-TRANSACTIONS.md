@@ -3,7 +3,7 @@ The plugin is not transaction safe by default, because it is not aware of runnin
 
 No kind of MySQL load balancer can detect transaction boundaries without any kind of hint from the application.
 
-You can use SQL hints to work around this limitation or use the `mymysqlnd_ms` [mysqlnd_ms_set_trx](REF:../MYSQLND_MS-FUNCTIONS) and [mysqlnd_ms_unset_trx](REF:../MYSQLND_MS-FUNCTIONS) functions. Alternatively, you can activate transaction API call monitoring. In the latter case you must use API calls only to control transactions, see below.
+You can use SQL hints to work around this limitation or use the `mymysqlnd_ms` [mysqlnd_ms_set_trx](REF:../MYSQLND_MS-FUNCTIONS/) and [mysqlnd_ms_unset_trx](REF:../MYSQLND_MS-FUNCTIONS/) functions. Alternatively, you can activate transaction API call monitoring. In the latter case you must use API calls only to control transactions, see below.
 
 ###### Configuration 1
 ```
@@ -127,7 +127,7 @@ $mysqli->autocommit(true);
 $mysqli->close();
 ?>
 ```
-To explicitly mark transaction boundaries the `mymysqlnd_ms` [mysqlnd_ms_set_trx](REF:../MYSQLND_MS-FUNCTIONS) and [mysqlnd_ms_unset_trx](REF:../MYSQLND_MS-FUNCTIONS) functions can also be used ([trx_stickiness](REFA:../PLUGIN-CONFIGURATION-FILE.md)=master must also be set).
+To explicitly mark transaction boundaries the `mymysqlnd_ms` [mysqlnd_ms_set_trx](REF:../MYSQLND_MS-FUNCTIONS/) and [mysqlnd_ms_unset_trx](REF:../MYSQLND_MS-FUNCTIONS/) functions can also be used ([trx_stickiness](REFA:../PLUGIN-CONFIGURATION-FILE.md)=master must also be set).
 ###### Example 3
 ```
 <?php
@@ -173,7 +173,7 @@ mysqlnd_ms_unset_trx($mysqli);
 
 ```
 >
-**NOTE: The [PDO::beginTransaction](http://php.net/manual/en/pdo.begintransaction.php) method does not use [mysqlnd_tx_begin](http://php.net/manual/en/mysqlnd.plugin.api.php) mysqlnd API function, so the** `mymysqlnd_ms` **plugin can not monitor the transaction start. To make it transaction start aware you shuold extend the PDO class and use the [mysqlnd_ms_set_trx](REF:../MYSQLND_MS-FUNCTIONS) function.**
+**NOTE: The [PDO::beginTransaction](http://php.net/manual/en/pdo.begintransaction.php) method does not use [mysqlnd_tx_begin](http://php.net/manual/en/mysqlnd.plugin.api.php) mysqlnd API function, so the** `mymysqlnd_ms` **plugin can not monitor the transaction start. To make it transaction start aware you shuold extend the PDO class and use the [mysqlnd_ms_set_trx](REF:../MYSQLND_MS-FUNCTIONS/) function.**
 >
 ###### Example 4
 ```

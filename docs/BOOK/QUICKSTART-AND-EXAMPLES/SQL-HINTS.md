@@ -41,7 +41,7 @@ In the above example, using `MYSQLND_MS_LAST_USED_SWITCH` prevents session switc
 
 SQL hints can also be used to run SELECT statements on the MySQL master server. This may be desired if the MySQL slave servers are typically behind the master, but you need current data from the cluster.
 
-Anyway the concept of [service level and consistency](REF:../CONCEPTS) has been introduced to address cases when current data is required. Using a service level requires less or no attention and removes the need of using SQL hints for almost all of this use cases. Please, find more information below in the [service level and consistency](REF:) section.
+Anyway the concept of [service level and consistency](REF:../CONCEPTS/) has been introduced to address cases when current data is required. Using a service level requires less or no attention and removes the need of using SQL hints for almost all of this use cases. Please, find more information below in the [service level and consistency](REF:) section.
 ######Example 2
 ```
 <?php

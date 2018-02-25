@@ -1,7 +1,7 @@
 # Failover
 By default, the plugin does not attempt to fail over if connecting to a host fails. This prevents pitfalls related to [connection state](REF:). It is recommended to manually handle connection errors in a way similar to a failed transaction. You should catch the error, rebuild the connection state and rerun your query as shown below.
 
-If connection state is no issue to you, you can alternatively enable automatic and silent failover. Depending on the configuration, the automatic and silent failover will either attempt to fail over to the master before issuing and error or, try to connect to other slaves, given the query allowes for it, before attempting to connect to a master. Because automatic [failover](REF:../CONCEPTS) is not fool-proof, it is not discussed in the quickstart. Instead, details are given in the concepts section.
+If connection state is no issue to you, you can alternatively enable automatic and silent failover. Depending on the configuration, the automatic and silent failover will either attempt to fail over to the master before issuing and error or, try to connect to other slaves, given the query allowes for it, before attempting to connect to a master. Because automatic [failover](REF:../CONCEPTS/) is not fool-proof, it is not discussed in the quickstart. Instead, details are given in the concepts section.
 
 Configuration #1 Manual failover, automatic optional
 

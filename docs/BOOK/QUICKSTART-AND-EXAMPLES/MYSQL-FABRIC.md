@@ -27,7 +27,7 @@ Configuration #1 Fabric hosts instead of MySQL servers
     }
 }
 ```
-Users utilize the functions [mysqlnd_ms_fabric_select_shard](REF:../MYSQLND_MS-FUNCTIONS) and [mysqlnd_ms_fabric_select_global](REF:../MYSQLND_MS-FUNCTIONS) to switch to the set of servers responsible for a given shard key. Then, the plugin picks an appropriate server for running queries on. When doing so, the plugin takes care of additional load balancing rules set.
+Users utilize the functions [mysqlnd_ms_fabric_select_shard](REF:../MYSQLND_MS-FUNCTIONS/) and [mysqlnd_ms_fabric_select_global](REF:../MYSQLND_MS-FUNCTIONS/) to switch to the set of servers responsible for a given shard key. Then, the plugin picks an appropriate server for running queries on. When doing so, the plugin takes care of additional load balancing rules set.
 
 The below example assumes that MySQL Fabric has been setup to shard the table test.fabrictest using the id column of the table as a shard key.
 
@@ -60,4 +60,4 @@ if (!($res = $mysqli->query("SELECT id FROM test WHERE id = 10"))) {
 }
 ?>
 ```
-The example creates the sharded table, inserts a record and reads the record thereafter. All SQL data definition language (DDL) operations on a sharded table must be applied to the so called global server group. Prior to creating or altering a sharded table, [mysqlnd_ms_fabric_select_global](REF:../MYSQLND_MS-FUNCTIONS) is called to switch the given connection to the corresponding servers of the global group. Data manipulation (DML) SQL statements must be sent to the shards directly. The [mysqlnd_ms_fabric_select_shard](REF:../MYSQLND_MS-FUNCTIONS) switches a connection to shards handling a certain shard key.
+The example creates the sharded table, inserts a record and reads the record thereafter. All SQL data definition language (DDL) operations on a sharded table must be applied to the so called global server group. Prior to creating or altering a sharded table, [mysqlnd_ms_fabric_select_global](REF:../MYSQLND_MS-FUNCTIONS/) is called to switch the given connection to the corresponding servers of the global group. Data manipulation (DML) SQL statements must be sent to the shards directly. The [mysqlnd_ms_fabric_select_shard](REF:../MYSQLND_MS-FUNCTIONS/) switches a connection to shards handling a certain shard key.

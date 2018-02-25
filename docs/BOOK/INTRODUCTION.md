@@ -1,5 +1,5 @@
 # Introduction
-The `mymysqlnd_ms` is a fork of the mysqlnd replication and load balancing plugin (`mysqlnd_ms`) it adds easy to use MySQL replication support to all PHP MySQL extensions that use mysqlnd. Most of the `mymysqlnd_ms` changes are in [Global transaction IDs](REF:CONCEPTS) and session consistency implementation of the Quality Of Service [service level and consistency](REF:CONCEPTS). The `mymysqlnd_ms` plugin has been tested on PHP5.x (5.5, 5.6) and PHP7.x (7.0, 7.1, 7.2) with no ZTS and ONLY ON LINUX (centos 6 but i hope it works on any linux distribution). Requires libxm2 and libmemcached.
+The `mymysqlnd_ms` is a fork of the mysqlnd replication and load balancing plugin (`mysqlnd_ms`) it adds easy to use MySQL replication support to all PHP MySQL extensions that use mysqlnd. Most of the `mymysqlnd_ms` changes are in [Global transaction IDs](REF:CONCEPTS/) and session consistency implementation of the Quality Of Service [service level and consistency](REF:CONCEPTS/). The `mymysqlnd_ms` plugin has been tested on PHP5.x (5.5, 5.6) and PHP7.x (7.0, 7.1, 7.2) with no ZTS and ONLY ON LINUX (centos 6 but i hope it works on any linux distribution). Requires libxm2 and libmemcached.
 
 As of version PHP 5.3.3 the MySQL native driver for PHP (mysqlnd) features an internal plugin C API. C plugins, such as the replication and load balancing plugin, can extend the functionality of mysqlnd.
 
@@ -63,5 +63,5 @@ The built-in read-write-split mechanism is very basic. By default, every query w
 
 The read-write splitter is not aware of multi-statements. Multi-statements are considered as one statement. The decision of where to run the statement will be based on the beginning of the statement string. For example, if using `mysqli_multi_query()` to execute the multi-statement `SELECT id FROM test ; INSERT INTO test(id) VALUES (1)`, the statement will be redirected to a slave server because it begins with `SELECT`. The `INSERT` statement, which is also part of the multi-statement, will not be redirected to a master server.
 
-> NOTE: Applications must be aware of the consequences of connection switches that are performed for load balancing purposes. Please check the documentation on [Connection pooling and switching](REF:CONCEPTS), [Local transaction handling](REF:CONCEPTS), [Failover](REF:CONCEPTS), [Load balancing](REF:CONCEPTS) and [Read-write splitting](REF:CONCEPTS).
+> NOTE: Applications must be aware of the consequences of connection switches that are performed for load balancing purposes. Please check the documentation on [Connection pooling and switching](REF:CONCEPTS/), [Local transaction handling](REF:CONCEPTS/), [Failover](REF:CONCEPTS/), [Load balancing](REF:CONCEPTS/) and [Read-write splitting](REF:CONCEPTS/).
 
