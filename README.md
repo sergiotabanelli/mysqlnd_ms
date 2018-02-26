@@ -42,7 +42,7 @@ The `mymysqlnd_ms` extension has been tested on PHP5.x (5.5, 5.6) and PHP7.x (7.
 * from your cloned or downloaded directory run:
 
 ```
-cd myinstalldir/mymysqlnd_ms
+cd /path/to/mymysqlnd_ms
 phpize
 ./configure
 make

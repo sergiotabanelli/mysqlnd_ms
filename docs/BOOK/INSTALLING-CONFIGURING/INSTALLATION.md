@@ -7,7 +7,7 @@
 * from your cloned or downloaded directory run:
 
 ```
-cd myinstalldir/mymysqlnd_ms
+cd /path/to/mymysqlnd_ms
 phpize
 ./configure
 make

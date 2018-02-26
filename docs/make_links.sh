@@ -11,7 +11,7 @@ mdfo="${1}"
 mdfi="${1}.bak"
 while IFS= read -r line; do
 #    echo "line ${line}"
-	while [[ "${line}" =~ \[([a-zA-Z0-9[:blank:]_-]+)\]\(([[:upper:].]+[^\)]*)?\) ]] 
+	while [[ "${line}" =~ \[([a-zA-Z0-9[:blank:]_.-]+)\]\(([[:upper:].]+[^\)]*)?\) ]] 
 	do
 		g1=${BASH_REMATCH[1]}
 		g2=${BASH_REMATCH[2]}
@@ -21,7 +21,7 @@ while IFS= read -r line; do
 		link=${link/%$page}
 		link=${link/#REF:}
 		link=${link/#REFA:}
-		if [[ "${line}" =~ ^([[:blank:]]*)\*[[:blank:]]+\[[a-zA-Z0-9[:blank:]_-]+\]\(([[:upper:].]+[^\)]*)?\) ]]; then
+		if [[ "${line}" =~ ^([[:blank:]]*)\*[[:blank:]]+\[[a-zA-Z0-9[:blank:]_.-]+\]\(([[:upper:].]+[^\)]*)?\) ]]; then
 			size=${#BASH_REMATCH[1]}
 			idx=$(($size/5))
 			ptr=$(($idx+1))
@@ -46,7 +46,7 @@ while IFS= read -r line; do
 #		echo "g2 $g2"
 		re="[${g1}]]((${g2})"
 #		echo "regex $re"
-		line=$(sed -e "s/\[[a-zA-Z0-9_ -]\+\](\([A-Z.]\+[^)]*\)\?)/${re}/" <<< "$line")
+		line=$(sed -e "s/\[[a-zA-Z0-9_. -]\+\](\([A-Z.]\+[^)]*\)\?)/${re}/" <<< "$line")
 #	   	echo "line1 ${line}"
 	done
 	sed 's/\]\]((/](/g' <<< "$line" 
