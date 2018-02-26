@@ -1,17 +1,17 @@
 # Setup
-The plugin is implemented as a PHP extension. See also the [installation](REF:../INSTALLING-CONFIGURING/) instructions to install the `mymysqlnd_ms` extension.
+The plugin is implemented as a PHP extension. See also the [installation](../INSTALLING-CONFIGURING/INSTALLATION.md) instructions to install the `mymysqlnd_ms` extension.
 
 Compile or configure the PHP MySQL extension (API) ([mysqli](http://php.net/manual/en/ref.mysqli.php), [mysql](http://php.net/manual/en/ref.mysql.php), [PDO_MYSQL](http://php.net/manual/en/ref.pdo-mysql.php)) that you plan to use with support for the [mysqlnd](http://php.net/manual/en/book.mysqlnd.php) library. `mymysqlnd_ms` is a plugin for the mysqlnd library. To use the plugin with any of the PHP MySQL extensions, the extension has to use the mysqlnd library.
 
-Then, load the extension into PHP and activate the plugin in the PHP configuration file using the PHP configuration directive named [mysqlnd_ms.enable](REFA:../INSTALLING-CONFIGURING/RUNTIME-CONFIGURATION.md). The following example enable the plugin (php.ini).
+Then, load the extension into PHP and activate the plugin in the PHP configuration file using the PHP configuration directive named [mysqlnd_ms.enable](../INSTALLING-CONFIGURING/RUNTIME-CONFIGURATION.md#mysqlnd_ms.enable). The following example enable the plugin (php.ini).
 ###### Example 1
 ```
 mysqlnd_ms.enable=1
 mysqlnd_ms.config_file=/path/to/mysqlnd_ms_plugin.ini
 ```
-The plugin uses its own configuration file. Use the PHP configuration directive [mysqlnd_ms.config_file](REFA:../INSTALLING-CONFIGURING/RUNTIME-CONFIGURATION.md) to set the full file path to the plugin-specific configuration file. This file must be readable by PHP (e.g., the web server user).
+The plugin uses its own configuration file. Use the PHP configuration directive [mysqlnd_ms.config_file](../INSTALLING-CONFIGURING/RUNTIME-CONFIGURATION.md#mysqlnd_ms.config_file) to set the full file path to the plugin-specific configuration file. This file must be readable by PHP (e.g., the web server user).
 
-Create a plugin-specific configuration file. Save the file to the path set by the PHP configuration directive [mysqlnd_ms.config_file](REFA:../INSTALLING-CONFIGURING/RUNTIME-CONFIGURATION.md).
+Create a plugin-specific configuration file. Save the file to the path set by the PHP configuration directive [mysqlnd_ms.config_file](../INSTALLING-CONFIGURING/RUNTIME-CONFIGURATION.md#mysqlnd_ms.config_file).
 
 The [plugin configuration file](REF:..//) is JSON based. It is divided into one or more cluster sections. Each cluster section has a name, for example, `myapp`. Every cluster section makes its own set of configuration settings.
 
@@ -35,7 +35,7 @@ A section must, at a minimum, list the MySQL replication master server, and set 
 Configuring a MySQL slave server list is required, although it may contain an empty list. 
 Server lists can use anonymous or non-anonymous syntax. Non-anonymous lists include alias names for the servers, such as master_0 for the master in the above example. The quickstart uses the more verbose non-anonymous syntax.
 
-Instead of using a global configuration file with multiple named cluster sections (e.g. `myapp`, `myapp1`, `myapp2` ecc.) a per section distinct file can be used. Per section configuration files must be named as the cluster choosen name and saved in the directory specified through the [mysqlnd_ms.config_dir](REFA:../INSTALLING-CONFIGURING/RUNTIME-CONFIGURATION.md) ini directive. When the plugin recieve a connection request to a configured cluster name, it first search the global config file for a corresponding cluster section, if no cluster section is found it try to open a corresponding file in the configured [mysqlnd_ms.config_dir](REFA:../INSTALLING-CONFIGURING/RUNTIME-CONFIGURATION.md) directory. The specific cluster config file must not contain a named cluster section but directly the configuration for the cluster, e.g. the config file for cluster named  `myapp1` must be stored in a file named `myapp1` (no extension) and look like in the following example:
+Instead of using a global configuration file with multiple named cluster sections (e.g. `myapp`, `myapp1`, `myapp2` ecc.) a per section distinct file can be used. Per section configuration files must be named as the cluster choosen name and saved in the directory specified through the [mysqlnd_ms.config_dir](../INSTALLING-CONFIGURING/RUNTIME-CONFIGURATION.md#mysqlnd_ms.config_dir) ini directive. When the plugin recieve a connection request to a configured cluster name, it first search the global config file for a corresponding cluster section, if no cluster section is found it try to open a corresponding file in the configured [mysqlnd_ms.config_dir](../INSTALLING-CONFIGURING/RUNTIME-CONFIGURATION.md#mysqlnd_ms.config_dir) directory. The specific cluster config file must not contain a named cluster section but directly the configuration for the cluster, e.g. the config file for cluster named  `myapp1` must be stored in a file named `myapp1` (no extension) and look like in the following example:
 ###### Example 3
 ```
 {

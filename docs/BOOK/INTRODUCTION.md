@@ -59,7 +59,7 @@ The key features of mymysqlnd\_ms are as follows.
      * Experimental support for MySQL Fabric is included.
 
 ## Limitations
-The built-in read-write-split mechanism is very basic. By default, every query which starts with SELECT is considered a read request to be sent to a MySQL slave server. All other queries (such as SHOW statements) are considered as write requests that are sent to the MySQL master server. The build-in behavior can be overruled using SQL hints, or a user-defined callback function or with the new [mysqlnd_ms.master_on](REFA:INSTALLING-CONFIGURING/RUNTIME-CONFIGURATION.md) ini directive
+The built-in read-write-split mechanism is very basic. By default, every query which starts with SELECT is considered a read request to be sent to a MySQL slave server. All other queries (such as SHOW statements) are considered as write requests that are sent to the MySQL master server. The build-in behavior can be overruled using SQL hints, or a user-defined callback function or with the new [mysqlnd_ms.master_on](INSTALLING-CONFIGURING/RUNTIME-CONFIGURATION.md#mysqlnd_ms.master_on) ini directive
 
 The read-write splitter is not aware of multi-statements. Multi-statements are considered as one statement. The decision of where to run the statement will be based on the beginning of the statement string. For example, if using `mysqli_multi_query()` to execute the multi-statement `SELECT id FROM test ; INSERT INTO test(id) VALUES (1)`, the statement will be redirected to a slave server because it begins with `SELECT`. The `INSERT` statement, which is also part of the multi-statement, will not be redirected to a master server.
 

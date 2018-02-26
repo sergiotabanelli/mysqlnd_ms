@@ -22,7 +22,7 @@ Whenever a connection to MySQL is being opened, the plugin compares the host par
     }
 }
 ```
-Alternativly a specific cluster configuration file named `myapp` can be placed in the directory specified by the [mysqlnd_ms.config_dir](REFA:../INSTALLING-CONFIGURING/RUNTIME-CONFIGURATION.md) ini directive. In this case the cluster name section must be omitted, previous example for a config file named `myapp` will be:
+Alternativly a specific cluster configuration file named `myapp` can be placed in the directory specified by the [mysqlnd_ms.config_dir](../INSTALLING-CONFIGURING/RUNTIME-CONFIGURATION.md#mysqlnd_ms.config_dir) ini directive. In this case the cluster name section must be omitted, previous example for a config file named `myapp` will be:
 
 ###### Configuration 2
 ```
@@ -52,7 +52,7 @@ $pdo = new PDO('mysql:host=myapp;dbname=database', 'username', 'password');
 $mysql = mysql_connect("myapp", "username", "password");
 ?>
 ```
-The connection examples above will be load balanced. The plugin will send read-only statements (by default a read-only statement is a `SELECT` statement) to the MySQL slave server with the IP `192.168.2.27` port `3306`. All other statements will be directed to the MySQL master server running on the host `localhost` socket `/tmp/mysql.sock`. This is the defaut behaviour but the plugin [read-write splitting](REF:../CONCEPTS/) logic can also be reversed and instructed to send statements specified in the [mysqlnd_ms.master_on](REFA:../INSTALLING-CONFIGURING/RUNTIME-CONFIGURATION.md) ini directive to the master/s and all other statements to the slave/s. 
+The connection examples above will be load balanced. The plugin will send read-only statements (by default a read-only statement is a `SELECT` statement) to the MySQL slave server with the IP `192.168.2.27` port `3306`. All other statements will be directed to the MySQL master server running on the host `localhost` socket `/tmp/mysql.sock`. This is the defaut behaviour but the plugin [read-write splitting](REF:../CONCEPTS/) logic can also be reversed and instructed to send statements specified in the [mysqlnd_ms.master_on](../INSTALLING-CONFIGURING/RUNTIME-CONFIGURATION.md#mysqlnd_ms.master_on) ini directive to the master/s and all other statements to the slave/s. 
 
 The plugin will use the user name `username` and the password `password` to connect to any of the MySQL servers listed in the configured cluster section myapp. Upon connect, the plugin will select `database` as the current schemata.
 

@@ -53,7 +53,7 @@ The above example will output:
 ```
 @myrole = ''
 ```
-The example opens a load balanced connection and executes two statements. The first statement `SET @myrole='master'` does not begin with the string `SELECT`. Therefore, if not otherwise instructed through the [mysqlnd_ms.master_on](REFA:../INSTALLING-CONFIGURING/RUNTIME-CONFIGURATION.md),  the plugin does not recognize it as a read-only query which shall be run on a slave. The plugin runs the statement on the connection to the master. The statement sets a SQL user variable which is bound to the master connection. The state of the master connection has been changed.
+The example opens a load balanced connection and executes two statements. The first statement `SET @myrole='master'` does not begin with the string `SELECT`. Therefore, if not otherwise instructed through the [mysqlnd_ms.master_on](../INSTALLING-CONFIGURING/RUNTIME-CONFIGURATION.md#mysqlnd_ms.master_on),  the plugin does not recognize it as a read-only query which shall be run on a slave. The plugin runs the statement on the connection to the master. The statement sets a SQL user variable which is bound to the master connection. The state of the master connection has been changed.
 
 The next statement is `SELECT @myrole AS _role`. The plugin recognize it as a read-only query and sends it to the slave. The statement is run on a connection to the slave. This second connection does not have any SQL user variables bound to it. It has a different state than the first connection to the master. The requested SQL user variable is not set. The example script prints `@myrole = ''`.
 

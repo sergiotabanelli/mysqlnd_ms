@@ -4,4 +4,3 @@ The `mymysqlnd_ms` extension has been tested on PHP5.x (5.5, 5.6) and PHP7.x (7.
 
 Requires php-devel, php json extension, libxm2 and libmemcached. 
 
-The `mymysqlnd_ms` replication and load balancing plugin supports all PHP applications and all available PHP MySQL extensions (`mysqli`, `PDO_MYSQL`). To compile it you need php-devel

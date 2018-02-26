@@ -109,7 +109,7 @@ New MySQL functionalities available in more recent versions, like [multi source 
 >NOTE: server side write consistency always include server side read consistency 
 
 Through the use of [placeholders](GLOBAL-TRANSACTION-IDS.md#placeholders) cluster's write context can also be partitioned based on MySQL connection user, schema name, web client php [session_id](http://php.net/manual/en/function.session-id.php) or specific php session variable. 
-Write context partitioning can be usefull only for multi-master clusters, so you need to enable the [mysqlnd_ms.multi_master](REFA:../INSTALLING-CONFIGURING/RUNTIME-CONFIGURATION.md) php.ini directive
+Write context partitioning can be usefull only for multi-master clusters, so you need to enable the [mysqlnd_ms.multi_master](../INSTALLING-CONFIGURING/RUNTIME-CONFIGURATION.md#mysqlnd_ms.multi_master) php.ini directive
 
 ```  
 extension=mysqlnd_ms.so
@@ -244,7 +244,7 @@ Basically with this feature a write context partition will choose a new master o
 Simple client side write consistency does not have a dedicated [type](REFA:../PLUGIN-CONFIGURATION-FILE.md) but will be active if all following conditions are satisfied:
 * If a READ consistency service level is configured ([type](REFA:../PLUGIN-CONFIGURATION-FILE.md)=1 or [type](REFA:../PLUGIN-CONFIGURATION-FILE.md)=2)
 * if [memcached_host](REFA:../PLUGIN-CONFIGURATION-FILE.md) and [memcached_wkey](REFA:../PLUGIN-CONFIGURATION-FILE.md) are configured
-* if [mysqlnd_ms.multi_master](REFA:../INSTALLING-CONFIGURING/RUNTIME-CONFIGURATION.md) php.ini directive is enabled.
+* if [mysqlnd_ms.multi_master](../INSTALLING-CONFIGURING/RUNTIME-CONFIGURATION.md#mysqlnd_ms.multi_master) php.ini directive is enabled.
 
 ### Session consistency failures and timeouts
 Session consistency forces use of nodes consistent with current required consistency level. If no node satisfy required conditions, plugin can wait a limited amount of time that at least one node become consistent. For read consistency you can use [wait_for_gtid_timeout](REFA:../PLUGIN-CONFIGURATION-FILE.md) directive, by default value is 0. For write consistency you can use [wait_for_wgtid_timeout](REFA:../PLUGIN-CONFIGURATION-FILE.md) directive to set the max number of seconds a write context participant can spend choosing a consistent master, in other words it is the number of seconds a plugin instance should wait for the previous instance to set the chosen master on the persistent state store, default value is 5 seconds (BEWARE: don't set it to 0 or write consistency will not work). After timeout, if the requested consistency can't be enforced, the plugin fails. To avoid this kind of failures and possible consequent race conditions the [race_avoid](REFA:../PLUGIN-CONFIGURATION-FILE.md) directive can be used to force the use of all available masters despite their consistency state, currently the only available option for `race_avoid` is value 3 (add all masters), default value is 0 (disabled).

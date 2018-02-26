@@ -1,7 +1,7 @@
 # Runtime Configuration
 The behaviour of these functions is affected by settings in php.ini.
 
-### Mymysqlnd_ms Configure Options
+### mymysqlnd_ms Configure Options
 
 Name | Default | Changeable
 --- | --- | --- |
@@ -121,4 +121,3 @@ The SQL hint `MYSQLND_MS_USE_SLAVE` will not be recognized. If found, the statem
 Disabling read write splitting impacts the return value of [mysqlnd_ms_query_is_select](REF:../MYSQLND_MS-FUNCTIONS/). The function will no longer propose query execution on slave servers.
 
 >NOTE: Multiple master servers
-Setting `mysqlnd_ms.multi_master=1` allows the plugin to use multiple master servers, instead of only the first master server of the master list. Please, see also [supported clusters](REF:../CONCEPTS/).
