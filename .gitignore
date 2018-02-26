@@ -2,4 +2,4 @@
 /.settings/
 /.autotools
 /test_mysqlnd.trace
-
+*.md.bak

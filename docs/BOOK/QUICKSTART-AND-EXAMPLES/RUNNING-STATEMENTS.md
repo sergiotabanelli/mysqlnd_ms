@@ -3,7 +3,7 @@ The plugin can be used with any PHP MySQL extension ([mysqli](http://php.net/man
 
 Whenever a connection to MySQL is being opened, the plugin compares the host parameter value of the connect call, with the cluster section names from the plugin specific configuration file. If, for example, the plugin specific configuration file has a section `myapp` then the section should be referenced by opening a MySQL connection to the host `myapp`
 
-###### Configuration
+###### Configuration 1
 ```
 {
     "myapp": {
@@ -24,7 +24,7 @@ Whenever a connection to MySQL is being opened, the plugin compares the host par
 ```
 Alternativly a specific cluster configuration file named `myapp` can be placed in the directory specified by the [mysqlnd_ms.config_dir](REFA:../INSTALLING-CONFIGURING/RUNTIME-CONFIGURATION.md) ini directive. In this case the cluster name section must be omitted, previous example for a config file named `myapp` will be:
 
-###### Example 1
+###### Configuration 2
 ```
 {
     "master": {
@@ -43,7 +43,7 @@ Alternativly a specific cluster configuration file named `myapp` can be placed i
 ```
 Now we can open a connection to the configured `myapp` cluster:
 
-###### Example 2
+###### Example 1
 ```
 <?php
 /* Load balanced following "myapp" section rules from the plugins config file */
@@ -60,7 +60,7 @@ The username, password and schema name are taken from the connect API calls and 
 
 The plugin does not change the API for running statements. [Read-write splitting](REF:../CONCEPTS/) works out of the box. The following example assumes that there is no significant replication lag between the master and the slave.
 
-###### Example 3
+###### Example 2
 ```
 <?php
 /* Load balanced following "myapp" section rules from the plugins config files */
