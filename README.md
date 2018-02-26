@@ -20,9 +20,9 @@ Most changes are in [Global transaction IDs](docs/BOOK/QUICKSTART-AND-EXAMPLES/G
 * [Simple client side write consistency](docs/BOOK/QUICKSTART-AND-EXAMPLES/SERVICE-LEVEL-AND-CONSISTENCY.md#simple-client-side-write-consistency)
   * Multi master write consistency 
   * Multi master write consistency logical partitions   
-* New [config_dir](docs/BOOK/INSTALLING-CONFIGURING/RUNTIME-CONFIGURATION.md#config_dir) ini directive for connection based json config files
-* New [master_on](docs/BOOK/INSTALLING-CONFIGURING/RUNTIME-CONFIGURATION.md#master_on) ini directive for rw splitting 
-* New [inject_on](docs/BOOK/INSTALLING-CONFIGURING/RUNTIME-CONFIGURATION.md#inject_on) ini directive for transcation id consistency tracking/injection
+* New [config_dir](docs/BOOK/INSTALLING-CONFIGURING/RUNTIME-CONFIGURATION.md#mysqlnd_ms.config_dir) ini directive for connection based json config files
+* New [master_on](docs/BOOK/INSTALLING-CONFIGURING/RUNTIME-CONFIGURATION.md#mysqlnd_ms.master_on) ini directive for rw splitting 
+* New [inject_on](docs/BOOK/INSTALLING-CONFIGURING/RUNTIME-CONFIGURATION.md#mysqlnd_ms.inject_on) ini directive for transcation id consistency tracking/injection
 * New [mysqlnd_ms_set_trx](docs/BOOK/MYSQLND_MS-FUNCTIONS/MYSQLND_MS_SET_TRX.md) and [mysqlnd_ms_unset_trx](docs/BOOK/MYSQLND_MS-FUNCTIONS/MYSQLND_MS_UNSET_TRX.md) php functions for application based transaction tracking
 
 Any suggestions or comments are very welcome.
