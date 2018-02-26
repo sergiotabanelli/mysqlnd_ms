@@ -1,5 +1,5 @@
 # mymysqlnd_ms
-This is a fork of the [mysqlnd replication and load balancing plugin pecl extension](mysqlnd_ms http://php.net/manual/en/book.mysqlnd-ms.php). 
+This is a fork of the mysqlnd replication and load balancing plugin pecl extension [mysqlnd_ms](http://php.net/manual/en/book.mysqlnd-ms.php). 
 
 >**DOCUMENTATION IS SLIGHTLY DIFFERNET FROM ORIGINAL ONE AND IT IS STILL NOT READY, YOU CAN FIND IT STARTING FROM [DOCS](docs/BOOK.md) DIRECTORY**
 
