@@ -6274,7 +6274,7 @@ mysqlnd_ms_protocol_rset_header_read(_MS_PROTOCOL_CONN_READ_D TSRMLS_DC)
 								php_error_docref(NULL TSRMLS_CC, E_WARNING, "OK packet set GTID failed %s", gtid);
 								if ((*conn_data)->global_trx.report_error == TRUE) {
 									if ((MYSQLND_MS_ERROR_INFO(conn)).error_no == 0) {
-										SET_CLIENT_ERROR(*conn->error_info, CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, "Error on gtid_set_last_write");
+										SET_CLIENT_ERROR(_ms_p_ei (conn->error_info), CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, "Error on gtid_set_last_write");
 									}
 									ret = FAIL;
 								}
