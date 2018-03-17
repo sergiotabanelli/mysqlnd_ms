@@ -8,14 +8,8 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_issue_2.ini
 require_once("skipif.inc");
 require_once("connect.inc");
 
-if (($emulated_master_host == $emulated_slave_host)) {
-	die("SKIP master and slave seem to the the same, see tests/README");
-}
-
 _skipif_check_extensions(array("mysqli"));
 
-if (true == $ret)
-	die("SKIP Configured emulated master and emulated slave could be part of a replication cluster\n");
 
 $settings = array(
 	"localhost" => array(
@@ -35,7 +29,6 @@ if ($error = mst_create_config("test_mysqlnd_ms_issue_2.ini", $settings))
 
 
 _skipif_connect($emulated_master_host_only, $user, $passwd, $db, $emulated_master_port, $emulated_master_socket);
-_skipif_connect($emulated_slave_host_only, $user, $passwd, $db, $emulated_slave_port, $emulated_slave_socket);
 
 /* Emulated ID does not work with replication */
 include_once("util.inc");
