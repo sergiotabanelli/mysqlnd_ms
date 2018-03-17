@@ -1,5 +1,5 @@
 --TEST--
-Test of github issue #2
+Test for github issue #2 and issue #3
 --INI--
 mysqlnd_ms.enable=1
 mysqlnd_ms.config_file=test_mysqlnd_ms_issue_2.ini
