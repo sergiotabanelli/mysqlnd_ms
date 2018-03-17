@@ -1,8 +1,8 @@
 --TEST--
-A test to test
+Test of github issue #2
 --INI--
 mysqlnd_ms.enable=1
-mysqlnd_ms.config_file=atest.ini
+mysqlnd_ms.config_file=test_mysqlnd_ms_issue_2.ini
 --SKIPIF--
 <?php
 require_once("skipif.inc");
@@ -30,7 +30,7 @@ $settings = array(
 			)),
 	),
 );
-if ($error = mst_create_config("atest.ini", $settings))
+if ($error = mst_create_config("test_mysqlnd_ms_issue_2.ini", $settings))
 	die(sprintf("SKIP %s\n", $error));
 
 
@@ -86,8 +86,8 @@ msg_mysqli_init_emulated_id_skip($emulated_master_host_only, $user, $passwd, $db
 ?>
 --CLEAN--
 <?php
-	if (!unlink("atest.ini"))
-	  printf("[clean] Cannot unlink ini file 'atest.ini'.\n");
+	if (!unlink("test_mysqlnd_ms_issue_2.ini"))
+	  printf("[clean] Cannot unlink ini file 'test_mysqlnd_ms_issue_2.ini'.\n");
 ?>
 --EXPECTF--
 array(5) {
