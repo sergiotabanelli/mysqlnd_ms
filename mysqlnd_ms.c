@@ -1299,10 +1299,10 @@ mysqlnd_ms_aux_ss_gtid_mget(memcached_st *memc, char **value, zend_bool *is_gtid
 	size_t module_len = module ? uint_len(module) : uint_len(token) + uint_len(depth);
 	size_t max_key_len = (key_len + 2 + module_len);
 	unsigned int limit = depth + 1;
-	char * mg = malloc(sizeof(size_t) * limit + sizeof(char *) * limit + max_key_len * limit);
-	size_t keys_len[] = mg;
-	char * keys[] = keys_len + sizeof(size_t) * limit;
-	char * pkey = keys + sizeof(char *) * limit;
+	void * mg = malloc(sizeof(size_t) * limit + sizeof(char *) * limit + max_key_len * limit);
+	size_t * keys_len = (size_t *) mg;
+	char * * keys = (char * *) ((void *)keys_len + sizeof(size_t) * limit);
+	char * pkey = (char *) ((void *)keys + sizeof(char *) * limit);
 	unsigned int i = 0;
 	DBG_ENTER("mysqlnd_ms_aux_gtid_get_mget");
 	*value = NULL;
@@ -1311,7 +1311,7 @@ mysqlnd_ms_aux_ss_gtid_mget(memcached_st *memc, char **value, zend_bool *is_gtid
 		keys_len[i] = snprintf(keys[i], max_key_len, "%s:%" PRIuMAX, key, umodule((int64_t)token - i, module));
 		DBG_INF_FMT("Token %llu Key %d is %s", token, i, keys[i]);
 	}
-	rc = memcached_mget_by_key(memc, key, key_len, keys, keys_len, limit);
+	rc = memcached_mget_by_key(memc, key, key_len, (const char * const*)keys, keys_len, limit);
 	if (rc == MEMCACHED_SUCCESS) {
 		char * retval;
 		size_t retval_len = 0;
@@ -1335,9 +1335,9 @@ mysqlnd_ms_aux_ss_gtid_mget(memcached_st *memc, char **value, zend_bool *is_gtid
 					char * p = strchr(gtid + 1, GTID_GTID_MARKER);
 					uintmax_t ngtid = 0;
 					if (p) {
-						*p = NULL;
+						*p = 0;
 					}
-					*gtid = NULL;
+					*gtid = 0;
 					gtid++;
 					if (strcmp(last_e, retval)) {
 						max_e = 0;
@@ -1358,7 +1358,7 @@ mysqlnd_ms_aux_ss_gtid_mget(memcached_st *memc, char **value, zend_bool *is_gtid
 		if (last_r) {
 			char * p = strchr(last_r, GTID_GTID_MARKER);
 			if (p)
-				*p = NULL;
+				*p = 0;
 			*value = last_r;
 			*is_gtid = FALSE;
 			last_r = NULL;
@@ -1456,7 +1456,7 @@ mysqlnd_ms_aux_ss_gtid_validate(MYSQLND_CONN_DATA * conn TSRMLS_DC)
 		if (hostchk) {
 			char * p = strchr(hostchk, GTID_GTID_MARKER);
 			if (p)
-				*p = NULL;
+				*p = 0;
 			if  (strcmp((*conn_data)->elm_pool_hash_key->c, hostchk) != 0) {
 				zend_bool exists = FALSE, is_master = FALSE, is_active = FALSE, is_removed = FALSE;
 				size_t hl = strlen(hostchk);
@@ -1562,7 +1562,7 @@ mysqlnd_ms_aux_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, const
 			MYSQLND_MS_LIST_DATA * data;
 			zend_bool exists = FALSE, is_master = FALSE, is_active = FALSE, is_removed = FALSE;
 			size_t value_len = strlen(gtid) + 1; // Include null in host hash key
-			_ms_smart_type ph = {gtid, value_len, value_len};
+			_ms_smart_type ph = {(char *)gtid, value_len, value_len};
 			exists = (*conn_data)->pool->connection_exists((*conn_data)->pool, &ph, &data, &is_master, &is_active, &is_removed TSRMLS_CC);
 			DBG_INF_FMT("Get host from pool hash_key=%s exists=%d is_master=%d is_active=%d is_removed=%d ", value, exists, is_master, is_active, is_removed);
 			if (exists && is_active && !is_removed && is_master &&
@@ -1759,7 +1759,7 @@ mysqlnd_ms_aux_ss_gtid_clean(MYSQLND_CONN_DATA * conn, enum_func_status status T
 				rc = memcached_delete_by_key(memc,
 						(*proxy_conn_data)->global_trx.memcached_wkey, (*proxy_conn_data)->global_trx.memcached_wkey_len,
 						ot, l,
-						(time_t)(*proxy_conn_data)->global_trx.running_ttl, (uint32_t)0);
+						(time_t)(*proxy_conn_data)->global_trx.running_ttl);
 				DBG_INF_FMT("Delete wkey %s returned %d", ot, rc);
 			}
 			if ((*proxy_conn_data)->global_trx.memcached_key_len > 0  && (*proxy_conn_data)->global_trx.running_depth > 0) {
@@ -1768,7 +1768,7 @@ mysqlnd_ms_aux_ss_gtid_clean(MYSQLND_CONN_DATA * conn, enum_func_status status T
 				rc = memcached_delete_by_key(memc,
 						(*proxy_conn_data)->global_trx.memcached_key, (*proxy_conn_data)->global_trx.memcached_key_len,
 						ot, l,
-						(time_t)(*proxy_conn_data)->global_trx.running_ttl, (uint32_t)0);
+						(time_t)(*proxy_conn_data)->global_trx.running_ttl);
 				DBG_INF_FMT("Delete key %s returned %d", ot, rc);
 			}
 	  	}
