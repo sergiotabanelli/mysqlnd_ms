@@ -25,6 +25,7 @@
 #include "win32/time.h"
 #else
 #include "sys/time.h"
+#include <stddef.h>
 #include <libmemcached/memcached.h>
 #endif
 #if PHP_MAJOR_VERSION < 7
@@ -492,6 +493,7 @@ extern struct st_mysqlnd_conn_methods * ms_orig_mysqlnd_conn_handle_methods;
 
 #define GTID_RUNNING_MARKER 'R'
 #define GTID_WAIT_MARKER 'W'
+#define GTID_EXECUTED_MARKER 'E'
 #define GTID_GTID_MARKER '?'
 #define GTID_RUNNING_HACK_COUNTER -1
 #define GTID_RUNNING_RANDOMID 1000
@@ -548,6 +550,12 @@ extern struct st_mysqlnd_conn_methods * ms_orig_mysqlnd_conn_handle_methods;
 #define SECT_G_TRX_CHECK_FOR_GTID 			"check_for_gtid"
 #define SECT_G_TRX_WAIT_FOR_GTID_TIMEOUT 	"wait_for_gtid_timeout"
 //BEGIN HACK
+//BEGIN NOWAIT
+#define SECT_G_TRX_MEMCACHED				"memcached"
+#define SECT_G_TRX_MODULE 					"module"
+#define SECT_G_TRX_RUNNING_DEPTH 			"running_depth"
+#define SECT_G_TRX_RUNNING_WDEPTH 			"running_wdepth"
+//END NOWAIT
 #define HOSTS_GROUP							"hosts_group"
 #define SECT_G_TRX_WAIT_FOR_WGTID_TIMEOUT 	"wait_for_wgtid_timeout"
 #define SECT_G_TRX_THROTTLE_WGTID_TIMEOUT 	"throttle_wgtid_timeout"
@@ -859,6 +867,7 @@ enum mysqlnd_ms_gtid_type
 	GTID_SERVER,
 	GTID_CLIENT_SERVER,
 	GTID_XX_CLIENT,
+	GTID_EXPERIMENTAL,
 	GTID_LAST_ENUM_ENTRY
 };
 
@@ -1129,6 +1138,20 @@ typedef struct st_mysqlnd_ms_conn_data
 		MYSQLND_MS_LIST_DATA * gtid_conn_elm;
 		memcached_st *memc;
 		uint64_t owned_token;
+// BEGIN NOWAIT
+		char * memcached;
+		size_t memcached_len;
+		uint64_t module;
+		unsigned int running_depth;
+		unsigned int running_wdepth;
+
+		uint64_t owned_wtoken;
+		uint64_t last_chk_token;
+		uint64_t last_chk_wtoken;
+		zend_bool first_read;
+		zend_bool executed;
+		char * last_whost;
+// END NOWAIT
 		char * last_gtid;
 		size_t last_gtid_len;
 		char * last_wgtid;
