@@ -3,7 +3,7 @@ PHP_TEST_MYSQLND_MS_MODDEP = posix iconv json pdo mysqlnd mysqlnd_mysql mysql my
 PHP_TEST_MYSQLND_EXTENSION = ` \
         if test "x$(PHP_TEST_MYSQLND_MS_MODDEP)" != "x"; then \
                 for i in $(PHP_TEST_MYSQLND_MS_MODDEP)""; do \
-                        if test -x $(INSTALL_ROOT)$(EXTENSION_DIR)/$$i.$(SHLIB_DL_SUFFIX_NAME); then \
+                        if test -f $(INSTALL_ROOT)$(EXTENSION_DIR)/$$i.$(SHLIB_DL_SUFFIX_NAME); then \
                                 echo -n " -d extension=$(INSTALL_ROOT)$(EXTENSION_DIR)/$$i.$(SHLIB_DL_SUFFIX_NAME) "; \
                         fi; \
                 done; \

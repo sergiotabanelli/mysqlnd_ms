@@ -252,7 +252,7 @@ mysqlnd_ms_zval_data_to_hashtable(zval * json_data TSRMLS_DC)
 			while (_MS_HASH_GET_ZR_FUNC_PTR_VA(zend_hash_get_current_data_ex, Z_ARRVAL_P(json_data), entry_zval, &pos) == SUCCESS) {
 				char * skey = NULL;
 				_ms_size_type skey_len = 0;
-				ulong nkey = 0;
+				_ms_ulong nkey = 0;
 				int key_type = _ms_hash_str_get_current_key(Z_ARRVAL_P(json_data), &skey, &skey_len, &nkey, &pos);
 				mysqlnd_ms_add_zval_to_hash(_ms_p_zval entry_zval, ret->value.ht, skey, skey_len, nkey, key_type TSRMLS_CC);
 

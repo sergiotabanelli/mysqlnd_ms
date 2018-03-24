@@ -358,7 +358,7 @@ mysqlnd_ms_table_filter_match(const char * const db_table_buf, HashTable * rules
 	while ((FALSE == match) && (SUCCESS == _MS_HASH_GET_ZR_FUNC_PTR_VA(zend_hash_get_current_data_ptr_ex, rules, filter_ht, &pos_rules) && filter_ht)) {
 		char * filter_mask;
 		uint fm_len;
-		ulong n_key;
+		_ms_ulong n_key;
 
 		if (HASH_KEY_IS_STRING == _ms_hash_str_get_current_key(rules, &filter_mask, &fm_len, &n_key, &pos_rules)) {
 			DBG_INF_FMT("Comparing [%s] with [%s]", db_table_buf, filter_mask);

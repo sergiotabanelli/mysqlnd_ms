@@ -665,7 +665,7 @@ mysqlnd_ms_query_which_qos(const char * query, size_t query_len, zend_bool * for
 int
 mysqlnd_ms_get_php_session(zval * ret TSRMLS_DC) {
 //	zval *params = { to_zval, from_zval, msg_zval };
-	zend_uint param_count = 0;
+	_ms_uint param_count = 0;
 	zval function_name;
 	DBG_ENTER("mysqlnd_ms_get_php_session");
 	_MS_ZVAL_STRING(&function_name, "session_id");

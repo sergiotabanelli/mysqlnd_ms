@@ -96,8 +96,10 @@
 #define _MS_RETURN_STRING(s) RETURN_STRING(s, 1)
 
 #define _ms_size_type unsigned int
+#define _ms_ulong ulong
+#define _ms_uint zend_uint
 
-static zend_always_inline int _ms_hash_str_get_current_key(const HashTable *ht, char **key, uint *key_len, ulong *num_index, HashPosition *pos)
+static zend_always_inline int _ms_hash_str_get_current_key(const HashTable *ht, char **key, uint *key_len, _ms_ulong *num_index, HashPosition *pos)
 {
 	int ret = zend_hash_get_current_key_ex(ht, key, (uint *) key_len, num_index, 0/*dup*/, pos);
 	if (ret == HASH_KEY_IS_STRING) {
@@ -208,10 +210,10 @@ extern zval *php_get_session_var(zend_string *name);
 #define _MS_RETURN_STRING RETURN_STRING
 
 #define _ms_size_type size_t
+#define _ms_ulong zend_ulong
+#define _ms_uint uint32_t
 
-#define zend_uint uint32_t
-
-static zend_always_inline int _ms_hash_str_get_current_key(HashTable *ht, char **key, size_t *key_len, ulong *num_index, HashPosition *pos)
+static zend_always_inline int _ms_hash_str_get_current_key(HashTable *ht, char **key, size_t *key_len, _ms_ulong *num_index, HashPosition *pos)
 {
 	zend_string *zs_key = NULL;
 	int ret = zend_hash_get_current_key_ex(ht, &zs_key, num_index, pos ? pos : &ht->nInternalPointer);
