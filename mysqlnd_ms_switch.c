@@ -453,7 +453,7 @@ mysqlnd_ms_load_section_filters(struct st_mysqlnd_ms_config_json_entry * section
 				do {
 					char * filter_name = NULL;
 					size_t filter_name_len = 0;
-					ulong filter_int_name;
+					_ms_ulong filter_int_name;
 					struct st_mysqlnd_ms_config_json_entry * current_filter =
 							mysqlnd_ms_config_json_next_sub_section(filters_section, &filter_name, &filter_name_len, &filter_int_name TSRMLS_CC);
 

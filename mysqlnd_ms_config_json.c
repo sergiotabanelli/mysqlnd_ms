@@ -583,7 +583,7 @@ mysqlnd_ms_config_json_section_is_object_list(struct st_mysqlnd_ms_config_json_e
 /* {{{ mysqlnd_ms_config_json_next_sub_section */
 PHP_MYSQLND_MS_API struct st_mysqlnd_ms_config_json_entry *
 mysqlnd_ms_config_json_next_sub_section(struct st_mysqlnd_ms_config_json_entry * main_section,
-										char ** section_name, size_t * section_name_len, ulong * nkey TSRMLS_DC)
+										char ** section_name, size_t * section_name_len, _ms_ulong * nkey TSRMLS_DC)
 {
 	struct st_mysqlnd_ms_config_json_entry * ret = NULL;
 	struct st_mysqlnd_ms_config_json_entry _ms_p_zval * entry;
@@ -592,7 +592,7 @@ mysqlnd_ms_config_json_next_sub_section(struct st_mysqlnd_ms_config_json_entry *
 	if (SUCCESS == _MS_HASH_GET_ZR_FUNC_PTR(zend_hash_get_current_data_ptr, main_section->value.ht, entry)) {
 		char * tmp_skey = NULL;
 		_ms_size_type tmp_skey_len = 0;
-		ulong tmp_nkey = 0;
+		_ms_ulong tmp_nkey = 0;
 		int key_type;
 		if (!section_name) {
 			section_name = &tmp_skey;
