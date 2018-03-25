@@ -1295,6 +1295,7 @@ mysqlnd_ms_aux_ss_gtid_mget(memcached_st *memc, char **value, zend_bool *is_gtid
 {
 	enum_func_status ret = FAIL;
 	memcached_return_t rc = MEMCACHED_SUCCESS;
+	memcached_return_t rcf = MEMCACHED_SUCCESS;
 	size_t key_len = strlen(key);
 	size_t module_len = module ? uint_len(module) : uint_len(token) + uint_len(depth);
 	size_t max_key_len = (key_len + 2 + module_len);
@@ -1304,11 +1305,12 @@ mysqlnd_ms_aux_ss_gtid_mget(memcached_st *memc, char **value, zend_bool *is_gtid
 	char * * keys = (char * *) ((void *)keys_len + sizeof(size_t) * limit);
 	char * pkey = (char *) ((void *)keys + sizeof(char *) * limit);
 	unsigned int i = 0;
+//	zend_bool use_mget = FALSE;
 	DBG_ENTER("mysqlnd_ms_aux_ss_gtid_mget");
 	*value = NULL;
 	for (; i < limit; i++) {
 		keys[i] = pkey + max_key_len * i;
-		keys_len[i] = snprintf(keys[i], max_key_len, "%s:%" PRIuMAX, key, umodule((int64_t)token - i, module));
+		keys_len[i] = snprintf(keys[i], max_key_len, "%s:%" PRIuMAX, key, umodule((int64_t)token - limit + 1 + i, module));
 		DBG_INF_FMT("Token %llu Key %d is %s", token, i, keys[i]);
 	}
 	rc = memcached_mget_by_key(memc, key, key_len, (const char * const*)keys, keys_len, limit);
@@ -1320,14 +1322,11 @@ mysqlnd_ms_aux_ss_gtid_mget(memcached_st *memc, char **value, zend_bool *is_gtid
 		char * last_e = NULL;
 		char * last_eg = NULL;
 		uintmax_t max_e = 0;
-		char return_key[MEMCACHED_MAX_KEY];
-		size_t return_key_length;
-		i = 0;
-		*last_chk = umodule((int64_t)token - i, module);
+		*last_chk = umodule((int64_t)token - limit + 1, module);
 		DBG_INF_FMT("Fetch start from key %s len %d index %d", keys[i], keys_len[i], i);
-		for (i = 0; i < limit && (rc == MEMCACHED_SUCCESS || rc == MEMCACHED_NOTFOUND); i++) {
-			if ((retval = memcached_fetch(memc, return_key, &return_key_length,
-												  &retval_len, &flags, &rc)))
+		for (i = 0; i < limit; i++) {
+			if ((retval = memcached_fetch(memc, keys[i], &keys_len[i],
+												  &retval_len, &flags, &rcf)))
 			{
 				if (*retval == GTID_RUNNING_MARKER) {
 					if (last_r)
@@ -1355,11 +1354,9 @@ mysqlnd_ms_aux_ss_gtid_mget(memcached_st *memc, char **value, zend_bool *is_gtid
 						}
 					}
 				}
-/*				DBG_INF_FMT("Key %d is %s last_r %s last_e %s last_eg %s fetch result %d", i, keys[i], last_r, last_e, last_eg, rc);
-				i--;
-				*last_chk = umodule((int64_t)token - i, module);*/
+				*last_chk = umodule((int64_t)token - limit + 1 + i, module);
 			}
-			DBG_INF_FMT("Key %d is %s last_r %s last_e %s last_eg %s fetch result %d", i, return_key, last_r, last_e, last_eg, rc);
+			DBG_INF_FMT("Key %d is %s last_r %s last_e %s last_eg %s fetch result %d", i, keys[i], last_r, last_e, last_eg, rcf);
 		}
 		if (last_r) {
 			char * p = strchr(last_r, GTID_GTID_MARKER);
@@ -1382,7 +1379,7 @@ mysqlnd_ms_aux_ss_gtid_mget(memcached_st *memc, char **value, zend_bool *is_gtid
 		if (last_e)
 			free(last_e);
 		ret = PASS;
-		DBG_INF_FMT("Return value %s is_gtid %d last_chk %llu depth %d mget result %d", *value, *is_gtid, *last_chk, depth, rc);
+		DBG_INF_FMT("Return value %s is_gtid %d last_chk %llu depth %d mget result %d fetch result %d", *value, *is_gtid, *last_chk, depth, rc, rcf);
 	}
 	if (mg)
 		free(mg);
