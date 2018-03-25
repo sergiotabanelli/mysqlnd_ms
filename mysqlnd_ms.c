@@ -1327,6 +1327,7 @@ mysqlnd_ms_aux_ss_gtid_mget(memcached_st *memc, char **value, zend_bool *is_gtid
 			if ((retval = memcached_fetch(memc, keys[i], &keys_len[i],
 												  &retval_len, &flags, &rcf)))
 			{
+				DBG_INF_FMT("Found Key %d is %s last_r %s last_e %s last_eg %s fetch result %d", i, keys[i], last_r, last_e, last_eg, rcf);
 				if (*retval == GTID_RUNNING_MARKER) {
 					if (last_r)
 						free(last_r);
