@@ -279,9 +279,6 @@ mysqlnd_ms_config_json_load_configuration_aux(char * json_file_name, struct st_m
 		_MS_STR_DECL(str_data);
 		zval json_data;
 		stream = php_stream_open_wrapper_ex(json_file_name, "rb", REPORT_ERRORS, NULL, NULL);
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX
-				" Failed to open server list config file [%s]", json_file_name);
-		break;
 
 		if (!stream) {
 			if (cfg)
