@@ -539,7 +539,7 @@ mysqlnd_ms_init_connection_global_trx(struct st_mysqlnd_ms_global_trx_injection 
 	new_global_trx->owned_wtoken = 0;
 	new_global_trx->last_chk_token = 0;
 	new_global_trx->last_chk_wtoken = 0;
-	new_global_trx->first_read = FALSE;
+	new_global_trx->first_read = TRUE;
 	new_global_trx->executed = FALSE;
 	new_global_trx->last_whost = NULL;
 // END NOWAIT
@@ -1298,13 +1298,13 @@ mysqlnd_ms_aux_ss_gtid_mget(memcached_st *memc, char **value, zend_bool *is_gtid
 	size_t key_len = strlen(key);
 	size_t module_len = module ? uint_len(module) : uint_len(token) + uint_len(depth);
 	size_t max_key_len = (key_len + 2 + module_len);
-	unsigned int limit = depth + 1;
+	unsigned int limit = module == 0 && token < depth ? token + 1 : depth + 1;
 	void * mg = malloc(sizeof(size_t) * limit + sizeof(char *) * limit + max_key_len * limit);
 	size_t * keys_len = (size_t *) mg;
 	char * * keys = (char * *) ((void *)keys_len + sizeof(size_t) * limit);
 	char * pkey = (char *) ((void *)keys + sizeof(char *) * limit);
 	unsigned int i = 0;
-	DBG_ENTER("mysqlnd_ms_aux_gtid_get_mget");
+	DBG_ENTER("mysqlnd_ms_aux_ss_gtid_mget");
 	*value = NULL;
 	for (; i < limit; i++) {
 		keys[i] = pkey + max_key_len * i;
@@ -3673,7 +3673,7 @@ mysqlnd_ms_init_trx_to_null(struct st_mysqlnd_ms_global_trx_injection * trx TSRM
 	trx->owned_wtoken = 0;
 	trx->last_chk_token = 0;
 	trx->last_chk_wtoken = 0;
-	trx->first_read = FALSE;
+	trx->first_read = TRUE;
 	trx->executed = FALSE;
 	trx->last_whost = NULL;
 	// END NOWAIT
