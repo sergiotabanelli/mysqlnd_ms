@@ -1342,7 +1342,7 @@ mysqlnd_ms_aux_ss_gtid_mget(memcached_st *memc, char **value, zend_bool *is_gtid
 						}
 						*gtid = 0;
 						gtid++;
-						if (strcmp(last_e, retval)) {
+						if (last_e && strcmp(last_e, retval)) {
 							max_e = 0;
 						}
 						ngtid = mysqlnd_ms_aux_gtid_extract_last(gtid, NULL, 0, 0);
@@ -1354,7 +1354,6 @@ mysqlnd_ms_aux_ss_gtid_mget(memcached_st *memc, char **value, zend_bool *is_gtid
 						}
 					}
 				}
-				DBG_INF_FMT("After Key %d is %s last_r %s last_e %s last_eg %s fetch result %d", i, keys[i], last_r, last_e, last_eg, rcf);
 				*last_chk = umodule((int64_t)token - limit + 1 + i, module);
 			} else {
 				DBG_INF_FMT("Not found Key %d is %s last_r %s last_e %s last_eg %s fetch result %d", i, keys[i], last_r, last_e, last_eg, rcf);
