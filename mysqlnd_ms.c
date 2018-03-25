@@ -1323,7 +1323,6 @@ mysqlnd_ms_aux_ss_gtid_mget(memcached_st *memc, char **value, zend_bool *is_gtid
 		char * last_eg = NULL;
 		uintmax_t max_e = 0;
 		*last_chk = umodule((int64_t)token - limit + 1, module);
-		DBG_INF_FMT("Fetch start from key %s len %d index %d", keys[i], keys_len[i], i);
 		for (i = 0; i < limit; i++) {
 			if ((retval = memcached_fetch(memc, keys[i], &keys_len[i],
 												  &retval_len, &flags, &rcf)))
