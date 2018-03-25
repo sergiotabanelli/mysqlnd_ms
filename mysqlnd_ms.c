@@ -1513,9 +1513,9 @@ mysqlnd_ms_aux_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, const
 	check = (*conn_data)->global_trx.memc && (*conn_data)->global_trx.memcached_key &&
 			((*conn_data)->global_trx.running_depth > 0 || (*conn_data)->global_trx.first_read) ? TRUE : FALSE;
 	if (check) {
-		if ((ret = mysqlnd_ms_aux_ss_gtid_mtoken((*conn_data)->global_trx.memc, (*conn_data)->global_trx.memcached_key,
+		if (((*conn_data)->global_trx.running_depth <= 0 || (ret = mysqlnd_ms_aux_ss_gtid_mtoken((*conn_data)->global_trx.memc, (*conn_data)->global_trx.memcached_key,
 				&(*conn_data)->global_trx.owned_token, (*conn_data)->global_trx.module,
-				(*conn_data)->global_trx.injectable_query && (*conn_data)->global_trx.running_depth)) == SUCCESS &&
+				(*conn_data)->global_trx.injectable_query && (*conn_data)->global_trx.running_depth)) == SUCCESS) &&
 			(ret = mysqlnd_ms_aux_ss_gtid_mget((*conn_data)->global_trx.memc, &value, &is_gtid, &(*conn_data)->global_trx.last_chk_token,
 				(*conn_data)->global_trx.memcached_key, (*conn_data)->global_trx.running_depth,
 				(*conn_data)->global_trx.owned_token, (*conn_data)->global_trx.module)) == SUCCESS) {
@@ -1683,7 +1683,7 @@ mysqlnd_ms_aux_ss_gtid_connect(MYSQLND_CONN_DATA * proxy_conn, MYSQLND_MS_LIST_D
 		}
 		if (memc) {
 			global_trx->memc = memc;
-			if (global_trx->memcached_key_len > 0) {
+			if (global_trx->memcached_key_len > 0 && global_trx->running_depth > 0) {
 				rc = memcached_add_by_key(memc,
 						global_trx->memcached_key, global_trx->memcached_key_len,
 						global_trx->memcached_key, global_trx->memcached_key_len,
@@ -1736,7 +1736,7 @@ mysqlnd_ms_aux_ss_gtid_clean(MYSQLND_CONN_DATA * conn, enum_func_status status T
 				ret = FAIL;
 				php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Error setting memcached executed flag %s.", ot);
 			}
-			if ((*proxy_conn_data)->global_trx.memcached_key_len > 0) {
+			if ((*proxy_conn_data)->global_trx.memcached_key_len > 0 && (*proxy_conn_data)->global_trx.running_depth > 0) {
 				l = snprintf(ot, MAXGTIDSIZE, "%s:%" PRIuMAX, (*proxy_conn_data)->global_trx.memcached_key, (*proxy_conn_data)->global_trx.owned_token);
 				rc = memcached_prepend_by_key(memc,
 						(*proxy_conn_data)->global_trx.memcached_key, (*proxy_conn_data)->global_trx.memcached_key_len,
