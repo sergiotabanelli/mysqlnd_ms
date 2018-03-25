@@ -1327,7 +1327,7 @@ mysqlnd_ms_aux_ss_gtid_mget(memcached_st *memc, char **value, zend_bool *is_gtid
 			if ((retval = memcached_fetch(memc, keys[i], &keys_len[i],
 												  &retval_len, &flags, &rcf)))
 			{
-				DBG_INF_FMT("Found Key %d is %s last_r %s last_e %s last_eg %s fetch result %d", i, keys[i], last_r, last_e, last_eg, rcf);
+				DBG_INF_FMT("Found Key %d is %s value %s last_r %s last_e %s last_eg %s fetch result %d", i, keys[i], retval, last_r, last_e, last_eg, rcf);
 				if (*retval == GTID_RUNNING_MARKER) {
 					if (last_r)
 						free(last_r);
@@ -1354,9 +1354,11 @@ mysqlnd_ms_aux_ss_gtid_mget(memcached_st *memc, char **value, zend_bool *is_gtid
 						}
 					}
 				}
+				DBG_INF_FMT("After Key %d is %s last_r %s last_e %s last_eg %s fetch result %d", i, keys[i], last_r, last_e, last_eg, rcf);
 				*last_chk = umodule((int64_t)token - limit + 1 + i, module);
+			} else {
+				DBG_INF_FMT("Not found Key %d is %s last_r %s last_e %s last_eg %s fetch result %d", i, keys[i], last_r, last_e, last_eg, rcf);
 			}
-			DBG_INF_FMT("Key %d is %s last_r %s last_e %s last_eg %s fetch result %d", i, keys[i], last_r, last_e, last_eg, rcf);
 		}
 		if (last_r) {
 			char * p = strchr(last_r, GTID_GTID_MARKER);
