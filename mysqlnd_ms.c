@@ -1354,9 +1354,10 @@ mysqlnd_ms_aux_ss_gtid_mget(memcached_st *memc, char **value, zend_bool *is_gtid
 						}
 					}
 				}
-				*last_chk = umodule((int64_t)token - limit + 1 + i, module);
+				*last_chk = umodule((int64_t)token - limit + 1 + i + i, module);
 			} else {
 				DBG_INF_FMT("Not found Key %d is %s last_r %s last_e %s last_eg %s fetch result %d", i, keys[i], last_r, last_e, last_eg, rcf);
+				break;
 			}
 		}
 		if (last_r) {
@@ -1725,9 +1726,10 @@ mysqlnd_ms_aux_ss_gtid_clean(MYSQLND_CONN_DATA * conn, enum_func_status status T
 		memcached_st *memc = (*proxy_conn_data)->global_trx.memc;
 		memcached_return_t rc = MEMCACHED_SUCCESS;
 		char ot[MAXGTIDSIZE];
-		char val = GTID_EXECUTED_MARKER;
 	  	size_t l;
 	  	if (!(*proxy_conn_data)->global_trx.executed) {
+			char *val = mysqlnd_ms_aux_ss_gtid_build_val(*conn_data, NULL);
+			*val = GTID_EXECUTED_MARKER;
 			if ((*proxy_conn_data)->global_trx.memcached_wkey_len > 0  && (*proxy_conn_data)->global_trx.running_wdepth > 0) {
 				l = snprintf(ot, MAXGTIDSIZE, "%s:%" PRIuMAX, (*proxy_conn_data)->global_trx.memcached_wkey, (*proxy_conn_data)->global_trx.owned_wtoken);
 				rc = memcached_prepend_by_key(memc,
