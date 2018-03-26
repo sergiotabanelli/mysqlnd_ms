@@ -120,7 +120,7 @@ static void mysqlnd_ms_check_config(TSRMLS_D) /* {{{ */
 	if (json_file_name) {
 	    struct stat file_stat;
         int err = stat(json_file_name, &file_stat);
-		if (file_stat.st_mtime > mysqlnd_ms_global_config_loaded) {
+		if (err != 0 || file_stat.st_mtime > mysqlnd_ms_global_config_loaded) {
 		/*	FILE *fp;
 			fp=fopen("/tmp/mymysqlnd.log", "a");
 					fprintf(fp, "Read conf file\n");

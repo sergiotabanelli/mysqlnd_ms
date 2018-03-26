@@ -85,14 +85,14 @@ msg_mysqli_init_emulated_id_skip($emulated_master_host_only, $user, $passwd, $db
 --EXPECTF--
 array(5) {
   [0]=>
-  string(61) "Normal: > flag: [] | @@hostname: [%s] | @myrole: []"
+  string(%d) "Normal: > flag: [] | @@hostname: [%s] | @myrole: []"
   [1]=>
-  string(68) "Slave: > flag: [ms=slave] | @@hostname: [%s] | @myrole: []"
+  string(%d) "Slave: > flag: [ms=slave] | @@hostname: [%s] | @myrole: []"
   [2]=>
-  string(94) "Last connection after Slave: > flag: [ms=last_used] | @@hostname: [%s] | @myrole: []"
+  string(%d) "Last connection after Slave: > flag: [ms=last_used] | @@hostname: [%s] | @myrole: []"
   [3]=>
-  string(76) "Master: > flag: [ms=master] | @@hostname: [%s] | @myrole: [master]"
+  string(%d) "Master: > flag: [ms=master] | @@hostname: [%s] | @myrole: [master]"
   [4]=>
-  string(101) "Last connection after Master: > flag: [ms=last_used] | @@hostname: [%s] | @myrole: [master]"
+  string(%d) "Last connection after Master: > flag: [ms=last_used] | @@hostname: [%s] | @myrole: [master]"
 }
 done!

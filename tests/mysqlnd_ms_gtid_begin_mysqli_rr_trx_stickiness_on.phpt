@@ -186,8 +186,8 @@ mysqlnd_ms.collect_statistics=1
 	printf("id = %d\n", $row['_id']);
 	/* does not matter whether rollback or commit */
 	$link->rollback();
-	/* rollback does not change gtid table */
-	$expected['gtid_commit_injections_success'] += 0;
+	/* rollback does not change gtid table but increment statistics*/
+	$expected['gtid_commit_injections_success'] += 1;
 
 	$stats = mysqlnd_ms_get_stats();
 	compare_stats(13, $stats, $expected);

@@ -453,7 +453,7 @@ mysqlnd_ms_load_section_filters(struct st_mysqlnd_ms_config_json_entry * section
 				do {
 					char * filter_name = NULL;
 					size_t filter_name_len = 0;
-					ulong filter_int_name;
+					_ms_ulong filter_int_name;
 					struct st_mysqlnd_ms_config_json_entry * current_filter =
 							mysqlnd_ms_config_json_next_sub_section(filters_section, &filter_name, &filter_name_len, &filter_int_name TSRMLS_CC);
 
@@ -665,7 +665,7 @@ mysqlnd_ms_query_which_qos(const char * query, size_t query_len, zend_bool * for
 int
 mysqlnd_ms_get_php_session(zval * ret TSRMLS_DC) {
 //	zval *params = { to_zval, from_zval, msg_zval };
-	zend_uint param_count = 0;
+	_ms_uint param_count = 0;
 	zval function_name;
 	DBG_ENTER("mysqlnd_ms_get_php_session");
 	_MS_ZVAL_STRING(&function_name, "session_id");

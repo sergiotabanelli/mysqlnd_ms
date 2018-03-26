@@ -252,7 +252,7 @@ mysqlnd_ms_zval_data_to_hashtable(zval * json_data TSRMLS_DC)
 			while (_MS_HASH_GET_ZR_FUNC_PTR_VA(zend_hash_get_current_data_ex, Z_ARRVAL_P(json_data), entry_zval, &pos) == SUCCESS) {
 				char * skey = NULL;
 				_ms_size_type skey_len = 0;
-				ulong nkey = 0;
+				_ms_ulong nkey = 0;
 				int key_type = _ms_hash_str_get_current_key(Z_ARRVAL_P(json_data), &skey, &skey_len, &nkey, &pos);
 				mysqlnd_ms_add_zval_to_hash(_ms_p_zval entry_zval, ret->value.ht, skey, skey_len, nkey, key_type TSRMLS_CC);
 
@@ -583,7 +583,7 @@ mysqlnd_ms_config_json_section_is_object_list(struct st_mysqlnd_ms_config_json_e
 /* {{{ mysqlnd_ms_config_json_next_sub_section */
 PHP_MYSQLND_MS_API struct st_mysqlnd_ms_config_json_entry *
 mysqlnd_ms_config_json_next_sub_section(struct st_mysqlnd_ms_config_json_entry * main_section,
-										char ** section_name, size_t * section_name_len, ulong * nkey TSRMLS_DC)
+										char ** section_name, size_t * section_name_len, _ms_ulong * nkey TSRMLS_DC)
 {
 	struct st_mysqlnd_ms_config_json_entry * ret = NULL;
 	struct st_mysqlnd_ms_config_json_entry _ms_p_zval * entry;
@@ -592,7 +592,7 @@ mysqlnd_ms_config_json_next_sub_section(struct st_mysqlnd_ms_config_json_entry *
 	if (SUCCESS == _MS_HASH_GET_ZR_FUNC_PTR(zend_hash_get_current_data_ptr, main_section->value.ht, entry)) {
 		char * tmp_skey = NULL;
 		_ms_size_type tmp_skey_len = 0;
-		ulong tmp_nkey = 0;
+		_ms_ulong tmp_nkey = 0;
 		int key_type;
 		if (!section_name) {
 			section_name = &tmp_skey;

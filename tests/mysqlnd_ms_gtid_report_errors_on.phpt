@@ -160,6 +160,8 @@ mysqlnd_ms.collect_statistics=1
 	}
 	/* autocommit failed, still in transaction mode */
 	$expected['gtid_commit_injections_failure']++;
+	/* rollback add a success */
+	$expected['gtid_commit_injections_success']++;
 	$stats = mysqlnd_ms_get_stats();
 	compare_stats(37, $stats, $expected);
 
