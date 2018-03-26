@@ -1732,10 +1732,10 @@ mysqlnd_ms_aux_ss_gtid_clean(MYSQLND_CONN_DATA * conn, enum_func_status status T
 			*val = GTID_EXECUTED_MARKER;
 			if ((*proxy_conn_data)->global_trx.memcached_wkey_len > 0  && (*proxy_conn_data)->global_trx.running_wdepth > 0) {
 				l = snprintf(ot, MAXGTIDSIZE, "%s:%" PRIuMAX, (*proxy_conn_data)->global_trx.memcached_wkey, (*proxy_conn_data)->global_trx.owned_wtoken);
-				rc = memcached_prepend_by_key(memc,
+				rc = memcached_set_by_key(memc,
 						(*proxy_conn_data)->global_trx.memcached_wkey, (*proxy_conn_data)->global_trx.memcached_wkey_len,
 						ot, l,
-						&val, 1, (time_t)(*proxy_conn_data)->global_trx.running_ttl, (uint32_t)0);
+						val, 1, (time_t)(*proxy_conn_data)->global_trx.running_ttl, (uint32_t)0);
 				DBG_INF_FMT("Prepend executed marker for wkey %s returned %d", ot, rc);
 			}
 			if (rc != MEMCACHED_SUCCESS) {
@@ -1744,10 +1744,10 @@ mysqlnd_ms_aux_ss_gtid_clean(MYSQLND_CONN_DATA * conn, enum_func_status status T
 			}
 			if ((*proxy_conn_data)->global_trx.memcached_key_len > 0 && (*proxy_conn_data)->global_trx.running_depth > 0) {
 				l = snprintf(ot, MAXGTIDSIZE, "%s:%" PRIuMAX, (*proxy_conn_data)->global_trx.memcached_key, (*proxy_conn_data)->global_trx.owned_token);
-				rc = memcached_prepend_by_key(memc,
+				rc = memcached_set_by_key(memc,
 						(*proxy_conn_data)->global_trx.memcached_key, (*proxy_conn_data)->global_trx.memcached_key_len,
 						ot, l,
-						&val, 1, (time_t)(*proxy_conn_data)->global_trx.running_ttl, (uint32_t)0);
+						val, 1, (time_t)(*proxy_conn_data)->global_trx.running_ttl, (uint32_t)0);
 				DBG_INF_FMT("Prepend executed marker for key %s returned %d", ot, rc);
 			}
 			if (rc != MEMCACHED_SUCCESS) {
