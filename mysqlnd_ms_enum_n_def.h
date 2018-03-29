@@ -557,6 +557,7 @@ extern struct st_mysqlnd_conn_methods * ms_orig_mysqlnd_conn_handle_methods;
 #define SECT_G_TRX_MODULE 					"module"
 #define SECT_G_TRX_RUNNING_DEPTH 			"running_depth"
 #define SECT_G_TRX_RUNNING_WDEPTH 			"running_wdepth"
+#define SECT_G_TRX_USE_GET 					"use_get"
 //END NOWAIT
 #define HOSTS_GROUP							"hosts_group"
 #define SECT_G_TRX_WAIT_FOR_WGTID_TIMEOUT 	"wait_for_wgtid_timeout"
@@ -1026,7 +1027,7 @@ typedef struct st_mysqlnd_ms_gtid_trx_methods {
 	void (*gtid_reset)(MYSQLND_CONN_DATA * conn, enum_func_status status TSRMLS_DC);
 	void (*gtid_trace)(MYSQLND_CONN_DATA * conn, const char * key, size_t key_len, unsigned int ttl, const char * query, size_t query_len TSRMLS_DC);
 	void (*gtid_race_add_active)(MYSQLND_CONN_DATA * conn, zend_llist * server_list, zend_llist * selected_servers, zend_bool is_write TSRMLS_DC);
-	MYSQLND_CONN_DATA * (*gtid_validate)(MYSQLND_CONN_DATA * conn TSRMLS_DC);
+	MYSQLND_CONN_DATA * (*gtid_validate)(MYSQLND_CONN_DATA * conn, zend_bool *retry TSRMLS_DC);
 } MYSQLND_MS_GTID_TRX_METHODS;
 
 // END HACK
@@ -1146,12 +1147,15 @@ typedef struct st_mysqlnd_ms_conn_data
 		uint64_t module;
 		unsigned int running_depth;
 		unsigned int running_wdepth;
+		zend_bool use_get;
 
 		uint64_t owned_wtoken;
 		uint64_t last_chk_token;
 		uint64_t last_chk_wtoken;
 		zend_bool first_read;
 		zend_bool executed;
+		zend_bool prev_found;
+		zend_bool prev_wfound;
 		char * last_whost;
 // END NOWAIT
 		char * last_gtid;
