@@ -1432,10 +1432,6 @@ mysqlnd_ms_aux_ss_gtid_madd(memcached_st *memc, char *value, const char *key, ui
 			*value = GTID_WAIT_MARKER;
 		for (; i != limit; i = umodule(++i, module)) {
 			l = snprintf(ot, MAXGTIDSIZE, "%s:%" PRIuMAX, key, i);
-			if (!found && token > 0) {
-				*value = GTID_RUNNING_MARKER;
-				found = TRUE;
-			}
 			rc = memcached_add_by_key(memc,
 					key, key_len,
 					ot, l,
@@ -1446,6 +1442,9 @@ mysqlnd_ms_aux_ss_gtid_madd(memcached_st *memc, char *value, const char *key, ui
 				value = ret = memcached_get_by_key(memc, key, key_len, ot, l, &value_len, &flags, &rc);
 				if (ret && *ret == GTID_EXECUTED_MARKER)
 					*ret = GTID_RUNNING_MARKER;
+			} else if (!found && token > 0) {
+				*value = GTID_RUNNING_MARKER;
+				found = TRUE;
 			}
 			DBG_INF_FMT("Add token %s value %s return %s rc %d", ot, value, ret, rc);
 		}
