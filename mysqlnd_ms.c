@@ -1440,13 +1440,16 @@ mysqlnd_ms_aux_ss_gtid_madd(memcached_st *memc, char *value, const char *key, ui
 				if (ret)
 					free(ret);
 				value = ret = memcached_get_by_key(memc, key, key_len, ot, l, &value_len, &flags, &rc);
+				DBG_INF_FMT("Get token on add notstored %s value %s return %s rc %d", ot, value, ret, rc);
 				if (ret && *ret == GTID_EXECUTED_MARKER)
 					*ret = GTID_RUNNING_MARKER;
 			} else if (!found && token > 0) {
+				DBG_INF_FMT("Added wait token %s value %s return %s rc %d", ot, value, ret, rc);
 				*value = GTID_RUNNING_MARKER;
 				found = TRUE;
+			} else {
+				DBG_INF_FMT("Add token %s value %s return %s rc %d", ot, value, ret, rc);
 			}
-			DBG_INF_FMT("Add token %s value %s return %s rc %d", ot, value, ret, rc);
 		}
 	}
 	DBG_RETURN(ret);
