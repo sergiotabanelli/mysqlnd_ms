@@ -1428,7 +1428,7 @@ mysqlnd_ms_aux_ss_gtid_madd(memcached_st *memc, char *value, const char *key, ui
 	uint32_t flags;
 	DBG_ENTER("mysqlnd_ms_aux_ss_gtid_madd");
 	if (i < limit) {
-		if (!found && token > 0) {
+		if (!found && token > 0)
 			*value = GTID_WAIT_MARKER;
 		for (; i != limit; i = umodule(++i, module)) {
 			l = snprintf(ot, MAXGTIDSIZE, "%s:%" PRIuMAX, key, i);
