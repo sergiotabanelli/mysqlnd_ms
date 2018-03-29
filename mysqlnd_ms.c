@@ -1380,10 +1380,10 @@ mysqlnd_ms_aux_ss_gtid_mget(memcached_st *memc, char **value, zend_bool *is_gtid
 					break;
 			}
 		}
-		if (*found)
-			*last_chk = umodule((int64_t)token - limit + 1 + i, module);
-		else
+		if (!*found && token > 0)
 			*last_chk = umodule((int64_t)token - 1, module);
+		else
+			*last_chk = umodule((int64_t)token - limit + 1 + i, module);
 		if (last_r) {
 			char * p = strchr(last_r, GTID_GTID_MARKER);
 			if (p)
