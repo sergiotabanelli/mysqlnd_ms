@@ -1415,7 +1415,7 @@ mysqlnd_ms_aux_ss_gtid_mget(memcached_st *memc, char **value, zend_bool *is_gtid
 
 /* {{{ mysqlnd_ms_aux_ss_gtid_madd */
 static char *
-mysqlnd_ms_aux_ss_gtid_madd(memcached_st *memc, const char *value, const char *key, uint64_t last_chk_token, uint64_t token, uint64_t module, unsigned int ttl, zend_bool found)
+mysqlnd_ms_aux_ss_gtid_madd(memcached_st *memc, char *value, const char *key, uint64_t last_chk_token, uint64_t token, uint64_t module, unsigned int ttl, zend_bool found)
 {
 	memcached_return_t rc = MEMCACHED_SUCCESS;
   	char * ret = NULL;
@@ -1478,7 +1478,8 @@ mysqlnd_ms_aux_ss_gtid_validate(MYSQLND_CONN_DATA * conn, zend_bool *retry TSRML
 		if (checkw) {
 			hostw = mysqlnd_ms_aux_ss_gtid_madd((*proxy_conn_data)->global_trx.memc, value,
 					(*proxy_conn_data)->global_trx.memcached_wkey, (*proxy_conn_data)->global_trx.last_chk_wtoken,
-					(*proxy_conn_data)->global_trx.owned_wtoken, (*proxy_conn_data)->global_trx.module, (*proxy_conn_data)->global_trx.running_ttl);
+					(*proxy_conn_data)->global_trx.owned_wtoken, (*proxy_conn_data)->global_trx.module,
+					(*proxy_conn_data)->global_trx.running_ttl, (*proxy_conn_data)->global_trx.prev_wfound);
 			DBG_INF_FMT("Validate try wvalue %s added wvalue %s", value, hostw);
 			if (hostw && *hostw == GTID_WAIT_MARKER) {
 				*retry = TRUE;
@@ -1491,7 +1492,8 @@ mysqlnd_ms_aux_ss_gtid_validate(MYSQLND_CONN_DATA * conn, zend_bool *retry TSRML
 		if (check) {
 			host = mysqlnd_ms_aux_ss_gtid_madd((*proxy_conn_data)->global_trx.memc, hostw ? hostw : value,
 					(*proxy_conn_data)->global_trx.memcached_key, (*proxy_conn_data)->global_trx.last_chk_token,
-					(*proxy_conn_data)->global_trx.owned_token, (*proxy_conn_data)->global_trx.module, (*proxy_conn_data)->global_trx.running_ttl);
+					(*proxy_conn_data)->global_trx.owned_token, (*proxy_conn_data)->global_trx.module,
+					(*proxy_conn_data)->global_trx.running_ttl, (*proxy_conn_data)->global_trx.prev_found);
 			DBG_INF_FMT("Validate try value %s added value %s", value, host);
 			if (!checkw && host && *host == GTID_WAIT_MARKER) {
 				*retry = TRUE;
