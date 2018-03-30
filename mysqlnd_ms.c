@@ -1376,14 +1376,16 @@ mysqlnd_ms_aux_ss_gtid_mget(memcached_st *memc, char **value, zend_bool *is_gtid
 				}
 			} else {
 				DBG_INF_FMT("Not found Key %d is %s last_r %s last_e %s last_eg %s fetch result %d", i, keys[i], last_r, last_e, last_eg, rcf);
-				if (*found)
+				if (*found) {
+					i++;
 					break;
+				}
 			}
 		}
 		if (!*found && token > 0)
 			*last_chk = umodule((int64_t)token - 1, module);
 		else
-			*last_chk = umodule((int64_t)token - limit + 1 + i, module);
+			*last_chk = umodule((int64_t)token - limit + i, module);
 		if (last_r) {
 			char * p = strchr(last_r, GTID_GTID_MARKER);
 			if (p)
