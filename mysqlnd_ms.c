@@ -1811,22 +1811,26 @@ mysqlnd_ms_aux_ss_gtid_clean(MYSQLND_CONN_DATA * conn, enum_func_status status T
 	  	if ((*proxy_conn_data)->global_trx.auto_clean) {
 	  		uint64_t token;
 			if ((*proxy_conn_data)->global_trx.memcached_wkey_len > 0 && (*proxy_conn_data)->global_trx.running_wdepth > 0) {
-				token = umodule((*proxy_conn_data)->global_trx.owned_wtoken - (2 * (*proxy_conn_data)->global_trx.running_wdepth), (*proxy_conn_data)->global_trx.module);
-				l = snprintf(ot, MAXGTIDSIZE, "%s:%" PRIuMAX, (*proxy_conn_data)->global_trx.memcached_wkey, token);
-				rc = memcached_delete_by_key(memc,
-						(*proxy_conn_data)->global_trx.memcached_wkey, (*proxy_conn_data)->global_trx.memcached_wkey_len,
-						ot, l,
-						(time_t)(*proxy_conn_data)->global_trx.running_ttl);
-				DBG_INF_FMT("Delete wkey %s returned %d", ot, rc);
+				if ((*proxy_conn_data)->global_trx.module != 0 || (*proxy_conn_data)->global_trx.owned_wtoken >= (2 * (*proxy_conn_data)->global_trx.running_wdepth)) {
+					token = umodule((*proxy_conn_data)->global_trx.owned_wtoken - (2 * (*proxy_conn_data)->global_trx.running_wdepth), (*proxy_conn_data)->global_trx.module);
+					l = snprintf(ot, MAXGTIDSIZE, "%s:%" PRIuMAX, (*proxy_conn_data)->global_trx.memcached_wkey, token);
+					rc = memcached_delete_by_key(memc,
+							(*proxy_conn_data)->global_trx.memcached_wkey, (*proxy_conn_data)->global_trx.memcached_wkey_len,
+							ot, l,
+							(time_t)(*proxy_conn_data)->global_trx.running_ttl);
+					DBG_INF_FMT("Delete wkey %s returned %d", ot, rc);
+				}
 			}
 			if ((*proxy_conn_data)->global_trx.memcached_key_len > 0  && (*proxy_conn_data)->global_trx.running_depth > 0) {
-				token = umodule((*proxy_conn_data)->global_trx.owned_token - (2 * (*proxy_conn_data)->global_trx.running_depth), (*proxy_conn_data)->global_trx.module);
-				l = snprintf(ot, MAXGTIDSIZE, "%s:%" PRIuMAX, (*proxy_conn_data)->global_trx.memcached_key, token);
-				rc = memcached_delete_by_key(memc,
-						(*proxy_conn_data)->global_trx.memcached_key, (*proxy_conn_data)->global_trx.memcached_key_len,
-						ot, l,
-						(time_t)(*proxy_conn_data)->global_trx.running_ttl);
-				DBG_INF_FMT("Delete key %s returned %d", ot, rc);
+				if ((*proxy_conn_data)->global_trx.module != 0 || (*proxy_conn_data)->global_trx.owned_token >= (2 * (*proxy_conn_data)->global_trx.running_depth)) {
+					token = umodule((*proxy_conn_data)->global_trx.owned_token - (2 * (*proxy_conn_data)->global_trx.running_depth), (*proxy_conn_data)->global_trx.module);
+					l = snprintf(ot, MAXGTIDSIZE, "%s:%" PRIuMAX, (*proxy_conn_data)->global_trx.memcached_key, token);
+					rc = memcached_delete_by_key(memc,
+							(*proxy_conn_data)->global_trx.memcached_key, (*proxy_conn_data)->global_trx.memcached_key_len,
+							ot, l,
+							(time_t)(*proxy_conn_data)->global_trx.running_ttl);
+					DBG_INF_FMT("Delete key %s returned %d", ot, rc);
+				}
 			}
 	  	}
 	}

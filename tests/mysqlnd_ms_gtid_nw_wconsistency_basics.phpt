@@ -81,6 +81,7 @@ $settings = array(
 			'memcached_key'				=> $sql['global_key'],
 			'memcached_wkey'			=> $sql['global_wkey'],
 			'race_avoid'				=> 1,
+			'use_get'					=> 1
 			),
 
 		'lazy_connections' => 1,
