@@ -510,11 +510,9 @@
 			printf("[$oprf] [%d] %s\n", $offset, $link->errno, $link->error);
 			return false;
 		}
-		echo $query;
 		$row = $res->fetch_assoc();
 		if (!$row)
 			return false;
-		var_dump($row);
 		return ('0' == reset($row)) ? true : false;
 	}
 	
