@@ -510,10 +510,11 @@
 			printf("[$oprf] [%d] %s\n", $offset, $link->errno, $link->error);
 			return false;
 		}
+		echo $query;
 		$row = $res->fetch_assoc();
 		if (!$row)
 			return false;
-		
+		var_dump($row);
 		return ('0' == reset($row)) ? true : false;
 	}
 	
@@ -534,6 +535,7 @@
 			return NULL;
 		}
 		$ret = $nw ? explode('?', reset($row[0])) : reset($row[0]);
+		return $ret;
 	}
 
 	function mst_mysqli_fetch_wgtid_memcached($offset, $link, $db, $where, $nw = false) {
