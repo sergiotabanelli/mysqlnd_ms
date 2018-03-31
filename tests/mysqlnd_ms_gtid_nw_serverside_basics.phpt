@@ -117,7 +117,7 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_gtid_nw_serverside_basics.ini
 	if ($gtid)
 		printf("[4CHK] Expecting empty gtid got %s, [%d] %s\n", $gtid, $link->errno, $link->error);			
 	$mgtid = mst_mysqli_fetch_gtid_memcached(0, $memc_link, $db, NULL, true);
-	if ($mgtid[1])
+	if ($mgtid)
 		printf("[4CHK] Expecting empty gtid on memcached got %s\n", $mgtid[1]);	
 
 	mst_mysqli_query(5, $link, "SET @myrole = 'Slave1'", MYSQLND_MS_SLAVE_SWITCH);
@@ -125,7 +125,7 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_gtid_nw_serverside_basics.ini
 	if ($gtid)
 		printf("[5CHK] Expecting empty gtid got %s, [%d] %s\n", $gtid, $link->errno, $link->error);	
 	$mgtid = mst_mysqli_fetch_gtid_memcached(0, $memc_link, $db, NULL, true);
-	if ($mgtid[1])
+	if ($mgtid)
 		printf("[5CHK] Expecting empty gtid on memcached got %s\n", $mgtid[1]);	
 		
 	mst_mysqli_query(6, $link, "SET @myrole = 'Slave2'", MYSQLND_MS_SLAVE_SWITCH);
@@ -133,7 +133,7 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_gtid_nw_serverside_basics.ini
 	if ($gtid)
 		printf("[6CHK] Expecting empty gtid got %s, [%d] %s\n", $gtid, $link->errno, $link->error);	
 	$mgtid = mst_mysqli_fetch_gtid_memcached(0, $memc_link, $db, NULL, true);
-	if ($mgtid[1])
+	if ($mgtid)
 		printf("[6CHK] Expecting empty gtid on memcached got %s\n", $mgtid[1]);	
 		
 	$res = mst_mysqli_query(7, $link, "SELECT @myrole AS _role FROM DUAL");

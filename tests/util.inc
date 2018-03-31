@@ -532,7 +532,7 @@
 			printf("[$oprf] Found more than one row on memcached repository\n", $offset);
 			return NULL;
 		}
-		$ret = $nw ? explode('?', reset($row[0])) : reset($row[0]);
+		$ret = $nw && count($row) != 0 ? explode('?', reset($row[0])) : reset($row[0]);
 		return $ret;
 	}
 
