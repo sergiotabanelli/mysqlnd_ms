@@ -676,8 +676,8 @@
 			var_dump($res->fetch_assoc());
 		}
 		mst_mysqli_query("$offset:2", $link, "SET @myrole = CONCAT(@myrole,'-rp$lock:',RELEASE_LOCK('p$lock'))", $switch);
-		pcntl_waitpid($pid, $status);
 		$res = mst_mysqli_query("$offset:3", $link, "SELECT @myrole AS _role FROM DUAL", MYSQLND_MS_LAST_USED_SWITCH);
+		pcntl_waitpid($pid, $status);
 		var_dump($res->fetch_assoc());
 	}
 	
