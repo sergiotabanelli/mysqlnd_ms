@@ -65,6 +65,7 @@ $settings = array(
 			'memcached_host'			=> 'realyunknown',
 			'memcached_port'			=> $emulated_master_port + $memcached_port_add_hack,
 			'memcached_key'				=> $sql['global_key'],
+			'use_get'					=> 1
 			),
 
 		'lazy_connections' => 1,
