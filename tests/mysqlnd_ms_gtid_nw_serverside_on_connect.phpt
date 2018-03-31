@@ -205,7 +205,7 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_gtid_nw_serverside_on_connect.ini
 	if (mysqli_connect_errno()) {
 		printf("[18CHK] Not expetting connect error got [%d] %s\n", mysqli_connect_errno(), mysqli_connect_error());
 	}
-    printf("[18CHK] [%d] %s\n", mysqli_connect_errno(), mysqli_connect_error());
+    printf("[18CHK] [%d]\n", mysqli_connect_errno());
 	mst_mysqli_query(19, $memc_link, "INSTALL PLUGIN daemon_memcached soname 'libmemcached.so'");
 	print "done!";
 ?>
