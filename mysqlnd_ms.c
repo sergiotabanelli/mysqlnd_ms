@@ -1408,6 +1408,8 @@ mysqlnd_ms_aux_ss_gtid_mget(memcached_st *memc, char **value, zend_bool *is_gtid
 			free(last_e);
 		ret = PASS;
 		DBG_INF_FMT("Return value %s is_gtid %d last_chk %llu depth %d mget result %d fetch result %d", *value, *is_gtid, *last_chk, depth, rc, rcf);
+	} else {
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Something wrong mget returned %d limit %d token %llu",  rc, limit, token);
 	}
 	if (mg)
 		free(mg);
@@ -1566,7 +1568,8 @@ mysqlnd_ms_aux_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, const
 	check = (*conn_data)->global_trx.memc && (*conn_data)->global_trx.memcached_key &&
 			((*conn_data)->global_trx.running_depth > 0 || (*conn_data)->global_trx.first_read) ? TRUE : FALSE;
 	if (check) {
-		if (((*conn_data)->global_trx.running_depth <= 0 || (ret = mysqlnd_ms_aux_ss_gtid_mtoken((*conn_data)->global_trx.memc, (*conn_data)->global_trx.memcached_key,
+		if (((*conn_data)->global_trx.running_depth <= 0 ||
+				(ret = mysqlnd_ms_aux_ss_gtid_mtoken((*conn_data)->global_trx.memc, (*conn_data)->global_trx.memcached_key,
 				&(*conn_data)->global_trx.owned_token, (*conn_data)->global_trx.module,
 				(*conn_data)->global_trx.injectable_query && (*conn_data)->global_trx.running_depth)) == SUCCESS) &&
 			(ret = mysqlnd_ms_aux_ss_gtid_mget((*conn_data)->global_trx.memc, &value, &is_gtid, &(*conn_data)->global_trx.last_chk_token,
@@ -1596,7 +1599,7 @@ mysqlnd_ms_aux_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, const
 				gtid = valuew;
 			} else {
 				DBG_INF_FMT("Something wrong could not get owned token for key %s",  (*conn_data)->global_trx.memcached_key);
-				php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Something wrong could not get owned token %s",  (*conn_data)->global_trx.memcached_key);
+				php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Something wrong could not get owned token %s",  (*conn_data)->global_trx.memcached_wkey);
 			}
 		} else {
 		  	is_gtid = (*conn_data)->global_trx.last_whost ? FALSE : TRUE;
@@ -1836,6 +1839,8 @@ mysqlnd_ms_aux_ss_gtid_clean(MYSQLND_CONN_DATA * conn, enum_func_status status T
 			}
 	  	}
 	}
+	(*proxy_conn_data)->global_trx.owned_wtoken = 0;
+	(*proxy_conn_data)->global_trx.owned_token = 0;
 	DBG_INF_FMT("ret=%s", ret == PASS? "PASS":"FAIL");
 	DBG_RETURN(ret);
 }
