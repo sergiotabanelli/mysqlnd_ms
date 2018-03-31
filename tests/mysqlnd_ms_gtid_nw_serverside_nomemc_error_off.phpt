@@ -189,7 +189,6 @@ array(1) {
   ["_role"]=>
   string(6) "Slave1"
 }
-
 array(2) {
   ["_role"]=>
   string(6) "Slave1"
