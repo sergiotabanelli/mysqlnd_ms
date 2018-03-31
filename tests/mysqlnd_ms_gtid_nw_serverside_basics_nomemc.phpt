@@ -171,23 +171,8 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_gtid_nw_serverside_basics_nomemc.ini
 	require_once("util.inc");
 	if ($error = mst_mysqli_drop_test_table($master_host_only, $user, $passwd, $db, $master_port, $master_socket))
 		printf("[clean] %s\n");
-		
 ?>
 --EXPECTF--
-Warning: mysqli::query(): (mysqlnd_ms) Something wrong could not get owned token gtid in %s on line %d
-
-Warning: mysqli::query(): (mysqlnd_ms) Something wrong no valid selection in %s on line %d
-
-Warning: mysqli::query(): (mysqlnd_ms) Couldn't find the appropriate master connection. Something is wrong in %s on line %d
-[004] [2000] (mysqlnd_ms) Couldn't find the appropriate master connection. Something is wrong
-
-Warning: mysqli::query(): (mysqlnd_ms) Something wrong could not get owned token gtid in %s on line %d
-
-Warning: mysqli::query(): (mysqlnd_ms) Something wrong no valid selection in %s on line %d
-
-Warning: mysqli::query(): (mysqlnd_ms) Couldn't find the appropriate master connection. Something is wrong in /home/osboxes/mysqlnd_ms/tests/util.inc on line 124
-[005] [2000] (mysqlnd_ms) Couldn't find the appropriate master connection. Something is wrong
-
 Warning: mysqlnd_ms_get_last_gtid(): (mysqlnd_ms) Fail or no ID has been injected yet in %s on line %d
 
 Warning: mysqlnd_ms_get_last_gtid(): (mysqlnd_ms) Fail or no ID has been injected yet in %s on line %d
