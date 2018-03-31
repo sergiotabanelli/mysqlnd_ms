@@ -193,7 +193,7 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_gtid_nw_serverside_basics.ini
 	if (!$mgtid[1] || $mgtid[1] != $gtid)
 		printf("[15CHK] Expecting gtid %s on memcached got %s\n", $gtid, $mgtid[1]);	
 
-	/* runs on slave1 and slave2 because the on_connect flag is not set*/
+	/* runs on slave1 because with nowait the on_connect flag is implicit*/
 	$res = mst_mysqli_query(16, $link2, "SELECT id FROM test");
 	var_dump($res->fetch_assoc());
 	$res = mst_mysqli_query(17, $link2, "SELECT id FROM test");
@@ -248,7 +248,6 @@ array(1) {
   ["id"]=>
   string(1) "2"
 }
-[017] [1146] Table 'test.test' doesn't exist
 
 Warning: mysqli::query(): (mysqlnd_ms) Error setting memcached last write %s in %s on line %d
 
