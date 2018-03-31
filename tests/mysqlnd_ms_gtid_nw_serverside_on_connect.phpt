@@ -75,6 +75,7 @@ $settings = array(
 			'memcached_host'			=> $emulated_master_host_only,
 			'memcached_port'			=> $emulated_master_port + $memcached_port_add_hack,
 			'memcached_key'				=> $sql['session_key'],
+			'use_get'					=> 1			
 			),
 
 		'lazy_connections' => 1,
@@ -115,7 +116,7 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_gtid_nw_serverside_on_connect.ini
 	$gtid = mysqlnd_ms_get_last_gtid($link);
 	if ($gtid)
 		printf("[4CHK] Expecting empty gtid got %s, [%d] %s\n", $gtid, $link->errno, $link->error);			
-	$mgtid = mst_mysqli_fetch_gtid_memcached(0, $memc_link, $db);
+	$mgtid = mst_mysqli_fetch_gtid_memcached(0, $memc_link, $db, NULL, true);
 	if ($mgtid)
 		printf("[4CHK] Expecting empty gtid on memcached got %s\n", $mgtid);	
 
@@ -123,7 +124,7 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_gtid_nw_serverside_on_connect.ini
 	$gtid = mysqlnd_ms_get_last_gtid($link);
 	if ($gtid)
 		printf("[5CHK] Expecting empty gtid got %s, [%d] %s\n", $gtid, $link->errno, $link->error);	
-	$mgtid = mst_mysqli_fetch_gtid_memcached(0, $memc_link, $db);
+	$mgtid = mst_mysqli_fetch_gtid_memcached(0, $memc_link, $db, NULL, true);
 	if ($mgtid)
 		printf("[5CHK] Expecting empty gtid on memcached got %s\n", $mgtid);	
 		
@@ -131,7 +132,7 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_gtid_nw_serverside_on_connect.ini
 	$gtid = mysqlnd_ms_get_last_gtid($link);
 	if ($gtid)
 		printf("[6CHK] Expecting empty gtid got %s, [%d] %s\n", $gtid, $link->errno, $link->error);	
-	$mgtid = mst_mysqli_fetch_gtid_memcached(0, $memc_link, $db);
+	$mgtid = mst_mysqli_fetch_gtid_memcached(0, $memc_link, $db, NULL, true);
 	if ($mgtid)
 		printf("[6CHK] Expecting empty gtid on memcached got %s\n", $mgtid);	
 		
@@ -144,19 +145,19 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_gtid_nw_serverside_on_connect.ini
 	$gtid = mysqlnd_ms_get_last_gtid($link);
 	if (!$gtid)
 		printf("[9CHK] Expecting gtid got empty, [%d] %s\n", $link->errno, $link->error);	
-	$mgtid = mst_mysqli_fetch_gtid_memcached(0, $memc_link, $db);
-	if (!$mgtid || $mgtid != $gtid)
-		printf("[9CHK] Expecting gtid %s on memcached got %s\n", $gtid, $mgtid);	
-	printf("[9CHK] GTID from get_last %s GTID from memcached %s\n", $gtid, $mgtid);
+	$mgtid = mst_mysqli_fetch_gtid_memcached(0, $memc_link, $db, NULL, true);
+	if (!$mgtid || $mgtid[1] != $gtid)
+		printf("[9CHK] Expecting gtid %s on memcached got %s\n", $gtid, $mgtid[1]);	
+	printf("[9CHK] GTID from get_last %s GTID from memcached %s\n", $gtid, $mgtid[1]);
 
 	mst_mysqli_query(10, $link, "CREATE TABLE test(id INT) ENGINE=InnoDB");
 	$prev_gtid = $gtid = mysqlnd_ms_get_last_gtid($link);
 	if (!$gtid)
 		printf("[10CHK] Expecting gtid got empty, [%d] %s\n", $gtid, $link->errno, $link->error);
-	$mgtid = mst_mysqli_fetch_gtid_memcached(0, $memc_link, $db);
-	if (!$mgtid || $mgtid != $gtid)
-		printf("[10CHK] Expecting gtid %s on memcached got %s\n", $gtid, $mgtid);	
-	printf("[10CHK] GTID from get_last %s GTID from memcached %s\n", $gtid, $mgtid);
+	$mgtid = mst_mysqli_fetch_gtid_memcached(0, $memc_link, $db, NULL, true);
+	if (!$mgtid || $mgtid[1] != $gtid)
+		printf("[10CHK] Expecting gtid %s on memcached got %s\n", $gtid, $mgtid[1]);	
+	printf("[10CHK] GTID from get_last %s GTID from memcached %s\n", $gtid, $mgtid[1]);
 
 	if (!mst_mysqli_wait_gtid_memcached(0, $slave_link, $db, $gtid))
 		printf("[0CHK] Timeout or gtid not replicated for %s, [%d] %s\n", $gtid, $slave_link->errno, $slave_link->error);	
@@ -169,10 +170,10 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_gtid_nw_serverside_on_connect.ini
 	$gtid = mysqlnd_ms_get_last_gtid($link);
 	if (!$gtid || $gtid == $prev_gtid)
 		printf("[11CHK] Expecting new gtid got the same or empty %s %s, [%d] %s\n", $prev_gtid, $gtid, $link->errno, $link->error);
-	$mgtid = mst_mysqli_fetch_gtid_memcached(0, $memc_link, $db);
-	if (!$mgtid || $mgtid != $gtid)
-		printf("[11CHK] Expecting gtid %s on memcached got %s\n", $gtid, $mgtid);	
-	printf("[11CHK] GTID from get_last %s GTID from memcached %s\n", $gtid, $mgtid);
+	$mgtid = mst_mysqli_fetch_gtid_memcached(0, $memc_link, $db, NULL, true);
+	if (!$mgtid || $mgtid[1] != $gtid)
+		printf("[11CHK] Expecting gtid %s on memcached got %s\n", $gtid, $mgtid[1]);	
+	printf("[11CHK] GTID from get_last %s GTID from memcached %s\n", $gtid, $mgtid[1]);
 	
 	if (!mst_mysqli_wait_gtid_memcached(12, $slave_link, $db, $gtid))
 		printf("[12CHK] Timeout or gtid not replicated for %s, [%d] %s\n", $gtid, $slave_link->errno, $slave_link->error);	
@@ -188,9 +189,9 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_gtid_nw_serverside_on_connect.ini
 		printf("[000] [%d] %s\n", mysqli_connect_errno(), mysqli_connect_error());
 	}
 
-	$mgtid = mst_mysqli_fetch_gtid_memcached(15, $memc_link, $db, "id = '" . session_id() . "'");
-	if (!$mgtid || $mgtid != $gtid)
-		printf("[15CHK] Expecting gtid %s on memcached got %s\n", $gtid, $mgtid);	
+	$mgtid = mst_mysqli_fetch_gtid_memcached(15, $memc_link, $db, "id = '" . session_id() . ":0'", true);
+	if (!$mgtid || $mgtid[1] != $gtid)
+		printf("[15CHK] Expecting gtid %s on memcached got %s\n", $gtid, $mgtid[1]);	
 
 	/* run on slave1 which has replicated the INSERT and has test id 2*/
 	$res = mst_mysqli_query(16, $link2, "SELECT id FROM test WHERE id = 2");
@@ -201,10 +202,10 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_gtid_nw_serverside_on_connect.ini
 	mst_mysqli_query(18, $memc_link, "UNINSTALL PLUGIN daemon_memcached");
 
 	$link2 = mst_mysqli_connect("myapp", $user, $passwd, $db, $port, $socket);
-	if (!mysqli_connect_errno()) {
-		printf("[18CHK] Expetting connect error got none, [%d] %s\n", mysqli_connect_errno(), mysqli_connect_error());
+	if (mysqli_connect_errno()) {
+		printf("[18CHK] Not expetting connect error got [%d] %s\n", mysqli_connect_errno(), mysqli_connect_error());
 	}
-    printf("[18CHK] [%d] %s\n", mysqli_connect_errno(), mysqli_connect_error());
+    printf("[18CHK] [%d]\n", mysqli_connect_errno());
 	mst_mysqli_query(19, $memc_link, "INSTALL PLUGIN daemon_memcached soname 'libmemcached.so'");
 	print "done!";
 ?>
@@ -253,9 +254,5 @@ array(1) {
   ["id"]=>
   string(1) "2"
 }
-
-Warning: mysqli_real_connect(): (mysqlnd_ms) Error connecting to memcached server in %s on line %d
-
-Warning: mysqli_real_connect(): (HY000/2000): Error on gtid_init in %s on line %d
-[18CHK] [2000] Error on gtid_init
+[18CHK] [0]
 done!

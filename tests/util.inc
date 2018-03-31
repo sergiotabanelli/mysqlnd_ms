@@ -424,6 +424,7 @@
 				'delete_container'		=> "DELETE FROM `innodb_memcache`.`containers` WHERE `db_schema` = '$mst_gtid_db' AND `db_table` = 'memcached'",
 				'select'				=> 'SELECT m.trx_id AS trx_id FROM ' . $mst_gtid_db . '.memcached m',
 				'selectw'				=> "SELECT mm.trx_id AS trx_id FROM $mst_gtid_db.memcached m JOIN $mst_gtid_db.memcached mm ON mm.id = CONCAT(m.id, ':', m.trx_id)",
+				'selectw_nw'			=> "SELECT mm.trx_id AS trx_id FROM $mst_gtid_db.memcached m JOIN $mst_gtid_db.memcached mm ON mm.id = CONCAT(m.id, ':', (m.trx_id - 1))",
 				'fetch_last_gtid'		=> 'SELECT @@GLOBAL.GTID_EXECUTED AS trx_id FROM DUAL',
 				'wait_for_gtid'			=> "SELECT WAIT_FOR_EXECUTED_GTID_SET('#GTID', 2) AS timeout FROM DUAL",
 				'update'				=> "UPDATE $mst_gtid_db.memcached SET trx_id = trx_id + 1 WHERE id = '#ID'",
@@ -512,11 +513,10 @@
 		$row = $res->fetch_assoc();
 		if (!$row)
 			return false;
-		
 		return ('0' == reset($row)) ? true : false;
 	}
 	
-	function mst_mysqli_fetch_gtid_memcached($offset, $link, $db, $where = NULL) {
+	function mst_mysqli_fetch_gtid_memcached($offset, $link, $db, $where = NULL,  $nw = false) {
 		$oprf = is_numeric($offset) ? "%03d" : "%s";
 		$sql = mst_get_gtid_memcached($db);
 		if ($where) 
@@ -532,16 +532,18 @@
 			printf("[$oprf] Found more than one row on memcached repository\n", $offset);
 			return NULL;
 		}
-		return reset($row[0]);
+		$ret = $nw && count($row) != 0 ? explode('?', reset($row[0])) : ($nw ? "" : reset($row[0]));
+		return $ret;
 	}
 
-	function mst_mysqli_fetch_wgtid_memcached($offset, $link, $db, $where) {
+	function mst_mysqli_fetch_wgtid_memcached($offset, $link, $db, $where, $nw = false) {
 		$oprf = is_numeric($offset) ? "%03d" : "%s";
 		$sql = mst_get_gtid_memcached($db);
+		$select = $nw ? $sql['selectw_nw'] : $sql['selectw'];
 		if ($where) 
-			$query = sprintf("/*%d*/%s WHERE %s", $offset, $sql['selectw'], $where);
+			$query = sprintf("/*%d*/%s WHERE %s", $offset, $select, $where);
 		else
-			$query = sprintf("/*%d*/%s", $offset, $sql['selectw']);
+			$query = sprintf("/*%d*/%s", $offset, $select);
 		if (!($res = $link->query($query))) {
 			printf("[$oprf] [%d] %s\n", $offset, $link->errno, $link->error);
 			return NULL;
@@ -675,8 +677,8 @@
 		}
 		mst_mysqli_query("$offset:2", $link, "SET @myrole = CONCAT(@myrole,'-rp$lock:',RELEASE_LOCK('p$lock'))", $switch);
 		$res = mst_mysqli_query("$offset:3", $link, "SELECT @myrole AS _role FROM DUAL", MYSQLND_MS_LAST_USED_SWITCH);
-		var_dump($res->fetch_assoc());
 		pcntl_waitpid($pid, $status);
+		var_dump($res->fetch_assoc());
 	}
 	
 	function mst_get_gtid_sql($mst_gtid_db) {

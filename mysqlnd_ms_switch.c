@@ -941,7 +941,6 @@ mysqlnd_ms_pick_server_ex(MYSQLND_CONN_DATA * conn, char ** query, size_t * quer
 		zend_llist * selected_masters = NULL, * selected_slaves = NULL;
 		zend_llist * output_masters = NULL, * output_slaves = NULL;
 		MYSQLND_MS_FILTER_DATA * filter, ** filter_pp;
-		zend_bool qos = FALSE;
 		zend_llist_position	pos;
 		*free_query = FALSE;
 
@@ -1053,7 +1052,6 @@ mysqlnd_ms_pick_server_ex(MYSQLND_CONN_DATA * conn, char ** query, size_t * quer
 													 selected_masters, selected_slaves,
 													 output_masters, output_slaves, stgy,
 													 &MYSQLND_MS_ERROR_INFO(conn) TSRMLS_CC);
-						qos = TRUE;
 					} else {
 						trx_continue_filtering = TRUE;
 					}
@@ -1103,9 +1101,6 @@ mysqlnd_ms_pick_server_ex(MYSQLND_CONN_DATA * conn, char ** query, size_t * quer
 						connection = element->conn;
 					}
 				}
-			}
-			if (connection && (multi_filter == FALSE) && (qos == TRUE) && (*conn_data)->global_trx.m->gtid_validate) {
-				connection = (*conn_data)->global_trx.m->gtid_validate(connection);
 			}
 			if (!connection && (multi_filter == FALSE)) {
 				mysqlnd_ms_client_n_php_error(&MYSQLND_MS_ERROR_INFO(conn), CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, E_WARNING TSRMLS_CC,

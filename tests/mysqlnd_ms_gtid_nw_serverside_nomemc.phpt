@@ -118,6 +118,20 @@ mysqlnd_ms.collect_statistics=1
 		printf("[clean] %s\n");
 ?>
 --EXPECTF--
+Warning: mysqli::query(): (mysqlnd_ms) Something wrong could not get owned token gtid in %s on line %d
+
+Warning: mysqli::query(): (mysqlnd_ms) Something wrong no valid selection in %s on line %d
+
+Warning: mysqli::query(): (mysqlnd_ms) Couldn't find the appropriate master connection. Something is wrong in %s on line %d
+[004] [2000] (mysqlnd_ms) Couldn't find the appropriate master connection. Something is wrong
+
+Warning: mysqli::query(): (mysqlnd_ms) Something wrong could not get owned token gtid in %s on line %d
+
+Warning: mysqli::query(): (mysqlnd_ms) Something wrong no valid selection in %s on line %d
+
+Warning: mysqli::query(): (mysqlnd_ms) Couldn't find the appropriate master connection. Something is wrong in /home/osboxes/mysqlnd_ms/tests/util.inc on line 124
+[005] [2000] (mysqlnd_ms) Couldn't find the appropriate master connection. Something is wrong
+
 Warning: mysqli::query(): (mysqlnd_ms) Error setting memcached last write %s in %s on line %d
 
 Warning: mysqli::query(): OK packet set GTID failed %s in %s on line %d

@@ -65,6 +65,7 @@ $settings = array(
 			'memcached_host'			=> 'realyunknown',
 			'memcached_port'			=> $emulated_master_port + $memcached_port_add_hack,
 			'memcached_key'				=> $sql['global_key'],
+			'use_get'					=> 1
 			),
 
 		'lazy_connections' => 1,
@@ -160,7 +161,6 @@ mysqlnd_ms.collect_statistics=1
 		printf("[clean] %s\n");
 ?>
 --EXPECTF--
-Warning: mysqli_real_connect(): (mysqlnd_ms) Error connecting to memcached server in %s on line %d
 array(1) {
   ["_role"]=>
   string(6) "Slave1"
@@ -189,8 +189,6 @@ array(1) {
   ["_role"]=>
   string(6) "Slave1"
 }
-
-Warning: mysqli_real_connect(): (mysqlnd_ms) Error connecting to memcached server in %s on line %d
 array(2) {
   ["_role"]=>
   string(6) "Slave1"

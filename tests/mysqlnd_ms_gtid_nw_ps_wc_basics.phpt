@@ -81,6 +81,7 @@ $settings = array(
 			'memcached_key'				=> $sql['global_key'],
 			'memcached_wkey'			=> $sql['global_wkey'],
 			'race_avoid'				=> 1,
+			'use_get'					=> 1
 			),
 
 		'lazy_connections' => 1,
@@ -114,23 +115,11 @@ mysqlnd_ms.multi_master=1
 	require_once("connect.inc");
 	require_once("util.inc");
  	$sql = mst_get_gtid_memcached($db);
-    $rwhere = "m.id = '" . $sql['global_key'] . "'";
+    $rwhere = "m.id = '" . $sql['global_key'] . ":0'";
    	$wwhere = "m.id = '" . $sql['global_wkey'] . "'";
 	$link = mst_mysqli_connect("myapp", $user, $passwd, $db, $port, $socket);
 	if (mysqli_connect_errno()) {
 		printf("[".(string)1/*offset*/."] [%d] %s\n", mysqli_connect_errno(), mysqli_connect_error());
-	}
-	require_once("connect.inc");
-	require_once("util.inc");
- 	$sql = mst_get_gtid_memcached($db);
-    $rwhere = "m.id = '" . $sql['global_key'] . "'";
-   	$wwhere = "m.id = '" . $sql['global_wkey'] . "'";
-	$link = mst_mysqli_connect("myapp", $user, $passwd, $db, $port, $socket);
-	if (mysqli_connect_errno()) {
-		printf("[".(string)2/*offset*/."] [%d] %s\n", mysqli_connect_errno(), mysqli_connect_error());
-	}
-	if (mysqli_connect_errno()) {
-		printf("[".(string)3/*offset*/."] [%d] %s\n", mysqli_connect_errno(), mysqli_connect_error());
 	}
 	/* we need an extra non-MS link for checking memcached GTID. */
 	$memc_link = mst_mysqli_connect($emulated_master_host_only, $user, $passwd, $db, $emulated_master_port, $emulated_master_socket);
@@ -196,9 +185,9 @@ mysqlnd_ms.multi_master=1
 	$gtid = mysqlnd_ms_get_last_gtid($link);
 	if (!$gtid)
 		printf("[".(string)21/*offset*/."] Expecting gtid got empty, [%d] %s\n", $link->errno, $link->error);	
-	$rgtid = mst_mysqli_fetch_gtid_memcached(22/*offset*/, $memc_link, $db, $rwhere);
-	$wgtid = mst_mysqli_fetch_wgtid_memcached(23/*offset*/, $memc_link, $db, $wwhere);
-	if ($rgtid != $gtid || $wgtid[1] != $gtid)
+	$rgtid = mst_mysqli_fetch_gtid_memcached(22/*offset*/, $memc_link, $db, $rwhere, true);
+	$wgtid = mst_mysqli_fetch_wgtid_memcached(23/*offset*/, $memc_link, $db, $wwhere, true);
+	if ($rgtid[1] != $gtid || $wgtid[1] != $gtid)
 		printf("[".(string)24/*offset*/."] Expecting gtid %s on memcached got %s %s\n", $gtid, $rgtid, $wgtid[1]);	
 	if (!mst_mysqli_wait_gtid_memcached(25/*offset*/, $master2_link, $db, $gtid))
 		printf("[".(string)26/*offset*/."] Timeout or gtid not replicated for %s, [%d] %s\n", $gtid, $master2_link->errno, $master2_link->error);	
@@ -215,9 +204,9 @@ mysqlnd_ms.multi_master=1
 	$gtid = mysqlnd_ms_get_last_gtid($link);
 	if (!$gtid)
 		printf("[".(string)29/*offset*/."] Expecting gtid got empty, [%d] %s\n", $link->errno, $link->error);	
-	$rgtid = mst_mysqli_fetch_gtid_memcached(30/*offset*/, $memc_link, $db, $rwhere);
-	$wgtid = mst_mysqli_fetch_wgtid_memcached(31/*offset*/, $memc_link, $db, $wwhere);
-	if ($rgtid != $gtid || $wgtid[1] != $gtid)
+	$rgtid = mst_mysqli_fetch_gtid_memcached(30/*offset*/, $memc_link, $db, $rwhere, true);
+	$wgtid = mst_mysqli_fetch_wgtid_memcached(31/*offset*/, $memc_link, $db, $wwhere, true);
+	if ($rgtid[1] != $gtid || $wgtid[1] != $gtid)
 		printf("[".(string)32/*offset*/."] Expecting gtid %s on memcached got %s %s\n", $gtid, $rgtid, $wgtid[1]);	
 	if (!mst_mysqli_wait_gtid_memcached(33/*offset*/, $master1_link, $db, $gtid))
 		printf("[".(string)34/*offset*/."] Timeout or gtid not replicated for %s, [%d] %s\n", $gtid, $master1_link->errno, $master1_link->error);	

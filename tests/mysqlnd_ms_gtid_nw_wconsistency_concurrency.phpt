@@ -81,6 +81,7 @@ $settings = array(
 			'memcached_port'			=> $emulated_master_port + $memcached_port_add_hack,
 			'memcached_key'				=> $sql['global_key'],
 			'memcached_wkey'			=> $sql['global_wkey'],
+			'use_get'					=> 1
 			),
 
 		'lazy_connections' => 1,
@@ -113,7 +114,7 @@ mysqlnd_ms.multi_master=1
 	require_once("connect.inc");
 	require_once("util.inc");
  	$sql = mst_get_gtid_memcached($db);
-    $rwhere = "m.id = '" . $sql['global_key'] . "'";
+    $rwhere = "m.id = '" . $sql['global_key'] . ":0'";
    	$wwhere = "m.id = '" . $sql['global_wkey'] . "'";
 	$link = mst_mysqli_connect("myapp", $user, $passwd, $db, $port, $socket);
 	if (mysqli_connect_errno()) {
@@ -223,11 +224,11 @@ array(1) {
 }
 array(1) {
   ["_role"]=>
-  string(18) "norole-lp1:1-rp1:1"
+  string(13) "Master3-lc1:1"
 }
 array(1) {
   ["_role"]=>
-  string(13) "Master3-lc1:1"
+  string(18) "norole-lp1:1-rp1:1"
 }
 done!
 
