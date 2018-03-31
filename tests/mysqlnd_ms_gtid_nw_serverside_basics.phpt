@@ -117,24 +117,24 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_gtid_nw_serverside_basics.ini
 	if ($gtid)
 		printf("[4CHK] Expecting empty gtid got %s, [%d] %s\n", $gtid, $link->errno, $link->error);			
 	$mgtid = mst_mysqli_fetch_gtid_memcached(0, $memc_link, $db, NULL, true);
-	if ($mgtid)
-		printf("[4CHK] Expecting empty gtid on memcached got %s\n", $mgtid);	
+	if ($mgtid[1])
+		printf("[4CHK] Expecting empty gtid on memcached got %s\n", $mgtid[1]);	
 
 	mst_mysqli_query(5, $link, "SET @myrole = 'Slave1'", MYSQLND_MS_SLAVE_SWITCH);
 	$gtid = mysqlnd_ms_get_last_gtid($link);
 	if ($gtid)
 		printf("[5CHK] Expecting empty gtid got %s, [%d] %s\n", $gtid, $link->errno, $link->error);	
 	$mgtid = mst_mysqli_fetch_gtid_memcached(0, $memc_link, $db, NULL, true);
-	if ($mgtid)
-		printf("[5CHK] Expecting empty gtid on memcached got %s\n", $mgtid);	
+	if ($mgtid[1])
+		printf("[5CHK] Expecting empty gtid on memcached got %s\n", $mgtid[1]);	
 		
 	mst_mysqli_query(6, $link, "SET @myrole = 'Slave2'", MYSQLND_MS_SLAVE_SWITCH);
 	$gtid = mysqlnd_ms_get_last_gtid($link);
 	if ($gtid)
 		printf("[6CHK] Expecting empty gtid got %s, [%d] %s\n", $gtid, $link->errno, $link->error);	
 	$mgtid = mst_mysqli_fetch_gtid_memcached(0, $memc_link, $db, NULL, true);
-	if ($mgtid)
-		printf("[6CHK] Expecting empty gtid on memcached got %s\n", $mgtid);	
+	if ($mgtid[1])
+		printf("[6CHK] Expecting empty gtid on memcached got %s\n", $mgtid[1]);	
 		
 	$res = mst_mysqli_query(7, $link, "SELECT @myrole AS _role FROM DUAL");
 	var_dump($res->fetch_assoc());
@@ -146,9 +146,9 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_gtid_nw_serverside_basics.ini
 	if (!$gtid)
 		printf("[9CHK] Expecting gtid got empty, [%d] %s\n", $link->errno, $link->error);	
 	$mgtid = mst_mysqli_fetch_gtid_memcached(0, $memc_link, $db, NULL, true);
-	if (!$mgtid || $mgtid != $gtid)
-		printf("[9CHK] Expecting gtid %s on memcached got %s\n", $gtid, $mgtid);	
-	printf("[9CHK] GTID from get_last %s GTID from memcached %s\n", $gtid, $mgtid);
+	if (!$mgtid[1] || $mgtid[1] != $gtid)
+		printf("[9CHK] Expecting gtid %s on memcached got %s\n", $gtid, $mgtid[1]);	
+	printf("[9CHK] GTID from get_last %s GTID from memcached %s\n", $gtid, $mgtid[1]);
 
 	mst_mysqli_query(10, $link, "CREATE TABLE test(id INT) ENGINE=InnoDB");
 	$prev_gtid = $gtid = mysqlnd_ms_get_last_gtid($link);
