@@ -202,8 +202,8 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_gtid_nw_serverside_on_connect.ini
 	mst_mysqli_query(18, $memc_link, "UNINSTALL PLUGIN daemon_memcached");
 
 	$link2 = mst_mysqli_connect("myapp", $user, $passwd, $db, $port, $socket);
-	if (!mysqli_connect_errno()) {
-		printf("[18CHK] Expetting connect error got none, [%d] %s\n", mysqli_connect_errno(), mysqli_connect_error());
+	if (mysqli_connect_errno()) {
+		printf("[18CHK] Not expetting connect error got [%d] %s\n", mysqli_connect_errno(), mysqli_connect_error());
 	}
     printf("[18CHK] [%d] %s\n", mysqli_connect_errno(), mysqli_connect_error());
 	mst_mysqli_query(19, $memc_link, "INSTALL PLUGIN daemon_memcached soname 'libmemcached.so'");
@@ -254,9 +254,5 @@ array(1) {
   ["id"]=>
   string(1) "2"
 }
-
-Warning: mysqli_real_connect(): (mysqlnd_ms) Error connecting to memcached server in %s on line %d
-
-Warning: mysqli_real_connect(): (HY000/2000): Error on gtid_init in %s on line %d
-[18CHK] [2000] Error on gtid_init
+[18CHK] [0]
 done!
