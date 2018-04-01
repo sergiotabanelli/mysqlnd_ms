@@ -107,7 +107,7 @@ mysqlnd_ms.multi_master=1
 <?php
 	require_once("connect.inc");
 	require_once("util.inc");
-	$max_connections = 2048;
+	$max_connections = 1024;
 	for ($i=0; $i <= $max_connections; $i++) {
 		$link = mst_mysqli_connect("myapp", $user, $passwd, $db, $port, $socket);
 		mst_mysqli_query($i+1, $link, "SET @myrole = 'Master1'");
@@ -116,7 +116,7 @@ mysqlnd_ms.multi_master=1
 		$res = mst_mysqli_query($i+4, $link, "SELECT @myrole AS _role FROM DUAL");
 		$res = mst_mysqli_query($i+5, $link, "SELECT @myrole AS _role FROM DUAL");
 		$res = mst_mysqli_query($i+6, $link, "SELECT @myrole AS _role FROM DUAL");
-		usleep(500000);
+		link->close();
 	}	
 	print "done!";
 ?>
