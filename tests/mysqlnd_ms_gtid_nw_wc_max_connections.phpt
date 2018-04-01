@@ -116,6 +116,7 @@ mysqlnd_ms.multi_master=1
 		$res = mst_mysqli_query($i+4, $link, "SELECT @myrole AS _role FROM DUAL");
 		$res = mst_mysqli_query($i+5, $link, "SELECT @myrole AS _role FROM DUAL");
 		$res = mst_mysqli_query($i+6, $link, "SELECT @myrole AS _role FROM DUAL");
+		$link->close();
 	}	
 	print "done!";
 ?>
