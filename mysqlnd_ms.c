@@ -1287,7 +1287,12 @@ mysqlnd_ms_aux_ss_gtid_mtoken(memcached_st *memc, const char *key, uint64_t *own
 		}
 		DBG_INF_FMT("Get key %s token %llu return %d", key, token, rc);
 	}
-	*owned_token = umodule(((int64_t)token  - 1), module);
+	if (rc == MEMCACHED_SUCCESS) {
+		*owned_token = umodule(((int64_t)token  - 1), module);
+	} else {
+		DBG_INF_FMT("Something wrong increment returned %d token %llu",  rc, token);
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Something wrong increment returned %d token %llu",  rc, token);
+	}
 	DBG_RETURN(rc == MEMCACHED_SUCCESS ? SUCCESS : FAIL);
 }
 /* }}} */
@@ -1409,6 +1414,7 @@ mysqlnd_ms_aux_ss_gtid_mget(memcached_st *memc, char **value, zend_bool *is_gtid
 		ret = PASS;
 		DBG_INF_FMT("Return value %s is_gtid %d last_chk %llu depth %d mget result %d fetch result %d", *value, *is_gtid, *last_chk, depth, rc, rcf);
 	} else {
+		DBG_INF_FMT("Something wrong mget returned %d limit %d token %llu",  rc, limit, token);
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Something wrong mget returned %d limit %d token %llu",  rc, limit, token);
 	}
 	if (mg)
