@@ -22,6 +22,10 @@
 	putenv("MYSQL_TEST_CONNECT_FLAGS=0");
 	putenv("MYSQL_TEST_EXPERIMENTAL=0");
 
+	putenv("MYSQL_TEST_REAL_MEMCACHED=1");
+	putenv("MYSQL_TEST_MEMCACHED_HOST=127.0.0.1");
+	putenv("MYSQL_TEST_MEMCACHED_PORT=11211");
+
 	/* Whether to run Fabric related tests */
 	putenv("MYSQL_TEST_FABRIC=0");
 	/* MySQL Fabric */
