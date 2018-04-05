@@ -1712,27 +1712,29 @@ mysqlnd_ms_aux_ss_gtid_connect(MYSQLND_CONN_DATA * proxy_conn, MYSQLND_MS_LIST_D
 	MS_DECLARE_AND_LOAD_CONN_DATA(conn_data, new_element->conn);
 	DBG_ENTER("mysqlnd_ms_ss_gtid_connect");
 	if (is_master && (global_trx->memcached_key_len > 0 || global_trx->memcached_wkey_len > 0)) {
-		memcached_st *memc;
-		char * mchost = MYSQLND_MS_CONN_STRING(new_element->host);
-		unsigned int mcport = 11211;
+		memcached_st *memc = global_trx->memc;
 		memcached_return_t rc;
-		if (global_trx->memcached) {
-			memc = memcached(global_trx->memcached, global_trx->memcached_len);
-			DBG_INF_FMT("Memcached config creation %s returns %p", global_trx->memcached, memc);
-		} else {
-			if (global_trx->memcached_port) {
-				mcport = global_trx->memcached_port;
-			}
-			if (global_trx->memcached_host) {
-				mchost = global_trx->memcached_host;
-			}
-			memc = memcached_create(NULL);
-			if (memc) {
-				rc = memcached_server_add(memc, mchost, mcport);
-				if (rc != MEMCACHED_SUCCESS) {
-					memcached_free(memc);
-					php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Failed gtid memcached connect to host.");
-					ret = FAIL;
+		if (!memc)  {
+			char * mchost = MYSQLND_MS_CONN_STRING(new_element->host);
+			unsigned int mcport = 11211;
+			if (global_trx->memcached) {
+				memc = memcached(global_trx->memcached, global_trx->memcached_len);
+				DBG_INF_FMT("Memcached config creation %s returns %p", global_trx->memcached, memc);
+			} else {
+				if (global_trx->memcached_port) {
+					mcport = global_trx->memcached_port;
+				}
+				if (global_trx->memcached_host) {
+					mchost = global_trx->memcached_host;
+				}
+				memc = memcached_create(NULL);
+				if (memc) {
+					rc = memcached_server_add(memc, mchost, mcport);
+					if (rc != MEMCACHED_SUCCESS) {
+						memcached_free(memc);
+						php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Failed gtid memcached connect to host.");
+						ret = FAIL;
+					}
 				}
 			}
 		}
