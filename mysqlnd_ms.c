@@ -1830,7 +1830,7 @@ mysqlnd_ms_aux_ss_gtid_clean(MYSQLND_CONN_DATA * conn, enum_func_status status T
 					rc = memcached_delete_by_key(memc,
 							(*proxy_conn_data)->global_trx.memcached_wkey, (*proxy_conn_data)->global_trx.memcached_wkey_len,
 							ot, l,
-							(time_t)(*proxy_conn_data)->global_trx.running_ttl);
+							(time_t)0);
 					DBG_INF_FMT("Delete wkey %s returned %d", ot, rc);
 				}
 			}
@@ -1841,7 +1841,7 @@ mysqlnd_ms_aux_ss_gtid_clean(MYSQLND_CONN_DATA * conn, enum_func_status status T
 					rc = memcached_delete_by_key(memc,
 							(*proxy_conn_data)->global_trx.memcached_key, (*proxy_conn_data)->global_trx.memcached_key_len,
 							ot, l,
-							(time_t)(*proxy_conn_data)->global_trx.running_ttl);
+							(time_t)0);
 					DBG_INF_FMT("Delete key %s returned %d", ot, rc);
 				}
 			}
