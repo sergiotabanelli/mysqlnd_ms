@@ -1753,14 +1753,14 @@ mysqlnd_ms_aux_ss_gtid_connect(MYSQLND_CONN_DATA * proxy_conn, MYSQLND_MS_LIST_D
 				rc = memcached_add_by_key(memc,
 						global_trx->memcached_key, global_trx->memcached_key_len,
 						global_trx->memcached_key, global_trx->memcached_key_len,
-						"0", 1, (time_t)(*proxy_conn_data)->global_trx.running_ttl * 2, (uint32_t)0);
+						"0", 1, (time_t)0, (uint32_t)0);
 				DBG_INF_FMT("Add key %s returned %d", global_trx->memcached_key, rc);
 			}
 			if (global_trx->memcached_wkey_len > 0 && global_trx->running_wdepth > 0) {
 				rc = memcached_add_by_key(memc,
 						global_trx->memcached_wkey, global_trx->memcached_wkey_len,
 						global_trx->memcached_wkey, global_trx->memcached_wkey_len,
-						"0", 1, (time_t)(*proxy_conn_data)->global_trx.running_ttl * 2, (uint32_t)0);
+						"0", 1, (time_t)0, (uint32_t)0);
 				DBG_INF_FMT("Add wkey %s returned %d", global_trx->memcached_wkey, rc);
 			}
 		} else {
