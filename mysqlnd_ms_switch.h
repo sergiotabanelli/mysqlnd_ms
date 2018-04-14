@@ -25,10 +25,6 @@ struct mysqlnd_ms_lb_strategies;
 struct st_mysqlnd_ms_config_json_entry;
 
 // BEGIN HACK
-zend_bool
-mysqlnd_ms_query_is_injectable_query(const char * query, size_t query_len, zend_bool *forced TSRMLS_DC);
-enum mysqlnd_ms_filter_qos_consistency
-mysqlnd_ms_query_which_qos(const char * query, size_t query_len, zend_bool * forced TSRMLS_DC);
 int
 mysqlnd_ms_get_php_session(zval * TSRMLS_DC);
 enum_func_status
@@ -37,7 +33,7 @@ char *
 mysqlnd_ms_str_replace(const char * orig, const char *rep, const char *with, zend_bool persistent TSRMLS_DC);
 // END HACK
 
-PHP_MYSQLND_MS_API enum enum_which_server mysqlnd_ms_query_is_select(const char * query, size_t query_len, zend_bool * forced TSRMLS_DC);
+PHP_MYSQLND_MS_API enum enum_which_server mysqlnd_ms_query_is_select(const char * query, size_t query_len, unsigned int * forced TSRMLS_DC);
 
 zend_llist * mysqlnd_ms_load_section_filters(struct st_mysqlnd_ms_config_json_entry * section, MYSQLND_ERROR_INFO * error_info,
 											 zend_llist * master_connections, zend_llist * slave_connections,

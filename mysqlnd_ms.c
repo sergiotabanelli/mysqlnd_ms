@@ -55,6 +55,9 @@
 
 // BEGIN HACK
 #include "mysqlnd_ms_filter_qos.h"
+#ifdef MYSQLND_MS_HAVE_MYSQLND_QC
+#include "ext/mysqlnd_qc/mysqlnd_qc.h"
+#endif
 // END HACK
 #include "fabric/mysqlnd_fabric.h"
 
@@ -535,6 +538,7 @@ mysqlnd_ms_init_connection_global_trx(struct st_mysqlnd_ms_global_trx_injection 
 	new_global_trx->module = orig_global_trx->module;
 	new_global_trx->running_depth = orig_global_trx->running_depth;
 	new_global_trx->running_wdepth = orig_global_trx->running_wdepth;
+	new_global_trx->qc_ttl = orig_global_trx->qc_ttl;
 	new_global_trx->use_get = orig_global_trx->use_get;
 
 	new_global_trx->owned_wtoken = 0;
@@ -638,6 +642,59 @@ mysqlnd_ms_connect_to_host_aux_elm(MYSQLND_CONN_DATA * proxy_conn, MYSQLND_CONN_
 	DBG_RETURN(ret);
 }
 /* }}} */
+
+#ifdef MYSQLND_MS_HAVE_MYSQLND_QC
+/* {{{ mysqlnd_ms_aux_gtid_is_cached */
+static zend_bool mysqlnd_ms_aux_gtid_is_cached(MYSQLND_CONN_DATA * conn, const char * gtid, char * query, size_t query_len TSRMLS_DC)
+{
+	char * server_id = NULL;
+	int server_id_len;
+	zend_bool ret = FALSE;
+	MS_DECLARE_AND_LOAD_CONN_DATA(conn_data, conn);
+	struct st_mysqlnd_ms_conn_credentials * cred = &(*conn_data)->cred;
+	DBG_ENTER("mysqlnd_ms_aux_gtid_is_cached");
+
+	server_id_len = spprintf(&server_id, 0, "%s|%d|%s|%s|%s", (*conn_data)->connect_host, cred->port, MYSQLND_MS_CONN_STRING(cred->user), MYSQLND_MS_CONN_STRING(cred->db), gtid);
+	ret = mysqlnd_qc_query_is_cached(conn, (const char *)query, query_len, server_id, server_id_len TSRMLS_CC);
+	DBG_INF_FMT("Server id %s(%d) %p is_cached %d", server_id, server_id_len, server_id, ret);
+	efree(server_id);
+	DBG_RETURN(ret);
+}
+/* }}} */
+
+/* {{{ mysqlnd_ms_aux_gtid_check_and_cache */
+static zend_bool mysqlnd_ms_aux_gtid_check_and_cache(MYSQLND_CONN_DATA * conn, const char * gtid, char ** query, size_t * query_len,
+		zend_llist * slave_list, zend_llist * master_list, zend_llist * selected_slaves, zend_llist * selected_masters TSRMLS_DC)
+{
+	zend_bool ret = FALSE;
+	char * new_query = NULL;
+	MS_DECLARE_AND_LOAD_CONN_DATA(conn_data, conn);
+	struct st_mysqlnd_ms_conn_credentials * cred = &(*conn_data)->cred;
+	DBG_ENTER("mysqlnd_ms_aux_gtid_check_and_cache");
+	ret = mysqlnd_ms_aux_gtid_is_cached(conn, gtid, *query, *query_len);
+	if (ret) {
+		MYSQLND_MS_LIST_DATA * element;
+		BEGIN_ITERATE_OVER_SERVER_LIST(element, master_list)
+			zend_llist_add_element(selected_masters, &element);
+		END_ITERATE_OVER_SERVER_LIST;
+		BEGIN_ITERATE_OVER_SERVER_LIST(element, slave_list)
+			zend_llist_add_element(selected_slaves, &element);
+		END_ITERATE_OVER_SERVER_LIST;
+	}
+	if ((*conn_data)->global_trx.qc_ttl) {
+		*query_len = spprintf(&new_query, 0, "/*" ENABLE_SWITCH "*//*" ENABLE_SWITCH_TTL"%u*//*" SERVER_ID_SWITCH "%s|%d|%s|%s|%s*/%s",
+			(*conn_data)->global_trx.qc_ttl, (*conn_data)->connect_host, cred->port, MYSQLND_MS_CONN_STRING(cred->user), MYSQLND_MS_CONN_STRING(cred->db), gtid, *query);
+		DBG_INF_FMT("Cache query ttl %s(%d) %p is cached %d", new_query, *query_len, new_query, ret);
+	} else {
+		*query_len = spprintf(&new_query, 0, "/*" SERVER_ID_SWITCH "%s|%d|%s|%s|%s*/%s",
+				(*conn_data)->connect_host, cred->port, MYSQLND_MS_CONN_STRING(cred->user), MYSQLND_MS_CONN_STRING(cred->db), gtid, *query);
+		DBG_INF_FMT("Cache query %s(%d) %p is cached %d", new_query, *query_len, new_query, ret);
+	}
+	*query = new_query;
+	DBG_RETURN(ret);
+}
+#endif
+
 
 #define MAXGTIDSIZE 60
 
@@ -930,7 +987,6 @@ mysqlnd_ms_aux_gtid_choose_connection(MYSQLND_CONN_DATA * conn, const char * gti
 	DBG_ENTER("mysqlnd_ms_aux_gtid_choose_connection");
 	// If there is no gtid and we have multiple masters or slaves then add only actives.
 	if (zend_llist_count(server_list) > 1 && (!gtid || !strcmp(gtid, "0"))) {
-		MS_DECLARE_AND_LOAD_CONN_DATA(proxy_conn_data, conn);
 		mysqlnd_ms_aux_gtid_add_active(conn, server_list, selected_servers, is_write TSRMLS_CC);
 		DBG_VOID_RETURN;
 	}
@@ -1072,20 +1128,22 @@ mysqlnd_ms_aux_gtid_choose_write_master(MYSQLND_CONN_DATA * conn, zend_llist * m
 
 /* {{{ mysqlnd_ms_aux_gtid_filter */
 static void
-mysqlnd_ms_aux_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, const char *query, size_t query_len,
+mysqlnd_ms_aux_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, char ** query, size_t * query_len, zend_bool  * free_query,
 								 zend_llist * slave_list, zend_llist * master_list, zend_llist * selected_slaves, zend_llist * selected_masters, zend_bool is_write TSRMLS_DC)
 {
 	MS_DECLARE_AND_LOAD_CONN_DATA(conn_data, conn);
 	unsigned int wait_time = (*conn_data)->global_trx.wait_for_gtid_timeout;
 	uint64_t total_time = 0, run_time = 0, my_wait_time = wait_time * 1000000;
 	DBG_ENTER("mysqlnd_ms_aux_gtid_filter");
-	if (is_write) {
-		zend_bool forced = FALSE;
-		(*conn_data)->global_trx.injectable_query = INI_STR("mysqlnd_ms.inject_on") ?
-				mysqlnd_ms_query_is_injectable_query(query, query_len, &forced TSRMLS_CC) : TRUE;
-	} else {
-		(*conn_data)->global_trx.injectable_query = FALSE;
+#ifdef MYSQLND_MS_HAVE_MYSQLND_QC
+	if (!is_write) {
+		zend_bool is_cached = mysqlnd_ms_aux_gtid_check_and_cache(conn, gtid, query, query_len, slave_list, master_list, selected_slaves, selected_masters TSRMLS_CC);
+		*free_query = TRUE;
+		if (is_cached) {
+			DBG_VOID_RETURN;
+		}
 	}
+#endif
 	if (!is_write && zend_llist_count(slave_list))
 	{
 		if (wait_time) {
@@ -1294,7 +1352,7 @@ mysqlnd_ms_aux_ss_gtid_mtoken(memcached_st *memc, const char *key, uint64_t *own
 
 /* {{{ mysqlnd_ms_aux_ss_gtid_mget */
 static enum_func_status
-mysqlnd_ms_aux_ss_gtid_mget(memcached_st *memc, char **value, zend_bool *is_gtid, uint64_t *last_chk, const char *key,
+mysqlnd_ms_aux_ss_gtid_mget(memcached_st *memc, char **value, char **gtid, uint64_t *last_chk, const char *key,
 		unsigned int depth, uint64_t token, uint64_t module, zend_bool *found, zend_bool use_get)
 {
 	enum_func_status ret = FAIL;
@@ -1303,8 +1361,8 @@ mysqlnd_ms_aux_ss_gtid_mget(memcached_st *memc, char **value, zend_bool *is_gtid
 	size_t key_len = strlen(key);
 	size_t module_len = module ? uint_len(module) : uint_len(token) + uint_len(depth);
 	size_t max_key_len = (key_len + 2 + module_len);
-	unsigned int limit = module == 0 && token < depth ? token + 1 : depth + 1;
-	void * mg = malloc(sizeof(size_t) * limit + sizeof(char *) * limit + max_key_len * limit);
+	unsigned int limit = module == 0 && token < depth ? token : depth + 1;
+	void * mg = emalloc(sizeof(size_t) * limit + sizeof(char *) * limit + max_key_len * limit);
 	size_t * keys_len = (size_t *) mg;
 	char * * keys = (char * *) ((void *)keys_len + sizeof(size_t) * limit);
 	char * pkey = (char *) ((void *)keys + sizeof(char *) * limit);
@@ -1313,7 +1371,7 @@ mysqlnd_ms_aux_ss_gtid_mget(memcached_st *memc, char **value, zend_bool *is_gtid
 	*value = NULL;
 	for (; i < limit; i++) {
 		keys[i] = pkey + max_key_len * i;
-		keys_len[i] = snprintf(keys[i], max_key_len, "%s:%" PRIuMAX, key, umodule((int64_t)token - limit + 1 + i, module));
+		keys_len[i] = snprintf(keys[i], max_key_len, "%s:%" PRIuMAX, key, umodule((int64_t)token - limit + i, module));
 		DBG_INF_FMT("Token %llu Key %d is %s", token, i, keys[i]);
 	}
 	if (use_get == FALSE) {
@@ -1327,7 +1385,7 @@ mysqlnd_ms_aux_ss_gtid_mget(memcached_st *memc, char **value, zend_bool *is_gtid
 		char * last_e = NULL;
 		char * last_eg = NULL;
 		uintmax_t max_e = 0;
-		*last_chk = umodule((int64_t)token - limit + 1, module);
+		*last_chk = umodule((int64_t)token - limit, module);
 		*found = FALSE;
 		for (i = 0; i < limit; i++) {
 			if (use_get == FALSE) {
@@ -1344,29 +1402,30 @@ mysqlnd_ms_aux_ss_gtid_mget(memcached_st *memc, char **value, zend_bool *is_gtid
 					last_r = retval;
 					retval = NULL;
 				} else if (*retval == GTID_EXECUTED_MARKER && !last_r) {
-					char * gtid = strchr(retval, GTID_GTID_MARKER);
-					if (gtid && *(gtid + 1)) {
-						char * p = strchr(gtid + 1, GTID_GTID_MARKER);
+					char * tgid = strchr(retval, GTID_GTID_MARKER);
+					if (tgid && *(tgid + 1)) {
+						char * p = strchr(tgid + 1, GTID_GTID_MARKER);
 						uintmax_t ngtid = 0;
 						if (p) {
 							*p = 0;
 						}
-						*gtid = 0;
-						gtid++;
+						*tgid = 0;
+						tgid++;
 						if (last_e && strcmp(last_e, retval)) {
 							max_e = 0;
 						}
-						ngtid = mysqlnd_ms_aux_gtid_extract_last(gtid, NULL, 0, 0);
+						ngtid = mysqlnd_ms_aux_gtid_extract_last(tgid, NULL, 0, 0);
 						if (ngtid > max_e) {
 							if (last_e)
 								free(last_e);
 							last_e = retval;
-							last_eg = gtid;
+							last_eg = tgid;
+							max_e = ngtid;
 							retval = NULL;
 						}
 					}
 				} else if (*retval == GTID_WAIT_MARKER && *found == TRUE) { //If we have a wait marker in the middle of found keys something is wrong
-					php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Something wrong found wait token %s for key % but it should not be there",  retval, keys[i]);
+					php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Something wrong found wait token %s for key %s but it should not be there",  retval, keys[i]);
 				}
 				if (*found == FALSE)
 					*found = TRUE;
@@ -1377,7 +1436,7 @@ mysqlnd_ms_aux_ss_gtid_mget(memcached_st *memc, char **value, zend_bool *is_gtid
 			} else {
 				DBG_INF_FMT("Not found Key %d is %s last_r %s last_e %s last_eg %s fetch result %d", i, keys[i], last_r, last_e, last_eg, rcf);
 				if (*found) {
-					i++;
+//					i++;
 					break;
 				}
 			}
@@ -1386,31 +1445,30 @@ mysqlnd_ms_aux_ss_gtid_mget(memcached_st *memc, char **value, zend_bool *is_gtid
 			*last_chk = umodule((int64_t)token - 1, module);
 		else
 			*last_chk = umodule((int64_t)token - limit + i, module);
+		*value = NULL;
+		*gtid = NULL;
 		if (last_r) {
 			char * p = strchr(last_r, GTID_GTID_MARKER);
 			if (p)
 				*p = 0;
 			*value = last_r;
-			*is_gtid = FALSE;
 			last_r = NULL;
-		} else if (last_e && last_eg) {
+		} else if (last_e && last_eg && *last_eg) {
 			size_t len = strlen(last_eg);
-			*value = malloc(len + 1);
-			strcpy(*value, last_eg);
-			*is_gtid = TRUE;
-		} else {
-			*value = NULL;
-			*is_gtid = TRUE;
+			*gtid = malloc(len + 1);
+			strcpy(*gtid, last_eg);
+			*value = last_e;
+			last_e = NULL;
 		}
 		if (last_r)
 			free(last_r);
 		if (last_e)
 			free(last_e);
 		ret = PASS;
-		DBG_INF_FMT("Return value %s is_gtid %d last_chk %llu depth %d mget result %d fetch result %d", *value, *is_gtid, *last_chk, depth, rc, rcf);
+		DBG_INF_FMT("Return value %s gtid %s last_chk %llu depth %d mget result %d fetch result %d", *value, *gtid, *last_chk, depth, rc, rcf);
 	}
 	if (mg)
-		free(mg);
+		efree(mg);
 	DBG_RETURN(ret);
 }
 /* }}} */
@@ -1429,6 +1487,7 @@ mysqlnd_ms_aux_ss_gtid_madd(memcached_st *memc, char *value, const char *key, ui
 	uint64_t limit = umodule(token + 1, module);
 	uint32_t flags;
 	DBG_ENTER("mysqlnd_ms_aux_ss_gtid_madd");
+	DBG_INF_FMT("Init value %s key %s last_chk_token %llu token %llu limit %llu i %llu found %d ", value, key, last_chk_token, token, limit, i, found);
 	if (i < limit) {
 		if (!found && token > 0)
 			*value = GTID_WAIT_MARKER;
@@ -1454,6 +1513,7 @@ mysqlnd_ms_aux_ss_gtid_madd(memcached_st *memc, char *value, const char *key, ui
 			}
 		}
 	}
+	DBG_INF_FMT("Return value %s key %s last_chk_token %llu token %llu limit %llu i %llu found %d ret %s", value, key, last_chk_token, token, limit, i, found, ret);
 	DBG_RETURN(ret);
 }
 /* }}} */
@@ -1487,6 +1547,8 @@ mysqlnd_ms_aux_ss_gtid_validate(MYSQLND_CONN_DATA * conn, zend_bool *retry TSRML
 			DBG_INF_FMT("Validate try wvalue %s added wvalue %s", value, hostw);
 			if (hostw && *hostw == GTID_WAIT_MARKER) {
 				*retry = TRUE;
+				ret = NULL;
+				(*proxy_conn_data)->global_trx.executed = TRUE; // Do not set executed marker
 				goto end;
 			}
 			if (!(*proxy_conn_data)->global_trx.running_depth && !(*proxy_conn_data)->global_trx.last_whost) {
@@ -1501,6 +1563,8 @@ mysqlnd_ms_aux_ss_gtid_validate(MYSQLND_CONN_DATA * conn, zend_bool *retry TSRML
 			DBG_INF_FMT("Validate try value %s added value %s", value, host);
 			if (!checkw && host && *host == GTID_WAIT_MARKER) {
 				*retry = TRUE;
+				ret = NULL;
+				(*proxy_conn_data)->global_trx.executed = TRUE; // Do not set executed marker
 				goto end;
 			}
 		}
@@ -1539,7 +1603,7 @@ end:
 
 /* {{{ mysqlnd_ms_aux_ss_gtid_filter */
 static void
-mysqlnd_ms_aux_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, const char *query, size_t query_len,
+mysqlnd_ms_aux_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, char ** query, size_t * query_len, zend_bool * free_query,
 								 zend_llist * slave_list, zend_llist * master_list,
 								 zend_llist * selected_slaves, zend_llist * selected_masters, zend_bool is_write TSRMLS_DC)
 {
@@ -1550,31 +1614,28 @@ mysqlnd_ms_aux_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, const
   	zend_bool checkw;
   	char * value = NULL;
   	char * valuew = NULL;
-
+  	char * mgtid = NULL;
+  	char * mgtidw = NULL;
+  	char * host = NULL;
 	DBG_ENTER("mysqlnd_ms_aux_ss_gtid_filter");
 	if ((*conn_data)->proxy_conn != conn) {
 		MS_LOAD_CONN_DATA(conn_data, (*conn_data)->proxy_conn);
 	}
 	(*conn_data)->global_trx.executed = FALSE;
-	if (is_write) {
-		zend_bool forced = FALSE;
-		(*conn_data)->global_trx.injectable_query = INI_STR("mysqlnd_ms.inject_on") ?
-				mysqlnd_ms_query_is_injectable_query(query, query_len, &forced TSRMLS_CC) : TRUE;
-	} else {
-		(*conn_data)->global_trx.injectable_query = FALSE;
-	}
 	check = (*conn_data)->global_trx.memc && (*conn_data)->global_trx.memcached_key &&
-			((*conn_data)->global_trx.running_depth > 0 || (*conn_data)->global_trx.first_read) ? TRUE : FALSE;
+			((*conn_data)->global_trx.running_depth > 0 || ((*conn_data)->global_trx.first_read && (!gtid || *gtid == 0))) ? TRUE : FALSE;
 	if (check) {
 		if (((*conn_data)->global_trx.running_depth <= 0 || (ret = mysqlnd_ms_aux_ss_gtid_mtoken((*conn_data)->global_trx.memc, (*conn_data)->global_trx.memcached_key,
 				&(*conn_data)->global_trx.owned_token, (*conn_data)->global_trx.module,
 				(*conn_data)->global_trx.injectable_query && (*conn_data)->global_trx.running_depth)) == SUCCESS) &&
-			(ret = mysqlnd_ms_aux_ss_gtid_mget((*conn_data)->global_trx.memc, &value, &is_gtid, &(*conn_data)->global_trx.last_chk_token,
+			(ret = mysqlnd_ms_aux_ss_gtid_mget((*conn_data)->global_trx.memc, &value, &mgtid, &(*conn_data)->global_trx.last_chk_token,
 				(*conn_data)->global_trx.memcached_key, (*conn_data)->global_trx.running_depth,
 				(*conn_data)->global_trx.owned_token, (*conn_data)->global_trx.module,
 				&(*conn_data)->global_trx.prev_found, (*conn_data)->global_trx.use_get)) == SUCCESS) {
 			DBG_INF_FMT("Increment token %llu last found %llu with value %s", (*conn_data)->global_trx.owned_token, (*conn_data)->global_trx.last_chk_token, value);
-			gtid = value;
+			gtid = mgtid;
+			host = value;
+			is_gtid = gtid || !host ? TRUE : FALSE;
 		} else {
 			php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Something wrong could not get owned token %s",  (*conn_data)->global_trx.memcached_key);
 		}
@@ -1588,36 +1649,42 @@ mysqlnd_ms_aux_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, const
 			if (((*conn_data)->global_trx.running_wdepth <= 0 || (ret = mysqlnd_ms_aux_ss_gtid_mtoken((*conn_data)->global_trx.memc, (*conn_data)->global_trx.memcached_wkey,
 					&(*conn_data)->global_trx.owned_wtoken, (*conn_data)->global_trx.module,
 					(*conn_data)->global_trx.injectable_query && (*conn_data)->global_trx.running_wdepth)) == SUCCESS) &&
-				(ret = mysqlnd_ms_aux_ss_gtid_mget((*conn_data)->global_trx.memc, &valuew, &is_gtid, &(*conn_data)->global_trx.last_chk_wtoken,
+				(ret = mysqlnd_ms_aux_ss_gtid_mget((*conn_data)->global_trx.memc, &valuew, &mgtidw, &(*conn_data)->global_trx.last_chk_wtoken,
 					(*conn_data)->global_trx.memcached_wkey, (*conn_data)->global_trx.running_wdepth,
 					(*conn_data)->global_trx.owned_wtoken, (*conn_data)->global_trx.module,
 					&(*conn_data)->global_trx.prev_wfound, (*conn_data)->global_trx.use_get)) == SUCCESS) {
 				DBG_INF_FMT("Increment wtoken %llu last found %llu with value %s", (*conn_data)->global_trx.owned_wtoken, (*conn_data)->global_trx.last_chk_wtoken, valuew);
-				gtid = valuew;
+				gtid = mgtidw;
+				host = valuew;
+				is_gtid = gtid || !host ? TRUE : FALSE;
 			} else {
 				DBG_INF_FMT("Something wrong could not get owned token for key %s",  (*conn_data)->global_trx.memcached_key);
 				php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Something wrong could not get owned token %s",  (*conn_data)->global_trx.memcached_key);
 			}
 		} else {
 		  	is_gtid = (*conn_data)->global_trx.last_whost ? FALSE : TRUE;
-		  	gtid = (*conn_data)->global_trx.last_whost;
+		  	host = (*conn_data)->global_trx.last_whost;
 		}
 		if (checkw || (check && (*conn_data)->global_trx.running_depth)) {
 			DBG_INF("Set running validate function");
 			(*conn_data)->global_trx.m->gtid_validate = mysqlnd_ms_aux_ss_gtid_validate;
 		}
 	}
+#ifdef MYSQLND_MS_HAVE_MYSQLND_QC
+	if (!is_write) {
+		zend_bool is_cached = mysqlnd_ms_aux_gtid_check_and_cache(conn, gtid, query, query_len, slave_list, master_list, selected_slaves, selected_masters TSRMLS_CC);
+		*free_query = TRUE;
+		if (is_cached) {
+			ret = FAIL; // Hack to skip next if
+		}
+	}
+#endif
 	if (ret == SUCCESS) {
-		if (is_gtid) {
-			mysqlnd_ms_aux_gtid_choose_connection(conn, gtid, master_list, selected_masters, is_write TSRMLS_CC);
-			if (!is_write) {
-				mysqlnd_ms_aux_gtid_choose_connection(conn, gtid, slave_list, selected_slaves, is_write TSRMLS_CC);
-			}
-		} else {
-			MYSQLND_MS_LIST_DATA * data;
+		MYSQLND_MS_LIST_DATA * data = NULL;
+		if (host) {
 			zend_bool exists = FALSE, is_master = FALSE, is_active = FALSE, is_removed = FALSE;
-			size_t value_len = strlen(gtid) + 1; // Include null in host hash key
-			_ms_smart_type ph = {(char *)gtid, value_len, value_len};
+			size_t value_len = strlen(host) + 1; // Include null in host hash key
+			_ms_smart_type ph = {(char *)host, value_len, value_len};
 			exists = (*conn_data)->pool->connection_exists((*conn_data)->pool, &ph, &data, &is_master, &is_active, &is_removed TSRMLS_CC);
 			DBG_INF_FMT("Get host from pool hash_key=%s exists=%d is_master=%d is_active=%d is_removed=%d ", value, exists, is_master, is_active, is_removed);
 			if (exists && is_active && !is_removed && is_master &&
@@ -1634,9 +1701,30 @@ mysqlnd_ms_aux_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, const
 				}
 			}
 		}
+		if (is_gtid) {
+			if (host && data) { // The master of the last gtid is already selected or is not available so we don't need to check it
+				MYSQLND_MS_LIST_DATA * element;
+				zend_llist check_masters;
+				zend_llist_init(&check_masters, sizeof(MYSQLND_MS_LIST_DATA *), NULL /*dtor*/, 0);
+				BEGIN_ITERATE_OVER_SERVER_LIST(element, master_list)
+					if (element != data) {
+						zend_llist_add_element(&check_masters, &element);
+					}
+				END_ITERATE_OVER_SERVER_LIST;
+				mysqlnd_ms_aux_gtid_choose_connection(conn, gtid, &check_masters, selected_masters, is_write TSRMLS_CC);
+				zend_llist_clean(&check_masters);
+			} else {
+				mysqlnd_ms_aux_gtid_choose_connection(conn, gtid, master_list, selected_masters, is_write TSRMLS_CC);
+			}
+			if (!is_write) {
+				mysqlnd_ms_aux_gtid_choose_connection(conn, gtid, slave_list, selected_slaves, is_write TSRMLS_CC);
+			}
+		}
 	}
 	if (value) free(value);
 	if (valuew) free(valuew);
+	if (mgtid) free(mgtid);
+	if (mgtidw) free(mgtidw);
 	DBG_VOID_RETURN;
 }
 /* }}} */
@@ -2146,11 +2234,11 @@ mysqlnd_ms_cs_gtid_inject_after(MYSQLND_CONN_DATA * conn, enum_func_status statu
 
 /* {{{ mysqlnd_ms_cs_gtid_filter */
 static void
-mysqlnd_ms_cs_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid,  const char *query, size_t query_len,
+mysqlnd_ms_cs_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, char ** query, size_t * query_len, zend_bool * free_query,
 								 zend_llist * slave_list, zend_llist * master_list, zend_llist * selected_slaves, zend_llist * selected_masters, zend_bool is_write TSRMLS_DC)
 {
 	DBG_ENTER("mysqlnd_ms_cs_gtid_filter");
-	mysqlnd_ms_aux_gtid_filter(conn, gtid,  query, query_len, slave_list, master_list, selected_slaves, selected_masters, is_write TSRMLS_CC);
+	mysqlnd_ms_aux_gtid_filter(conn, gtid,  query, query_len, free_query, slave_list, master_list, selected_slaves, selected_masters, is_write TSRMLS_CC);
 	DBG_VOID_RETURN;
 }
 /* }}} */
@@ -2348,11 +2436,11 @@ mysqlnd_ms_ss_gtid_inject_after(MYSQLND_CONN_DATA * conn, enum_func_status statu
 
 /* {{{ mysqlnd_ms_ss_gtid_filter */
 static void
-mysqlnd_ms_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, const char *query, size_t query_len,
+mysqlnd_ms_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, char ** query, size_t * query_len, zend_bool * free_query,
 								 zend_llist * slave_list, zend_llist * master_list, zend_llist * selected_slaves, zend_llist * selected_masters, zend_bool is_write TSRMLS_DC)
 {
 	DBG_ENTER("mysqlnd_ms_ss_gtid_filter");
-	mysqlnd_ms_aux_gtid_filter(conn, gtid, query, query_len, slave_list, master_list, selected_slaves, selected_masters, is_write TSRMLS_CC);
+	mysqlnd_ms_aux_gtid_filter(conn, gtid, query, query_len, free_query, slave_list, master_list, selected_slaves, selected_masters, is_write TSRMLS_CC);
 	DBG_VOID_RETURN;
 }
 /* }}} */
@@ -2918,7 +3006,7 @@ mysqlnd_ms_cs_ss_gtid_stop_throttle(struct st_mysqlnd_ms_global_trx_injection * 
 
 /* {{{ mysqlnd_ms_cs_ss_gtid_filter */
 static void
-mysqlnd_ms_cs_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, const char *query, size_t query_len,
+mysqlnd_ms_cs_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, char ** query, size_t * query_len, zend_bool * free_query,
 								 zend_llist * slave_list, zend_llist * master_list, zend_llist * selected_slaves, zend_llist * selected_masters, zend_bool is_write TSRMLS_DC)
 {
 	/* TODO: this code smells .... and needs refactoring */
@@ -2928,12 +3016,9 @@ mysqlnd_ms_cs_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, const 
 		MS_DECLARE_AND_LOAD_CONN_DATA(proxy_conn_data, (*conn_data)->proxy_conn);
 		memcached_return_t rc;
 		uint64_t value = 0;
-		zend_bool forced = FALSE;
-		(*proxy_conn_data)->global_trx.injectable_query = INI_STR("mysqlnd_ms.inject_on") ?
-				mysqlnd_ms_query_is_injectable_query(query, query_len, &forced TSRMLS_CC) : TRUE;
 		if (!(*proxy_conn_data)->global_trx.injectable_query) {
-			DBG_INF_FMT("Not an injectable query %s", query);
-			mysqlnd_ms_aux_gtid_filter(conn, gtid, query, query_len, slave_list, master_list, selected_slaves, selected_masters, is_write TSRMLS_CC);
+			DBG_INF_FMT("Not an injectable query %s", *query);
+			mysqlnd_ms_aux_gtid_filter(conn, gtid, query, query_len, free_query, slave_list, master_list, selected_slaves, selected_masters, is_write TSRMLS_CC);
 		} else if ((*proxy_conn_data)->global_trx.memc && (*proxy_conn_data)->global_trx.memcached_wkey) {
 			unsigned int waitw_time = (*conn_data)->global_trx.wait_for_wgtid_timeout/3; // waitw_time is the timeout to wait for wait token
 			unsigned int waitr_time = (*conn_data)->global_trx.wait_for_wgtid_timeout - waitw_time; // waitr_time is the timeout to wait for running token
@@ -3102,8 +3187,8 @@ mysqlnd_ms_cs_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, const 
 			php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Something wrong no configured memcached or wkey %s",  (*proxy_conn_data)->global_trx.memcached_wkey);
 		}
 	} else {
-		DBG_INF_FMT("Not a write query or single master %s, is_write %d, masters count %d", query, is_write, zend_llist_count(master_list));
-		mysqlnd_ms_aux_gtid_filter(conn, gtid, query, query_len, slave_list, master_list, selected_slaves, selected_masters, is_write TSRMLS_CC);
+		DBG_INF_FMT("Not a write query or single master %s, is_write %d, masters count %d", *query, is_write, zend_llist_count(master_list));
+		mysqlnd_ms_aux_gtid_filter(conn, gtid, query, query_len, free_query, slave_list, master_list, selected_slaves, selected_masters, is_write TSRMLS_CC);
 	}
 	DBG_VOID_RETURN;
 }
@@ -3174,11 +3259,11 @@ mysqlnd_ms_xx_cs_gtid_trace(MYSQLND_CONN_DATA * conn, const char * key, size_t k
 
 /* {{{ mysqlnd_ms_xx_cs_gtid_filter */
 static void
-mysqlnd_ms_xx_cs_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, const char *query, size_t query_len,
+mysqlnd_ms_xx_cs_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, char ** query, size_t * query_len, zend_bool * free_query,
 								 zend_llist * slave_list, zend_llist * master_list, zend_llist * selected_slaves, zend_llist * selected_masters, zend_bool is_write TSRMLS_DC)
 {
 	DBG_ENTER("mysqlnd_ms_xx_cs_gtid_filter");
-	mysqlnd_ms_aux_gtid_filter(conn, gtid, query, query_len, slave_list, master_list, selected_slaves, selected_masters, is_write TSRMLS_CC);
+	mysqlnd_ms_aux_gtid_filter(conn, gtid, query, query_len, free_query, slave_list, master_list, selected_slaves, selected_masters, is_write TSRMLS_CC);
 	DBG_VOID_RETURN;
 }
 /* }}} */
@@ -3733,8 +3818,9 @@ mysqlnd_ms_init_trx_to_null(struct st_mysqlnd_ms_global_trx_injection * trx TSRM
 	trx->memcached_len = 0;
 	trx->module = 0;
 	trx->running_depth = 0;
-	trx->running_wdepth = 10;
+	trx->running_wdepth = 20;
 	trx->use_get = FALSE;
+	trx->qc_ttl = 0;
 
 	trx->owned_wtoken = 0;
 	trx->last_chk_token = 0;
@@ -3916,6 +4002,18 @@ mysqlnd_ms_load_trx_config(struct st_mysqlnd_ms_config_json_entry * main_section
 						MYSQLND_MS_ERROR_PREFIX " '%s' from '%s' must be less than %d", SECT_G_TRX_RUNNING_WDEPTH, SECT_G_TRX_NAME, UINT8_MAX);
 			} else {
 				trx->running_wdepth = (unsigned int)json_int;
+			}
+		}
+		json_int = mysqlnd_ms_config_json_int_from_section(g_trx_section, SECT_G_TRX_QC_TTL, sizeof(SECT_G_TRX_QC_TTL) - 1, 0, &entry_exists, &entry_is_list TSRMLS_CC);
+		if (entry_exists) {
+			if (json_int < 0) {
+				mysqlnd_ms_client_n_php_error(&MYSQLND_MS_ERROR_INFO(conn), CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, E_RECOVERABLE_ERROR TSRMLS_CC,
+						MYSQLND_MS_ERROR_PREFIX " '%s' from '%s' must be greater or equal than zero", SECT_G_TRX_QC_TTL, SECT_G_TRX_NAME);
+			} else if (json_int > UINT8_MAX) {
+				mysqlnd_ms_client_n_php_error(&MYSQLND_MS_ERROR_INFO(conn), CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, E_RECOVERABLE_ERROR TSRMLS_CC,
+						MYSQLND_MS_ERROR_PREFIX " '%s' from '%s' must be less than %d", SECT_G_TRX_QC_TTL, SECT_G_TRX_NAME, UINT8_MAX);
+			} else {
+				trx->qc_ttl = (unsigned int)json_int;
 			}
 		}
 		json_value = mysqlnd_ms_config_json_string_from_section(g_trx_section, SECT_G_TRX_USE_GET, sizeof(SECT_G_TRX_USE_GET) - 1, 0, &entry_exists, &entry_is_list TSRMLS_CC);
@@ -4714,6 +4812,7 @@ MYSQLND_METHOD(mysqlnd_ms, query)(MYSQLND_CONN_DATA * conn, const char * query, 
 			COPY_CLIENT_ERROR(_ms_a_ei MYSQLND_MS_ERROR_INFO(conn), MYSQLND_MS_ERROR_INFO(connection));
 		}
 		if (TRUE == free_query) {
+			DBG_INF_FMT("Free query %p", query);
 			efree((void *)query);
 		}
 		//BEGIN HACK
@@ -4732,6 +4831,7 @@ MYSQLND_METHOD(mysqlnd_ms, query)(MYSQLND_CONN_DATA * conn, const char * query, 
 	ret = mysqlnd_ms_xa_inject_query(conn, connection, switched_servers TSRMLS_CC);
 	if (FAIL == ret) {
 		if (TRUE == free_query) {
+			DBG_INF_FMT("Free query %p", query);
 			efree((void *)query);
 		}
 		//BEGIN HACK
@@ -4790,11 +4890,6 @@ MYSQLND_METHOD(mysqlnd_ms, query)(MYSQLND_CONN_DATA * conn, const char * query, 
 #endif
 */
 	if (CONN_DATA_TRX_SET(proxy_conn_data) && (*conn_data)->global_trx.is_master) {
-//		(*conn_data)->global_trx.injectable_query = ((*conn_data)->stgy.in_transaction ? FALSE : mysqlnd_ms_query_is_injectable_query(query, query_len, &forced TSRMLS_CC));
-		/*if (forced) {
-			(*conn_data)->global_trx.stop_inject = (*conn_data)->global_trx.injectable_query ? FALSE : TRUE;
-		}*/
-		//if (FALSE == (*conn_data)->stgy.in_transaction && FALSE == (*conn_data)->global_trx.stop_inject && (*conn_data)->global_trx.injectable_query == TRUE) {
 		DBG_INF_FMT("in_transaction %u injectable %u trx type %u", (*proxy_conn_data)->stgy.in_transaction, (*proxy_conn_data)->global_trx.injectable_query, (*proxy_conn_data)->global_trx.type);
 		if (FALSE == (*proxy_conn_data)->stgy.in_transaction && (*proxy_conn_data)->global_trx.injectable_query == TRUE) {
 			/* autocommit mode */
@@ -4806,6 +4901,7 @@ MYSQLND_METHOD(mysqlnd_ms, query)(MYSQLND_CONN_DATA * conn, const char * query, 
 
 				if (TRUE == (*proxy_conn_data)->global_trx.report_error) {
 					if (TRUE == free_query) {
+						DBG_INF_FMT("Free query %p", query);
 						efree((void *)query);
 					}
 					if ((MYSQLND_MS_ERROR_INFO(connection)).error_no == 0) {
@@ -4859,6 +4955,7 @@ MYSQLND_METHOD(mysqlnd_ms, query)(MYSQLND_CONN_DATA * conn, const char * query, 
 			if (FAIL == jret) {
 				if (TRUE == (*proxy_conn_data)->global_trx.report_error) {
 					if (TRUE == free_query) {
+						DBG_INF_FMT("Free query %p", query);
 						efree((void *)query);
 					}
 					if ((MYSQLND_MS_ERROR_INFO(connection)).error_no == 0) {
@@ -4872,6 +4969,7 @@ MYSQLND_METHOD(mysqlnd_ms, query)(MYSQLND_CONN_DATA * conn, const char * query, 
 	}
 //END HACK
 	if (TRUE == free_query) {
+		DBG_INF_FMT("Free query %p", query);
 		efree((void *)query);
 	}
 	DBG_RETURN(ret);
@@ -6371,6 +6469,7 @@ MYSQLND_METHOD(mysqlnd_ms_stmt, prepare)(MYSQLND_STMT * const s, const char * co
 			COPY_CLIENT_ERROR(_ms_a_ei MYSQLND_MS_ERROR_INFO(s->data->conn), MYSQLND_MS_ERROR_INFO(connection));
 		}
 		if (TRUE == free_query) {
+			DBG_INF_FMT("Free query %p", query);
 			efree((void *)query);
 		}
 		DBG_RETURN(FAIL);
@@ -6393,6 +6492,7 @@ MYSQLND_METHOD(mysqlnd_ms_stmt, prepare)(MYSQLND_STMT * const s, const char * co
 			if (!new_handle || !new_handle->data) {
 				DBG_ERR("new_handle is null");
 				if (TRUE == free_query) {
+					DBG_INF_FMT("Free query %p", query);
 					efree((void *)query);
 				}
 				DBG_RETURN(FAIL);
@@ -6456,6 +6556,7 @@ MYSQLND_METHOD(mysqlnd_ms_stmt, prepare)(MYSQLND_STMT * const s, const char * co
 	// END HACK
 
 	if (TRUE == free_query) {
+		DBG_INF_FMT("Free query %p", query);
 		efree((void *)query);
 	}
 	DBG_RETURN(ret);
@@ -6531,6 +6632,7 @@ MYSQLND_METHOD(mysqlnd_ms_stmt, execute)(MYSQLND_STMT * const s TSRMLS_DC)
 				COPY_CLIENT_ERROR(_ms_a_ei MYSQLND_MS_ERROR_INFO(s->data->conn), MYSQLND_MS_ERROR_INFO(connection));
 			}
 			if (TRUE == free_query) {
+				DBG_INF_FMT("Free query %p", query);
 				efree((void *)query);
 			}
 			if (CONN_DATA_TRX_SET(conn_data)) {
@@ -6593,7 +6695,8 @@ MYSQLND_METHOD(mysqlnd_ms_stmt, execute)(MYSQLND_STMT * const s TSRMLS_DC)
 			if (s_to_prepare) {
 				s_to_prepare->m->dtor(s_to_prepare, TRUE TSRMLS_CC);
 			}
-			if (free_query) {
+			if (TRUE == free_query) {
+				DBG_INF_FMT("Free query %p", query);
 				efree((void *)query);
 			}
 			if (ret == FAIL) {
@@ -6602,6 +6705,9 @@ MYSQLND_METHOD(mysqlnd_ms_stmt, execute)(MYSQLND_STMT * const s TSRMLS_DC)
 				}
 				DBG_RETURN(FAIL);
 			}
+		} else if (TRUE == free_query) {
+			DBG_INF_FMT("Free query %p", query);
+			efree((void *)query);
 		}
 	}
 	//END HACK

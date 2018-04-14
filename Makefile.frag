@@ -1,4 +1,4 @@
-PHP_TEST_MYSQLND_MS_MODDEP = posix iconv json pdo mysqlnd mysqlnd_mysql mysql mysqlnd_mysqli mysqli pdo_mysqlnd pdo_mysql
+PHP_TEST_MYSQLND_MS_MODDEP = posix iconv json pdo mysqlnd mysqlnd_mysql mysql mysqlnd_mysqli mysqli pdo_mysqlnd pdo_mysql mysqlnd_qc
 
 PHP_TEST_MYSQLND_EXTENSION = ` \
         if test "x$(PHP_TEST_MYSQLND_MS_MODDEP)" != "x"; then \

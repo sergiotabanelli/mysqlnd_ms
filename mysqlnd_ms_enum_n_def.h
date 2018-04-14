@@ -490,8 +490,18 @@ extern struct st_mysqlnd_conn_methods * ms_orig_mysqlnd_conn_handle_methods;
 #define STRONG_SWITCH "ms=strong"
 #define SESSION_SWITCH "ms=session"
 #define EVENTUAL_SWITCH "ms=eventual"
-#define NOINJECT_SWITCH "ms=noinject"
-#define INJECT_SWITCH "ms=inject"
+
+#define	TYPE_MASTER_SWITCH (1U << 0)
+#define	TYPE_SLAVE_SWITCH (1U << 1)
+#define	TYPE_LAST_USED_SWITCH (1U << 2)
+#define	TYPE_ALL_SERVER_SWITCH (1U << 3)
+#define	TYPE_STRONG_SWITCH (1U << 4)
+#define	TYPE_SESSION_SWITCH (1U << 5)
+#define	TYPE_EVENTUAL_SWITCH (1U << 6)
+#define	TYPE_INJECT_SWITCH (1U << 7)
+#define	TYPE_MASTERON_SWITCH (1U << 8)
+#define TYPE_NODE_SWITCH (TYPE_MASTER_SWITCH | TYPE_SLAVE_SWITCH | TYPE_LAST_USED_SWITCH | TYPE_ALL_SERVER_SWITCH)
+
 
 #define GTID_RUNNING_MARKER 'R'
 #define GTID_WAIT_MARKER 'W'
@@ -557,6 +567,7 @@ extern struct st_mysqlnd_conn_methods * ms_orig_mysqlnd_conn_handle_methods;
 #define SECT_G_TRX_MODULE 					"module"
 #define SECT_G_TRX_RUNNING_DEPTH 			"running_depth"
 #define SECT_G_TRX_RUNNING_WDEPTH 			"running_wdepth"
+#define SECT_G_TRX_QC_TTL 					"qc_ttl"
 #define SECT_G_TRX_USE_GET 					"use_get"
 //END NOWAIT
 #define HOSTS_GROUP							"hosts_group"
@@ -1022,7 +1033,7 @@ typedef struct st_mysqlnd_ms_gtid_trx_methods {
 	                               zend_bool lazy_connections TSRMLS_DC);
 	enum_func_status (*gtid_inject_before)(MYSQLND_CONN_DATA * conn TSRMLS_DC);
 	enum_func_status (*gtid_inject_after)(MYSQLND_CONN_DATA * conn, enum_func_status status TSRMLS_DC);
-	void (*gtid_filter)(MYSQLND_CONN_DATA * conn, const char * gtid, const char *query, size_t query_len,
+	void (*gtid_filter)(MYSQLND_CONN_DATA * conn, const char * gtid, char ** query, size_t * query_len, zend_bool * free_query,
 									 zend_llist * slave_list, zend_llist * master_list, zend_llist * selected_slaves, zend_llist * selected_masters, zend_bool is_write TSRMLS_DC);
 	void (*gtid_reset)(MYSQLND_CONN_DATA * conn, enum_func_status status TSRMLS_DC);
 	void (*gtid_trace)(MYSQLND_CONN_DATA * conn, const char * key, size_t key_len, unsigned int ttl, const char * query, size_t query_len TSRMLS_DC);
@@ -1086,6 +1097,8 @@ typedef struct st_mysqlnd_ms_conn_data
 		/* list of uint */
 		zend_llist transient_error_codes;
 
+		unsigned int forced;
+		enum enum_which_server which_server;
 	} stgy;
 
 	struct st_mysqlnd_ms_conn_credentials {
@@ -1147,6 +1160,7 @@ typedef struct st_mysqlnd_ms_conn_data
 		uint64_t module;
 		unsigned int running_depth;
 		unsigned int running_wdepth;
+		unsigned int qc_ttl;
 		zend_bool use_get;
 
 		uint64_t owned_wtoken;
