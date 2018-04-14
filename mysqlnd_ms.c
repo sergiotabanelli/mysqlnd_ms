@@ -1367,11 +1367,12 @@ mysqlnd_ms_aux_ss_gtid_mget(memcached_st *memc, char **value, char **gtid, uint6
 	char * * keys = (char * *) ((void *)keys_len + sizeof(size_t) * limit);
 	char * pkey = (char *) ((void *)keys + sizeof(char *) * limit);
 	unsigned int i = 0;
+	unsigned int tlimit = depth == 0 ? 0 : limit;
 	DBG_ENTER("mysqlnd_ms_aux_ss_gtid_mget");
 	*value = NULL;
 	for (; i < limit; i++) {
 		keys[i] = pkey + max_key_len * i;
-		keys_len[i] = snprintf(keys[i], max_key_len, "%s:%" PRIuMAX, key, umodule((int64_t)token - limit + i, module));
+		keys_len[i] = snprintf(keys[i], max_key_len, "%s:%" PRIuMAX, key, umodule((int64_t)token - tlimit + i, module));
 		DBG_INF_FMT("Token %llu Key %d is %s", token, i, keys[i]);
 	}
 	if (use_get == FALSE) {
@@ -1385,7 +1386,7 @@ mysqlnd_ms_aux_ss_gtid_mget(memcached_st *memc, char **value, char **gtid, uint6
 		char * last_e = NULL;
 		char * last_eg = NULL;
 		uintmax_t max_e = 0;
-		*last_chk = umodule((int64_t)token - limit, module);
+		*last_chk = umodule((int64_t)token - tlimit, module);
 		*found = FALSE;
 		for (i = 0; i < limit; i++) {
 			if (use_get == FALSE) {
