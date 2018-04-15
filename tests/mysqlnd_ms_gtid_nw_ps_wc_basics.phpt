@@ -256,8 +256,13 @@ array(1) {
 }
 Num_rows 1
 Server uid Master1-%s-Master1
+Server uid Master1-MY_EXECUTED_GTID
 Num_rows 1
 Server uid Master1-%s-Master1
 Server uid Master1-%s-Master2
-NULL
+Server uid Master1-MY_EXECUTED_GTID
+array(1) {
+  ["id"]=>
+  string(16) "MY_EXECUTED_GTID"
+}
 done!

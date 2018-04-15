@@ -414,9 +414,9 @@
 				'drop' 					=> 'DROP TABLE IF EXISTS ' . $mst_gtid_db . '.memcached',
 				'create'				=> 'CREATE TABLE ' . $mst_gtid_db . '.memcached(  id char(50) NOT NULL,
 											trx_id varchar(255) NOT NULL,
-  											flags int(11) NOT NULL,
-  											cas bigint(20) NOT NULL,
-  											expiry int(11) NOT NULL,
+  											flags int(11),
+  											cas bigint(20),
+  											expiry int(11),
   											PRIMARY KEY (`id`)) ENGINE=InnoDB',
 				'insert_container'		=> "INSERT INTO `innodb_memcache`.`containers` 
 											(`name`, `db_schema`, `db_table`, `key_columns`, `value_columns`, `flags`, `cas_column`, `expire_time_column`,`unique_idx_name_on_key`) 
@@ -532,7 +532,7 @@
 			printf("[$oprf] Found more than one row on memcached repository\n", $offset);
 			return NULL;
 		}
-		$ret = $nw && count($row) != 0 ? explode('?', reset($row[0])) : ($nw ? "" : reset($row[0]));
+		$ret = $nw && count($row) != 0 ? explode('?', reset($row[0])) : ($nw || count($row) != 1 ? "" : reset($row[0]));
 		return $ret;
 	}
 
@@ -603,7 +603,8 @@
 		}
 	
 		if (!$link->query(sprintf("DROP TABLE IF EXISTS %s", $link->real_escape_string($tablename))) ||
-				!$link->query(sprintf("CREATE TABLE %s(id VARCHAR(255) NOT NULL, PRIMARY KEY (id)) ENGINE=InnoDB", $link->real_escape_string($tablename))))
+				!$link->query(sprintf("CREATE TABLE %s(id VARCHAR(255) NOT NULL, value varchar(255), PRIMARY KEY (id)) ENGINE=InnoDB", $link->real_escape_string($tablename))) ||
+				!$link->query(sprintf("INSERT INTO %s(id, value) VALUES('MY_EXECUTED_GTID','')", $link->real_escape_string($tablename))))
 			return sprintf("[%d] %s\n", $link->errno, $link->error);
 	
 		return '';
@@ -618,6 +619,22 @@
 			return sprintf("[%d] %s\n", $link->errno, $link->error);
 	
 		return '';
+	}
+
+	function mst_mysqli_set_my_gtid_executed($link, $gtid, $tablename = "gtid_test") {
+		if (!$link->query(sprintf("UPDATE %s SET value = '$gtid' WHERE id='MY_EXECUTED_GTID'", $link->real_escape_string($tablename))))
+			return sprintf("[%d] %s\n", $link->errno, $link->error);
+		return '';
+	}
+
+	function mst_mysqli_get_my_gtid_executed($link, $tablename = "gtid_test") {
+		if (!($res = $link->query(sprintf("SELECT value FROM %s WHERE id='MY_EXECUTED_GTID'", $link->real_escape_string($tablename))))) {
+			printf("[$oprf] [%d] %s\n", $offset, $link->errno, $link->error);
+			return NULL;
+		}
+		$row = $res->fetch_all();
+		$ret = count($row) == 1 ? reset($row[0]) : "";
+		return $ret;
 	}
 
 	function mst_fork_gtid_lock_insert($offset, $link, $link1, $lock=1, $switch = NULL) {

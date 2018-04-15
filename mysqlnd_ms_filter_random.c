@@ -799,22 +799,17 @@ MYSQLND_CONN_DATA *
 mysqlnd_ms_choose_connection_random(void * f_data, const char * const query, const size_t query_len,
 									struct mysqlnd_ms_lb_strategies * stgy, MYSQLND_ERROR_INFO * error_info,
 									zend_llist * master_connections, zend_llist * slave_connections,
-									enum enum_which_server * which_server,
 									zend_bool allow_master_for_slave TSRMLS_DC)
 {
 	MYSQLND_MS_FILTER_RANDOM_DATA * filter = (MYSQLND_MS_FILTER_RANDOM_DATA *) f_data;
-	zend_bool forced;
-	enum enum_which_server tmp_which;
+	unsigned int forced = stgy->forced;
+	enum enum_which_server which_server = stgy->which_server;
 	MYSQLND_CONN_DATA * conn = NULL;
 	DBG_ENTER("mysqlnd_ms_choose_connection_random");
 
-	if (!which_server) {
-		which_server = &tmp_which;
-	}
 	DBG_INF_FMT("trx_stickiness_strategy=%d in_transaction=%d trx_stop_switching=%d", stgy->trx_stickiness_strategy,  stgy->in_transaction, stgy->trx_stop_switching);
 
-	*which_server = mysqlnd_ms_query_is_select(query, query_len, &forced TSRMLS_CC);
-	if (allow_master_for_slave && (USE_SLAVE == *which_server) && (0 == zend_llist_count(slave_connections))) {
+	if (allow_master_for_slave && (USE_SLAVE == which_server) && (0 == zend_llist_count(slave_connections))) {
 		/*
 		In versions prior to 1.5 the QoS filter could end the filter chain if it had
 		sieved out all connections but one. This is no longer allowed to ensure QoS
@@ -823,45 +818,45 @@ mysqlnd_ms_choose_connection_random(void * f_data, const char * const query, con
 		may be called with an empty slave list to pick a connection for a SELECT.
 		If so, we implicitly switch to master list.
 		*/
-		*which_server = USE_MASTER;
+		which_server = USE_MASTER;
 	}
 
 	if ((stgy->trx_stickiness_strategy == TRX_STICKINESS_STRATEGY_MASTER) && stgy->in_transaction) {
 		DBG_INF("Enforcing use of master while in transaction");
 		if (stgy->trx_stop_switching) {
 			/* in the middle of a transaction */
-			*which_server = USE_LAST_USED;
+			which_server = USE_LAST_USED;
 		} else {
 			/* first statement run in transaction: disable switch and failover */
-			*which_server = USE_MASTER;
+			which_server = USE_MASTER;
 		}
 		MYSQLND_MS_INC_STATISTIC(MS_STAT_TRX_MASTER_FORCED);
 	} else if ((stgy->trx_stickiness_strategy == TRX_STICKINESS_STRATEGY_ON) && stgy->in_transaction) {
 		if (stgy->trx_stop_switching) {
 			DBG_INF("Use last in middle of transaction");
 			/* in the middle of a transaction */
-			*which_server = USE_LAST_USED;
+			which_server = USE_LAST_USED;
 		} else {
 			/* first statement run in transaction: disable switch and failover */
 			if (FALSE == stgy->trx_read_only) {
 				DBG_INF("Enforcing use of master while in transaction");
-				*which_server = USE_MASTER;
+				which_server = USE_MASTER;
 			} else {
 				if (0 == zend_llist_count(slave_connections)) {
 					DBG_INF("No slaves to run read only transaction, using master");
-					*which_server = USE_MASTER;
+					which_server = USE_MASTER;
 				} else {
 					DBG_INF("Considering use of slave while in read only transaction");
-					*which_server = USE_SLAVE;
+					which_server = USE_SLAVE;
 				}
 			}
 		}
 	}
 	/* Note: master on write shall be independent of trx settings */
 	if (stgy->mysqlnd_ms_flag_master_on_write) {
-		if (*which_server != USE_MASTER) {
-			if (stgy->master_used && !forced) {
-				switch (*which_server) {
+		if (which_server != USE_MASTER) {
+			if (stgy->master_used && (forced & TYPE_NODE_SWITCH) == 0) {
+				switch (which_server) {
 					case USE_MASTER:
 					case USE_LAST_USED:
 						/* Last used must not be modified, otherwise trx handling breaks */
@@ -869,7 +864,7 @@ mysqlnd_ms_choose_connection_random(void * f_data, const char * const query, con
 					case USE_SLAVE:
 					default:
 						DBG_INF("Enforcing use of master after write");
-						*which_server = USE_MASTER;
+						which_server = USE_MASTER;
 						break;
 				}
 			}
@@ -879,11 +874,11 @@ mysqlnd_ms_choose_connection_random(void * f_data, const char * const query, con
 		}
 	}
 
-	switch (*which_server) {
+	switch (which_server) {
 		case USE_SLAVE:
 		{
-			conn = mysqlnd_ms_choose_connection_random_use_slave(master_connections, slave_connections, filter, stgy, which_server, error_info TSRMLS_CC);
-			if ((NULL != conn || USE_MASTER != *which_server) && !(NULL == conn && TRUE == allow_master_for_slave)) {
+			conn = mysqlnd_ms_choose_connection_random_use_slave(master_connections, slave_connections, filter, stgy, &which_server, error_info TSRMLS_CC);
+			if ((NULL != conn || USE_MASTER != which_server) && !(NULL == conn && TRUE == allow_master_for_slave)) {
 				/*
 				conn == NULL && allow_master_for_slave is true if QoS
 				filter has sieved out all available slaves.

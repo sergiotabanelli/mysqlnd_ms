@@ -100,12 +100,14 @@ mysqlnd_ms_section_filters_set_gtid_qos(MYSQLND_CONN_DATA * conn, char * gtid, s
 
 /* {{{ mysqlnd_ms_section_filters_switch_qos */
 static void
-mysqlnd_ms_section_filters_switch_qos(const char * query, size_t query_len, MYSQLND_MS_FILTER_QOS_DATA * filter_data TSRMLS_DC)
+mysqlnd_ms_section_filters_switch_qos(struct mysqlnd_ms_lb_strategies * stgy, MYSQLND_MS_FILTER_QOS_DATA * filter_data TSRMLS_DC)
 {
 	zend_bool forced = FALSE;
-	enum mysqlnd_ms_filter_qos_consistency which_qos = mysqlnd_ms_query_which_qos(query, query_len, &forced TSRMLS_CC);
+	enum mysqlnd_ms_filter_qos_consistency which_qos = stgy->forced & TYPE_STRONG_SWITCH ? CONSISTENCY_STRONG :
+			(stgy->forced & TYPE_SESSION_SWITCH ? CONSISTENCY_SESSION :
+					(stgy->forced & TYPE_EVENTUAL_SWITCH ? CONSISTENCY_EVENTUAL : CONSISTENCY_LAST_ENUM_ENTRY));
 	DBG_ENTER("mysqlnd_ms_section_filters_switch_qos");
-	if (!forced) {
+	if (which_qos == CONSISTENCY_LAST_ENUM_ENTRY) {
 		DBG_VOID_RETURN;
 	}
 	if (filter_data) {
@@ -471,16 +473,16 @@ getlagsqlerror:
 static enum enum_which_server
 mysqlnd_ms_qos_which_server(const char * query, size_t query_len, struct mysqlnd_ms_lb_strategies * stgy TSRMLS_DC)
 {
-	zend_bool forced;
-	enum enum_which_server which_server = mysqlnd_ms_query_is_select(query, query_len, &forced TSRMLS_CC);
+	unsigned int forced = stgy->forced;
+	enum enum_which_server which_server = stgy->which_server;
 	DBG_ENTER("mysqlnd_ms_qos_which_server");
 
-	if ((stgy->trx_stickiness_strategy == TRX_STICKINESS_STRATEGY_MASTER) && stgy->in_transaction && !forced) {
+	if ((stgy->trx_stickiness_strategy == TRX_STICKINESS_STRATEGY_MASTER) && stgy->in_transaction && (forced & TYPE_NODE_SWITCH) == 0) {
 		DBG_INF("Enforcing use of master while in transaction");
 		which_server = USE_MASTER;
 	} else if (stgy->mysqlnd_ms_flag_master_on_write) {
 		if (which_server != USE_MASTER) {
-			if (stgy->master_used && !forced) {
+			if (stgy->master_used && (forced & TYPE_NODE_SWITCH) == 0) {
 				switch (which_server) {
 					case USE_MASTER:
 					case USE_LAST_USED:
@@ -518,7 +520,6 @@ mysqlnd_ms_qos_which_server(const char * query, size_t query_len, struct mysqlnd
 }
 /* }}} */
 
-
 /* {{{ mysqlnd_ms_choose_connection_qos */
 enum_func_status
 mysqlnd_ms_choose_connection_qos(MYSQLND_CONN_DATA * conn, void * f_data, const char * connect_host,
@@ -533,96 +534,19 @@ mysqlnd_ms_choose_connection_qos(MYSQLND_CONN_DATA * conn, void * f_data, const 
 
 	DBG_ENTER("mysqlnd_ms_choose_connection_qos");
 	DBG_INF_FMT("query(50bytes)=%*s", MIN(50, *query_len), *query);
-// BEGIN HACK
-	mysqlnd_ms_section_filters_switch_qos(*query, *query_len, filter_data TSRMLS_CC);
-// END HACK
+	mysqlnd_ms_section_filters_switch_qos(stgy, filter_data TSRMLS_CC);
 
 	switch (filter_data->consistency) {
 		case CONSISTENCY_SESSION:
-//BEGIN HACK
-			/*
-			  For now...
-				 We may be able to use selected slaves which have replicated
-				 the last write on the line, e.g. using global transaction ID.
-
-				 We may be able to use slaves which have replicated certain,
-				 "tagged" writes. For example, the user could have a relaxed
-				 definition of session consistency and require only consistent
-				 reads from one table. In that case, we may use master and
-				 all slaves which have replicated the latest updates on the
-				 table in question.
-			*/
-/*
-			if ((QOS_OPTION_GTID == filter_data->option) && (USE_MASTER != mysqlnd_ms_qos_which_server(*query, *query_len, stgy TSRMLS_CC)))
-			{
-				smart_str sql = {0, 0, 0};
-				zend_bool exit_loop = FALSE;
-
-				BEGIN_ITERATE_OVER_SERVER_LIST(element, slave_list)
-					MYSQLND_CONN_DATA * connection = element->conn;
-					MS_DECLARE_AND_LOAD_CONN_DATA(conn_data, connection);
-					if (!conn_data || !*conn_data) {
-						continue;
-					}
-
-					if ((*conn_data)->global_trx.check_for_gtid && (CONN_GET_STATE(connection) != CONN_QUIT_SENT) &&
-						(
-							(CONN_GET_STATE(connection) > CONN_ALLOCED) ||
-							(PASS == mysqlnd_ms_lazy_connect(element, TRUE TSRMLS_CC)
-						)))
-					{
-						DBG_INF_FMT("Checking slave connection "MYSQLND_LLU_SPEC"", connection->thread_id);
-
-						if (!sql.c) {
-							char * pos = strstr((*conn_data)->global_trx.check_for_gtid, "#GTID");
-							if (pos) {
-							  	smart_str_appendl(&sql, (*conn_data)->global_trx.check_for_gtid,
-												  pos - ((*conn_data)->global_trx.check_for_gtid));
-								smart_str_appends(&sql, filter_data->option_data.gtid);
-								smart_str_appends(&sql, (*conn_data)->global_trx.check_for_gtid + (pos - ((*conn_data)->global_trx.check_for_gtid)) + sizeof("#GTID") - 1);
-								smart_str_appendc(&sql, '\0');
-							} else {
-								mysqlnd_ms_client_n_php_error(NULL, CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, E_WARNING TSRMLS_CC,
-										MYSQLND_MS_ERROR_PREFIX " Failed parse SQL for checking GTID. Cannot find #GTID placeholder");
-								exit_loop = TRUE;
-							}
-						}
-						if (sql.c) {
-							MYSQLND_ERROR_INFO tmp_error_info;
-							memset(&tmp_error_info, 0, sizeof(MYSQLND_ERROR_INFO));
-							if (PASS == mysqlnd_ms_qos_server_has_gtid(connection, conn_data, sql.c, sql.len - 1, (*conn_data)->global_trx.wait_for_gtid_timeout,  &tmp_error_info TSRMLS_CC)) {
-								zend_llist_add_element(selected_slaves, &element);
-							} else if (tmp_error_info.error_no) {
-								mysqlnd_ms_client_n_php_error(NULL, CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, E_WARNING TSRMLS_CC,
-										MYSQLND_MS_ERROR_PREFIX " SQL error while checking slave for GTID: %d/'%s'",
-										tmp_error_info.error_no, tmp_error_info.error);
-							}
-						}
-					}
-					if (exit_loop) {
-						break;
-					}
-
-				END_ITERATE_OVER_SERVER_LIST;
-
-				smart_str_free(&sql);
-
-				BEGIN_ITERATE_OVER_SERVER_LIST(element, master_list)
-					zend_llist_add_element(selected_masters, &element);
-				END_ITERATE_OVER_SERVER_LIST;
-				break;
-			}
-			DBG_INF("fall-through from session consistency");
-*/
 			{
 				MS_DECLARE_AND_LOAD_CONN_DATA(conn_data, conn);
-//				if ((*conn_data)->global_trx.type != GTID_NONE && QOS_OPTION_GTID == filter_data->option) {
+				enum enum_which_server which_server = mysqlnd_ms_qos_which_server(*query, *query_len, stgy TSRMLS_CC);
 				if ((*conn_data)->global_trx.type != GTID_NONE && (*conn_data)->global_trx.is_prepare == FALSE) {
-					enum enum_which_server which_server = mysqlnd_ms_qos_which_server(*query, *query_len, stgy TSRMLS_CC);
+					(*conn_data)->global_trx.injectable_query = stgy->forced & TYPE_INJECT_SWITCH ? TRUE : FALSE;
 					if (which_server == USE_MASTER || which_server == USE_SLAVE) {
 						zend_bool is_write = (USE_MASTER == which_server) ||
 								((*conn_data)->stgy.trx_stickiness_strategy != TRX_STICKINESS_STRATEGY_DISABLED && (*conn_data)->stgy.in_transaction && ((*conn_data)->stgy.trx_stickiness_strategy == TRX_STICKINESS_STRATEGY_MASTER || (*conn_data)->stgy.trx_read_only == FALSE));
-						MYSQLND_MS_GTID_CALL((*conn_data)->global_trx.m->gtid_filter, conn, filter_data->option_data.gtid, *query, *query_len, slave_list, master_list, selected_slaves, selected_masters, is_write TSRMLS_CC);
+						MYSQLND_MS_GTID_CALL((*conn_data)->global_trx.m->gtid_filter, conn, filter_data->option_data.gtid, query, query_len, free_query, slave_list, master_list, selected_slaves, selected_masters, is_write TSRMLS_CC);
 						if ((zend_llist_count(selected_masters) + zend_llist_count(selected_slaves)) <= 0) {
 							php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Something wrong no valid selection");
 							if ((*conn_data)->global_trx.race_avoid_strategy & GTID_RACE_AVOID_ADD_ERROR) {
@@ -640,7 +564,6 @@ mysqlnd_ms_choose_connection_qos(MYSQLND_CONN_DATA * conn, void * f_data, const 
 						break;
 					} else { //Someone other than me will provide ?
 						zend_bool forced;
-						(*conn_data)->global_trx.injectable_query = mysqlnd_ms_query_is_injectable_query(*query, *query_len, &forced TSRMLS_CC);
 						DBG_INF_FMT("Something forced: no master or slave %u add all slaves", which_server);
 						BEGIN_ITERATE_OVER_SERVER_LIST(element, slave_list)
 							zend_llist_add_element(selected_slaves, &element);
@@ -653,7 +576,7 @@ mysqlnd_ms_choose_connection_qos(MYSQLND_CONN_DATA * conn, void * f_data, const 
 	 * then set strong consistency by config file and
 	 * set gtid session consistency programmatically as usual
 	 */
-				else if (USE_MASTER != mysqlnd_ms_qos_which_server(*query, *query_len, stgy TSRMLS_CC)) {
+				else if (USE_MASTER != which_server) {
 					DBG_INF("No gtid writes add all slaves");
 					BEGIN_ITERATE_OVER_SERVER_LIST(element, slave_list)
 						zend_llist_add_element(selected_slaves, &element);
@@ -705,6 +628,7 @@ mysqlnd_ms_choose_connection_qos(MYSQLND_CONN_DATA * conn, void * f_data, const 
 						DBG_INF("Query is in the cache");
 						search_slaves = FALSE;
 					}
+					DBG_INF_FMT("Eventual server id %s(%d) %p", server_id, server_id_len, server_id);
 					efree(server_id);
 				}
 
@@ -793,6 +717,7 @@ mysqlnd_ms_choose_connection_qos(MYSQLND_CONN_DATA * conn, void * f_data, const 
 						*query);
 					*query = new_query;
 					*free_query = TRUE;
+					DBG_INF_FMT("Eventual Cache query %s(%d) %p", *query, *query_len, *query);
 					DBG_INF_FMT("Cache option ttl %lu, slave list ttl %lu, %s", filter_data->option_data.ttl, ttl, *query);
 				}
 #endif
@@ -809,8 +734,6 @@ mysqlnd_ms_choose_connection_qos(MYSQLND_CONN_DATA * conn, void * f_data, const 
 /* }}} */
 
 
-
-#if PHP_VERSION_ID > 50399
 /* {{{ mysqlnd_ms_remove_qos_filter */
 static int
 mysqlnd_ms_remove_qos_filter(void * element, void * data) {
@@ -900,7 +823,6 @@ mysqlnd_ms_section_filters_prepend_qos(MYSQLND * proxy_conn,
 	DBG_RETURN(ret);
 }
 /* }}} */
-#endif
 
 /*
  * Local variables:
