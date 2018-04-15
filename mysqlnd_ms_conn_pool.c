@@ -282,11 +282,9 @@ pool_get_conn_hash_key(_ms_smart_type * hash_key,
 	 * pointer address first. It has shortcomings too as it requires a unique name.
 	 * We need to get started...
 	 */
-	// BEGIN HACK
 	// An hack to simplify write consistency
 	_ms_smart_method(appendc, hash_key, GTID_RUNNING_MARKER);
 	_ms_smart_method(appendc, hash_key, '|');
-	// END HACK
 	if (unique_name_from_config) {
 		_ms_smart_method(appendl, hash_key, unique_name_from_config, strlen(unique_name_from_config));
 	}
@@ -298,21 +296,6 @@ pool_get_conn_hash_key(_ms_smart_type * hash_key,
 	if (user) {
 		_ms_smart_method(appendl, hash_key, user, strlen(user));
 	}
-	// BEGIN HACK
-	// Hash key can be stored in memcached server so avoid easy password guess
-	/*
-	  We add an additional char to create a combo that is not easily found in passwords.
-	  This way a password with only `|` won't create similar hash key to password without `|`
-	*/
-	/*
-	smart_str_appendc(hash_key, '|');
-	smart_str_appendc(hash_key, '^');
-	if (passwd && passwd_len) {
-		smart_str_appendl(hash_key, passwd, passwd_len);
-	}
-	smart_str_appendc(hash_key, '^');
-	*/
-	// END HACK
 	_ms_smart_method(appendc, hash_key, '|');
 	if (socket) {
 		_ms_smart_method(appendl, hash_key, socket, strlen(socket));

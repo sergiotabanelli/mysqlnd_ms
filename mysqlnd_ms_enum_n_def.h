@@ -38,7 +38,6 @@
 
 #include "fabric/mysqlnd_fabric.h"
 
-//BEGIN HACK
 /*
 #define zend_bool unsigned char
 #define ulong unsigned long
@@ -327,8 +326,6 @@ static zend_always_inline int _ms_hash_str_get_current_key(HashTable *ht, char *
 #define MYSQLND_MS_GTID_CALL_PASS(meth, ...) ((meth) ? meth(__VA_ARGS__) : PASS)
 #define MYSQLND_MS_GTID_CALL(meth, ...) if (meth) meth(__VA_ARGS__)
 
-//END HACK
-
 #define MS_DECLARE_AND_LOAD_CONN_DATA(conn_data, connection) \
 	MYSQLND_MS_CONN_DATA ** conn_data = (MYSQLND_MS_CONN_DATA **) _ms_mysqlnd_plugin_get_plugin_connection_data_data((connection), mysqlnd_ms_plugin_id)
 
@@ -485,7 +482,6 @@ extern struct st_mysqlnd_conn_methods * ms_orig_mysqlnd_conn_handle_methods;
 #define LAST_USED_SWITCH "ms=last_used"
 #define ALL_SERVER_SWITCH "ms=all"
 
-//BEGIN HACK
 
 #define STRONG_SWITCH "ms=strong"
 #define SESSION_SWITCH "ms=session"
@@ -514,7 +510,6 @@ extern struct st_mysqlnd_conn_methods * ms_orig_mysqlnd_conn_handle_methods;
 #define MEMCACHED_ERROR_KEY "__error__"
 #define TEST_ACTIVE_QUERY "SELECT @@global.read_only"
 #define TEST_ACTIVE_WQUERY "SELECT @@global.read_only FROM DUAL WHERE @@global.read_only = 0"
-//END HACK
 
 #define MASTER_NAME							"master"
 #define SLAVE_NAME							"slave"
@@ -561,7 +556,6 @@ extern struct st_mysqlnd_conn_methods * ms_orig_mysqlnd_conn_handle_methods;
 #define SECT_G_TRX_FETCH_LAST_GTID 			"fetch_last_gtid"
 #define SECT_G_TRX_CHECK_FOR_GTID 			"check_for_gtid"
 #define SECT_G_TRX_WAIT_FOR_GTID_TIMEOUT 	"wait_for_gtid_timeout"
-//BEGIN HACK
 //BEGIN NOWAIT
 #define SECT_G_TRX_MEMCACHED				"memcached"
 #define SECT_G_TRX_MODULE 					"module"
@@ -586,7 +580,6 @@ extern struct st_mysqlnd_conn_methods * ms_orig_mysqlnd_conn_handle_methods;
 #define SECT_G_TRX_MEMCACHED_PORT			"memcached_port"
 #define SECT_G_TRX_MEMCACHED_PORT_ADD_HACK	"memcached_port_add_hack"
 #define SECT_G_TRX_AUTO_CLEAN				"auto_clean"
-//END HACK
 #define SECT_LB_WEIGHTS						"weights"
 #define SECT_FABRIC_NAME					"fabric"
 #define SECT_FABRIC_HOSTS					"hosts"
@@ -873,15 +866,12 @@ enum mysqlnd_ms_filter_qos_option
 	QOS_OPTION_LAST_ENUM_ENTRY
 };
 
-// BEGIN HACK
 enum mysqlnd_ms_gtid_type
 {
 	GTID_NONE,
 	GTID_CLIENT,
 	GTID_SERVER,
-	GTID_CLIENT_SERVER,
-	GTID_XX_CLIENT,
-	GTID_EXPERIMENTAL,
+	GTID_SERVER_COMPAT_OLD,
 	GTID_LAST_ENUM_ENTRY
 };
 
@@ -889,8 +879,6 @@ enum mysqlnd_ms_gtid_type
 #define GTID_RACE_AVOID_ADD_ERROR				1
 #define GTID_RACE_AVOID_ADD_ACTIVE					2
 #define GTID_RACE_AVOID_MAX_VALUE				3
-
-// END HACK
 
 /* using struct because we will likely add cache ttl later */
 typedef struct st_mysqlnd_ms_filter_qos_option_data
@@ -1022,7 +1010,6 @@ typedef struct st_mysqlnd_ms_xa_trx {
 	enum mysqlnd_ms_xa_state state;
 } MYSQLND_MS_XA_TRX;
 
-// BEGIN HACK
 /* Low-level extraction functionality */
 typedef struct st_mysqlnd_ms_gtid_trx_methods {
 	enum mysqlnd_ms_gtid_type type;
@@ -1041,7 +1028,6 @@ typedef struct st_mysqlnd_ms_gtid_trx_methods {
 	MYSQLND_CONN_DATA * (*gtid_validate)(MYSQLND_CONN_DATA * conn, zend_bool *retry TSRMLS_DC);
 } MYSQLND_MS_GTID_TRX_METHODS;
 
-// END HACK
 /*
  NOTE: Some elements are available with every connection, some
  are set for the global/proxy connection only. The global/proxy connection
@@ -1054,9 +1040,7 @@ typedef struct st_mysqlnd_ms_conn_data
 	zend_bool skip_ms_calls;
 	MYSQLND_CONN_DATA * proxy_conn;
 	char * connect_host;
-    // BEGIN HACK
 	_ms_smart_type *elm_pool_hash_key;
-	// END HACK
 	struct st_mysqlnd_pool * pool;
 
 	const MYSQLND_CHARSET * server_charset;
@@ -1120,16 +1104,11 @@ typedef struct st_mysqlnd_ms_conn_data
 		size_t check_for_gtid_len;
 		unsigned int wait_for_gtid_timeout;
 		/*
-		 TODO: This seems to be the only per-connection value.
-		 We may want to split up the structure into a global and
-		 local part. is_master needs to be local/per-connection.
-		 The rest could probably be global, like with stgy and
-		 LB weigth.
+		 TODO: Split per cluster global connection values from per node single connection values
 		*/
 		zend_bool report_error;
 		zend_bool is_master;
 
-		//BEGIN HACK
 		enum mysqlnd_ms_gtid_type type;
 		MYSQLND_MS_GTID_TRX_METHODS * m;
 		char * memcached_host;
@@ -1180,12 +1159,8 @@ typedef struct st_mysqlnd_ms_conn_data
 		size_t last_ckgtid_len;
 		char * last_wckgtid;
 		size_t last_wckgtid_len;
-		time_t run_time;
-		int running;
-		int running_id;
 		zend_bool injectable_query;
 		zend_bool is_prepare;
-		//END HACK
 	} global_trx;
 	mysqlnd_fabric *fabric;
 
@@ -1194,13 +1169,11 @@ typedef struct st_mysqlnd_ms_conn_data
 
 } MYSQLND_MS_CONN_DATA;
 
-// BEGIN HACK
 typedef struct st_mysqlnd_ms_stmt_data
 {
 	char * query;
 	size_t query_len;
 } MYSQLND_MS_STMT_DATA;
-// END HACK
 
 typedef struct st_mysqlnd_ms_table_filter
 {
