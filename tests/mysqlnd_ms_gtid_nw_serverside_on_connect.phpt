@@ -69,7 +69,7 @@ $settings = array(
 		),
 
 		'global_transaction_id_injection' => array(
-		 	'type'						=> 5,
+		 	'type'						=> 2,
 			'fetch_last_gtid'			=> $sql['fetch_last_gtid'],
 			'report_error'				=> true,
 			'memcached_host'			=> $emulated_master_host_only,

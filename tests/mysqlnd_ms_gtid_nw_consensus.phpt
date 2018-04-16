@@ -59,7 +59,7 @@ $settings = array(
 		),
 		'slave' => array(),
 		'global_transaction_id_injection' => array(
-		 	'type'						=> 5,
+		 	'type'						=> 2,
 			'fetch_last_gtid'			=> "SELECT value AS trx_id FROM gtid_test WHERE id = 'MY_EXECUTED_GTID'",
 			'report_error'				=> true,
 			'memcached_host'			=> $emulated_master_host_only,

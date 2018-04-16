@@ -1327,103 +1327,109 @@ mysqlnd_ms_aux_ss_gtid_mget(memcached_st *memc, char **value, char **gtid, uint6
 	unsigned int tlimit = depth == 0 ? 0 : limit;
 	DBG_ENTER("mysqlnd_ms_aux_ss_gtid_mget");
 	*value = NULL;
-	for (; i < limit; i++) {
-		keys[i] = pkey + max_key_len * i;
-		keys_len[i] = snprintf(keys[i], max_key_len, "%s:%" PRIuMAX, key, umodule((int64_t)token - tlimit + i, module));
-		DBG_INF_FMT("Token %llu Key %d is %s", token, i, keys[i]);
-	}
-	if (use_get == FALSE) {
-		rc = memcached_mget_by_key(memc, key, key_len, (const char * const*)keys, keys_len, limit);
-	}
-	if (rc == MEMCACHED_SUCCESS) {
-		char * retval = NULL;
-		size_t retval_len = 0;
-		uint32_t flags;
-		char * last_r = NULL;
-		char * last_e = NULL;
-		char * last_eg = NULL;
-		uintmax_t max_e = 0;
-		*last_chk = umodule((int64_t)token - tlimit, module);
-		*found = FALSE;
-		for (i = 0; i < limit; i++) {
-			if (use_get == FALSE) {
-				retval = memcached_fetch(memc, keys[i], &keys_len[i], &retval_len, &flags, &rcf);
-			} else {
-				retval = memcached_get_by_key(memc, key, key_len, keys[i], keys_len[i], &retval_len, &flags, &rcf);
-			}
-			if (retval)
-			{
-				DBG_INF_FMT("Found Key %d is %s value %s last_r %s last_e %s last_eg %s fetch result %d", i, keys[i], retval, last_r, last_e, last_eg, rcf);
-				if (*retval == GTID_RUNNING_MARKER) {
-					if (last_r)
-						free(last_r);
-					last_r = retval;
-					retval = NULL;
-				} else if (*retval == GTID_EXECUTED_MARKER && !last_r) {
-					char * tgid = strchr(retval, GTID_GTID_MARKER);
-					if (tgid && *(tgid + 1)) {
-						char * p = strchr(tgid + 1, GTID_GTID_MARKER);
-						uintmax_t ngtid = 0;
-						if (p) {
-							*p = 0;
+	if (limit > 0) {
+		for (; i < limit; i++) {
+			keys[i] = pkey + max_key_len * i;
+			keys_len[i] = snprintf(keys[i], max_key_len, "%s:%" PRIuMAX, key, umodule((int64_t)token - tlimit + i, module));
+			DBG_INF_FMT("Token %llu Key %d is %s", token, i, keys[i]);
+		}
+		if (use_get == FALSE) {
+			rc = memcached_mget_by_key(memc, key, key_len, (const char * const*)keys, keys_len, limit);
+		}
+		if (rc == MEMCACHED_SUCCESS) {
+			char * retval = NULL;
+			size_t retval_len = 0;
+			uint32_t flags;
+			char * last_r = NULL;
+			char * last_e = NULL;
+			char * last_eg = NULL;
+			uintmax_t max_e = 0;
+			*last_chk = umodule((int64_t)token - tlimit, module);
+			*found = FALSE;
+			for (i = 0; i < limit; i++) {
+				if (use_get == FALSE) {
+					retval = memcached_fetch(memc, keys[i], &keys_len[i], &retval_len, &flags, &rcf);
+				} else {
+					retval = memcached_get_by_key(memc, key, key_len, keys[i], keys_len[i], &retval_len, &flags, &rcf);
+				}
+				if (retval)
+				{
+					DBG_INF_FMT("Found Key %d is %s value %s last_r %s last_e %s last_eg %s fetch result %d", i, keys[i], retval, last_r, last_e, last_eg, rcf);
+					if (*retval == GTID_RUNNING_MARKER) {
+						if (last_r)
+							free(last_r);
+						last_r = retval;
+						retval = NULL;
+					} else if (*retval == GTID_EXECUTED_MARKER && !last_r) {
+						char * tgid = strchr(retval, GTID_GTID_MARKER);
+						if (tgid && *(tgid + 1)) {
+							char * p = strchr(tgid + 1, GTID_GTID_MARKER);
+							uintmax_t ngtid = 0;
+							if (p) {
+								*p = 0;
+							}
+							*tgid = 0;
+							tgid++;
+							if (last_e && strcmp(last_e, retval)) {
+								max_e = 0;
+							}
+							ngtid = mysqlnd_ms_aux_gtid_extract_last(tgid, NULL, 0, 0);
+							if (ngtid > max_e) {
+								if (last_e)
+									free(last_e);
+								last_e = retval;
+								last_eg = tgid;
+								max_e = ngtid;
+								retval = NULL;
+							}
 						}
-						*tgid = 0;
-						tgid++;
-						if (last_e && strcmp(last_e, retval)) {
-							max_e = 0;
-						}
-						ngtid = mysqlnd_ms_aux_gtid_extract_last(tgid, NULL, 0, 0);
-						if (ngtid > max_e) {
-							if (last_e)
-								free(last_e);
-							last_e = retval;
-							last_eg = tgid;
-							max_e = ngtid;
-							retval = NULL;
-						}
+					} else if (*retval == GTID_WAIT_MARKER && *found == TRUE) { //If we have a wait marker in the middle of found keys something is wrong
+						php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Something wrong found wait token %s for key %s but it should not be there",  retval, keys[i]);
 					}
-				} else if (*retval == GTID_WAIT_MARKER && *found == TRUE) { //If we have a wait marker in the middle of found keys something is wrong
-					php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Something wrong found wait token %s for key %s but it should not be there",  retval, keys[i]);
-				}
-				if (*found == FALSE)
-					*found = TRUE;
-				if (retval) {
-					free(retval);
-					retval = NULL;
-				}
-			} else {
-				DBG_INF_FMT("Not found Key %d is %s last_r %s last_e %s last_eg %s fetch result %d", i, keys[i], last_r, last_e, last_eg, rcf);
-				if (*found) {
-//					i++;
-					break;
+					if (*found == FALSE)
+						*found = TRUE;
+					if (retval) {
+						free(retval);
+						retval = NULL;
+					}
+				} else {
+					DBG_INF_FMT("Not found Key %d is %s last_r %s last_e %s last_eg %s fetch result %d", i, keys[i], last_r, last_e, last_eg, rcf);
+					if (*found) {
+	//					i++;
+						break;
+					}
 				}
 			}
+			if (!*found && token > 0)
+				*last_chk = umodule((int64_t)token - 1, module);
+			else
+				*last_chk = umodule((int64_t)token - limit + i, module);
+			*value = NULL;
+			*gtid = NULL;
+			if (last_r) {
+				char * p = strchr(last_r, GTID_GTID_MARKER);
+				if (p)
+					*p = 0;
+				*value = last_r;
+				last_r = NULL;
+			} else if (last_e && last_eg && *last_eg) {
+				size_t len = strlen(last_eg);
+				*gtid = malloc(len + 1);
+				strcpy(*gtid, last_eg);
+				*value = last_e;
+				last_e = NULL;
+			}
+			if (last_r)
+				free(last_r);
+			if (last_e)
+				free(last_e);
+			ret = PASS;
+			DBG_INF_FMT("Return value %s gtid %s last_chk %llu depth %d mget result %d fetch result %d", *value, *gtid, *last_chk, depth, rc, rcf);
 		}
-		if (!*found && token > 0)
-			*last_chk = umodule((int64_t)token - 1, module);
-		else
-			*last_chk = umodule((int64_t)token - limit + i, module);
-		*value = NULL;
-		*gtid = NULL;
-		if (last_r) {
-			char * p = strchr(last_r, GTID_GTID_MARKER);
-			if (p)
-				*p = 0;
-			*value = last_r;
-			last_r = NULL;
-		} else if (last_e && last_eg && *last_eg) {
-			size_t len = strlen(last_eg);
-			*gtid = malloc(len + 1);
-			strcpy(*gtid, last_eg);
-			*value = last_e;
-			last_e = NULL;
-		}
-		if (last_r)
-			free(last_r);
-		if (last_e)
-			free(last_e);
+	} else {
+		*last_chk =  0;
+		DBG_INF_FMT("Limit 0 return value %s gtid %s last_chk %llu depth %d token %llu", *value, *gtid, *last_chk, depth, token);
 		ret = PASS;
-		DBG_INF_FMT("Return value %s gtid %s last_chk %llu depth %d mget result %d fetch result %d", *value, *gtid, *last_chk, depth, rc, rcf);
 	}
 	if (mg)
 		efree(mg);
@@ -1617,7 +1623,7 @@ mysqlnd_ms_aux_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, char 
 				host = valuew;
 				is_gtid = gtid || !host ? TRUE : FALSE;
 			} else {
-				DBG_INF_FMT("Something wrong could not get owned token for key %s",  (*conn_data)->global_trx.memcached_key);
+				DBG_INF_FMT("Something wrong could not get owned token for key %s",  (*conn_data)->global_trx.memcached_wkey);
 				php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Something wrong could not get owned token %s",  (*conn_data)->global_trx.memcached_wkey);
 			}
 		} else {
