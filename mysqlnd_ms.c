@@ -1237,7 +1237,7 @@ mysqlnd_ms_aux_ss_gtid_build_val(MYSQLND_MS_CONN_DATA * conn_data, const char *g
 	size_t gl = gtid ? strlen(gtid) : 0;
     char th[30];
 	MS_DECLARE_AND_LOAD_CONN_DATA(proxy_conn_data, conn_data->proxy_conn);
-	size_t thl = snprintf(th, 30, "%llu:%llu:%llu", conn_data->proxy_conn->thread_id, (*proxy_conn_data)->global_trx.last_chk_wtoken, (*proxy_conn_data)->global_trx.last_chk_token);
+	size_t thl = snprintf(th, 30, "%llu:%llu:%llu:%llu:%llu", conn_data->proxy_conn->thread_id, (*proxy_conn_data)->global_trx.last_chk_wtoken, (*proxy_conn_data)->global_trx.owned_wtoken, (*proxy_conn_data)->global_trx.last_chk_token, (*proxy_conn_data)->global_trx.owned_token);
 	size_t l = hash_key->len + gl + 1 + trx->last_gtid_len + 1 + trx->last_ckgtid_len + 1 + thl + 1;
     char * ret, * val;
     DBG_ENTER("mysqlnd_ms_aux_ss_gtid_build_val");
@@ -1344,17 +1344,19 @@ mysqlnd_ms_aux_ss_gtid_mget(memcached_st *memc, char **value, char **gtid, uint6
 			char * last_e = NULL;
 			char * last_eg = NULL;
 			uintmax_t max_e = 0;
-			*last_chk = umodule((int64_t)token - tlimit, module);
 			*found = FALSE;
 			for (i = 0; i < limit; i++) {
 				if (use_get == FALSE) {
+					 //TODO: Here we assume mecached_fetch returns keys in same order of the mget array
+					// but is this true in all memcached implementations?
 					retval = memcached_fetch(memc, keys[i], &keys_len[i], &retval_len, &flags, &rcf);
 				} else {
 					retval = memcached_get_by_key(memc, key, key_len, keys[i], keys_len[i], &retval_len, &flags, &rcf);
 				}
 				if (retval)
 				{
-					DBG_INF_FMT("Found Key %d is %s value %s last_r %s last_e %s last_eg %s fetch result %d", i, keys[i], retval, last_r, last_e, last_eg, rcf);
+					*last_chk = mysqlnd_ms_aux_gtid_extract_last(keys[i], NULL, 0, 0);
+					DBG_INF_FMT("Found counter %d Key %llu is %s value %s last_r %s last_e %s last_eg %s fetch result %d", i, *last_chk, keys[i], retval, last_r, last_e, last_eg, rcf);
 					if (*retval == GTID_RUNNING_MARKER) {
 						if (last_r)
 							free(last_r);
@@ -1395,15 +1397,15 @@ mysqlnd_ms_aux_ss_gtid_mget(memcached_st *memc, char **value, char **gtid, uint6
 				} else {
 					DBG_INF_FMT("Not found Key %d is %s last_r %s last_e %s last_eg %s fetch result %d", i, keys[i], last_r, last_e, last_eg, rcf);
 					if (*found) {
-	//					i++;
 						break;
 					}
 				}
 			}
-			if (!*found && token > 0)
-				*last_chk = umodule((int64_t)token - 1, module);
-			else
-				*last_chk = umodule((int64_t)token - limit + i, module);
+			if (!*found) {
+				*last_chk = token > 0 ? umodule((int64_t)token - 1, module) : 0;
+			} else {
+				*last_chk = umodule((int64_t)*last_chk + 1, module);
+			}
 			*value = NULL;
 			*gtid = NULL;
 			if (last_r) {
