@@ -65,15 +65,15 @@ In non autocommit mode step 1 to 5 is executed on transaction init, step 6 and 7
 
 ##### Performance considerations
 
-### Client side read consistency
-
-##### Performance considerations
-
 ### Simple client side write consistency
 The other write consistency type is [simple client side write consistency](#simple-client-side-write-consistency) with following rules: 
 * Writes belonging to distinct context partitions can safely run concurrently on distinct MySQL masters without any data conflicts and replication issues.
 * Writes belonging to the same context partition will run only on the same master. 
 * Writes belonging to the same context partition can safely change master only when the time to live of the context has expired (no writes during the time to live interval).
+
+##### Performance considerations
+
+### Client side read consistency
 
 ##### Performance considerations
 

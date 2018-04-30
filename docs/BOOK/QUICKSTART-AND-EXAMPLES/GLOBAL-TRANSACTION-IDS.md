@@ -10,7 +10,7 @@ As of MySQL 5.6.5 the MySQL server features built-in global transaction identifi
 
 Starting from MySQL 5.7.6 the MySQL server features the [session-track-gtids](https://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html#sysvar_session_track_gtids) system variable, which, if set, will allow a client to be aware of GTID assigned by MySQL to an executed transaction. This will allow the plugin to support effective server side GTIDs consistency scenarios without the need of client side GTID emulation. This is a big advantage in terms of safeness and  write loads. Indeed the **client side emulation** add an SQL write for every explicit transaction and, in autocommit mode, for every query not evaluated as read-only, that is, in default configuration, on every non `SELECT` query. Potentially there are some tricks to reduce writes due to GTID client side emulation, but, IMHO, use of server side GTID is far more better.    
 
-The `mymysqlnd_ms` plugin can either use the global transaction ID feature built-in to MySQL >= 5.7.6 or its own global transaction ID emulation. It use GTIDs to enforce three types of session consistency (see also [service level and consistency](REF:../CONCEPTS)/).
+The `mymysqlnd_ms` plugin can either use the global transaction ID feature built-in to MySQL >= 5.7.6 or its own global transaction ID emulation. It use GTIDs to enforce three types of session consistency (see also [service level and consistency](REF:../CONCEPTS/).
 
 ### Session consistency configuration directives
 The [global_transaction_id_injection](REFA:../PLUGIN-CONFIGURATION-FILE.md) section must include all configurations data needed by the QOS filter to enforce session consitency. 

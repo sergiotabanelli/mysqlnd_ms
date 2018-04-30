@@ -83,7 +83,7 @@ Configuration #2: minimal configuration for most common server side read consist
             "fetch_last_gtid": "SELECT @@GLOBAL.GTID_EXECUTED AS trx_id FROM DUAL",
             "memcached_host": "mymemcached",
             "memcached_key": "mymy#SID",
-            "on_connect": 1,
+            "running_depth": 0
         },
         "filters": {
             "quality_of_service": {
@@ -94,7 +94,7 @@ Configuration #2: minimal configuration for most common server side read consist
     }
 }
 ```
-Last configuration differs from previous one for the use of a memcached state store back-end. This allow the plugin to share read consistency information state across all web application instances. The [memcached_host](REFA:../PLUGIN-CONFIGURATION-FILE.md) directive specify the backend shared state store hostname, you can use any memcached protocol capable server, e.g. [memcached](https://memcached.org/), [couchbase](https://www.couchbase.com/) or also [mysql with the memcached plugin](https://dev.mysql.com/doc/refman/5.6/en/innodb-memcached-setup.html), if not specified a [memcached_port](REFA:../PLUGIN-CONFIGURATION-FILE.md) the memcached default will be used. The [memcached_key](REFA:../PLUGIN-CONFIGURATION-FILE.md) configuration directive use the `#SID` placeholder (one of the available [placeholders](GLOBAL-TRANSACTION-IDS.md#placeholders) for consistency context key configuration), it will be replaced by the php [session_id](http://php.net/manual/en/function.session-id.php), the obtained string will be the key that identify the read consistency context partition in the configured memcached state store. The [on_connect](REFA:../PLUGIN-CONFIGURATION-FILE.md) directive instructs the plugin to check the read consistency context partition state at connection start, without this directive the read consistency contexts will not persists across MySQL connection boundaries and more over distinct web requests. With this configuration a user of your web application will always read his writes, also on distinct web requests and also if the web requests will be load balanced on differents php web application front-ends.
+Last configuration differs from previous one for the use of a memcached state store back-end. This allow the plugin to share read consistency information state across all web application instances. The [memcached_host](REFA:../PLUGIN-CONFIGURATION-FILE.md) directive specify the backend shared state store hostname, you can use any memcached protocol capable server, e.g. [memcached](https://memcached.org/), [couchbase](https://www.couchbase.com/) or also [mysql with the memcached plugin](https://dev.mysql.com/doc/refman/5.6/en/innodb-memcached-setup.html), if not specified a [memcached_port](REFA:../PLUGIN-CONFIGURATION-FILE.md) the memcached default will be used. The [memcached_key](REFA:../PLUGIN-CONFIGURATION-FILE.md) configuration directive use the `#SID` placeholder (one of the available [placeholders](GLOBAL-TRANSACTION-IDS.md#placeholders) for consistency context key configuration), it will be replaced by the php [session_id](http://php.net/manual/en/function.session-id.php), the obtained string will be the key that identify the read consistency context partition in the configured memcached state store. With this configuration a user of your web application will always read his writes, also on distinct web requests and also if the web requests will be load balanced on differents php web application front-ends. The [running_depth](REFA:../PLUGIN-CONFIGURATION-FILE.md) configuration directive define the max number of concurrent running write queries for the context, 0 is the default value if not specified.
 
 ### Server side write consistency
 **[Requires MySQL >= 5.7.6 with --session-track-gtids=OWN_GTID](https://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html#sysvar_session_track_gtids)**.
@@ -141,8 +141,9 @@ Configuration #3: Configuration for write context partition on MySQL user basis
             "fetch_last_gtid": "SELECT @@GLOBAL.GTID_EXECUTED AS trx_id FROM DUAL",
             "memcached_host": "mymemcached",
             "memcached_key": "mymy#SID",
-            "on_connect": 1,
+            "running_depth": 0,
             "memcached_wkey": "mymy#USER",
+            "running_wdepth": 20
         },
         "filters": {
             "quality_of_service": {
@@ -153,15 +154,80 @@ Configuration #3: Configuration for write context partition on MySQL user basis
     }
 }
 ```
-The `myapp` cluster has now 3 masters and no slaves. The remaining configuration differs from previous one for the [type](REFA:../PLUGIN-CONFIGURATION-FILE.md)=3 configuration directive, value `3` means [server side write consistency](#server-side-write-consistency) and it always include also [server side read consistency](#server-side-read-consistency). The [memcached_wkey](REFA:../PLUGIN-CONFIGURATION-FILE.md) configuration directive use the `#USER` placeholder (one of the available [placeholders](GLOBAL-TRANSACTION-IDS.md#placeholders)), it will be replaced by the MySQL connection user, the obtained string will be the key that identify the write consistency context partition in the configured memcached state store. For the supposed cluster example, previous configuration, will establish one context partition for each MySQL user, writes made with a MySQL connection established with the `myuserA` user, will run concurrently only on the same master (same happens with writes by `myuserB`), writes belonging to `myuserA` will run concurrently with writes belonging to `myuserB` also on distinct masters. 
+The `myapp` cluster has now 3 masters and no slaves. The remaining configuration differs from previous one for the [type](REFA:../PLUGIN-CONFIGURATION-FILE.md)=3 configuration directive, value `3` means [server side write consistency](#server-side-write-consistency) and it always include also [server side read consistency](#server-side-read-consistency). The [memcached_wkey](REFA:../PLUGIN-CONFIGURATION-FILE.md) configuration directive use the `#USER` placeholder (one of the available [placeholders](GLOBAL-TRANSACTION-IDS.md#placeholders)), it will be replaced by the MySQL connection user, the obtained string will be the key that identify the write consistency context partition in the configured memcached state store. For the supposed cluster example, previous configuration, will establish one context partition for each MySQL user, writes made with a MySQL connection established with the `myuserA` user, will run concurrently only on the same master (same happens with writes by `myuserB`), writes belonging to `myuserA` will run concurrently with writes belonging to `myuserB` also on distinct masters. The [running_wdepth](REFA:../PLUGIN-CONFIGURATION-FILE.md) configuration directive define the max number of concurrent running write queries for the context, 20 is the default value if not specified.
 
->BEWARE: Server side write consistency put a consistent load and resource contention on the configured memcached state store, indeed it tries to put loads on easier scalable front ends with the objective to enhance response time on much harder scalable back ends. This means that with server side write consistency your applications will be generally slower in reduced load scenario but hopefully much responsive when load significantly increase. But, this is not always true, there are scenarios where resource contention on the configured memcached state store will be too high and will slow down too much front ends. These are few rules:
->* Write context partitions should be kept small, there should not be high concurrency on them.
+>BEWARE: If Your concurrency is higher then the confugured `running_wdepth` You can get write conflicts errors, borken replication or rollbacks depending of Your cluster type (Multi-source circular replication or Group replication).    
+ 
+>BEWARE: Server side write consistency put a consistent load and resource contention on the configured memcached state store, indeed it tries to put loads on easier scalable front ends with the objective to enhance response time on much harder scalable back ends. This means that with server side write consistency your applications can be slower in reduced load scenario but much responsive when load significantly increase. But, this is not always true, there can be scenarios where resource contention on the configured memcached state store will be too high and will slow down too much front ends. These are few rules:
+>* Write context partitions should be kept small, there should not be very high concurrency on them.
 >* If you have group of queries with many writes or loops with one or more writes for each iteration put the loop or the query group inside a single transaction.  
 >* If you can't apply previous rules use [simple client side write consistency](#simple-client-side-write-consistency) instead.
 
+>See performance consideration sections in [service level and consistency](../CONCEPTS/SERVICE-LEVEL-AND-CONSISTENCY.md) concepts documentation.
+
+### Simple client side write consistency
+Simple client side write consistency enforce these simple rules:
+* Writes belonging to distinct context partitions can safely run concurrently on distinct MySQL masters without any data conflicts and replication issues.
+* Writes belonging to the same context partition will run only on the same master. 
+* Writes belonging to the same context partition can safely change master only when the time to live of the context has expired (no writes during the time to live interval).
+
+Basically with this feature a write context partition will choose a new master only on the first connection or when the configured [running_ttl](REFA:../PLUGIN-CONFIGURATION-FILE.md) will expire, that means no writes belonging to the same context partition has been run in the last running_ttl interval.    
+Simple client side write consistency does not have a dedicated [type](REFA:../PLUGIN-CONFIGURATION-FILE.md) but will be active if all following conditions are satisfied:
+* If a READ consistency service level is configured ([type](REFA:../PLUGIN-CONFIGURATION-FILE.md)=2 or [type](REFA:../PLUGIN-CONFIGURATION-FILE.md)=3)
+* if [memcached_host](REFA:../PLUGIN-CONFIGURATION-FILE.md) and [memcached_wkey](REFA:../PLUGIN-CONFIGURATION-FILE.md) are configured
+* if [running_wdepth](REFA:../PLUGIN-CONFIGURATION-FILE.md) is set to 0.
+* if [mysqlnd_ms.multi_master](../INSTALLING-CONFIGURING/RUNTIME-CONFIGURATION.md#mysqlnd_ms.multi_master) php.ini directive is enabled.
+
+### Session consistency failures and timeouts
+Session consistency forces use of nodes consistent with current required consistency level. If no node satisfy required conditions, plugin can wait a limited amount of time that at least one node become consistent. For read consistency you can use [wait_for_gtid_timeout](REFA:../PLUGIN-CONFIGURATION-FILE.md) directive, by default value is 0. For write consistency you can use [wait_for_wgtid_timeout](REFA:../PLUGIN-CONFIGURATION-FILE.md) directive to set the max number of seconds a write context participant wait when context [running_wdepth](REFA:../PLUGIN-CONFIGURATION-FILE.md) queue reachs its limit, that is when there is still a running write queries in the last depth position of the queue, default value is 0 seconds. 
+If the requested consistency can't be enforced, the plugin fails. To avoid this kind of failures and possible consequent race conditions the [race_avoid](REFA:../PLUGIN-CONFIGURATION-FILE.md) directive can be used to force the use of all available masters despite their consistency state, currently the only available option for `race_avoid` is value 3 (add all masters), default value is 0 (disabled).
+
+The [running_ttl](REFA:../PLUGIN-CONFIGURATION-FILE.md) directive sets the memcached ttl in seconds of the running queries context state default is 0 that means never expires.   
+
+Configuration #4: Timeouts and failures
+
+```
+{
+    "myapp": {
+        "master": {
+            "master_0": {
+                "host": "mymaster0",
+             }
+            "master_0": {
+                "host": "mymaster1",
+            },
+            "master_1": {
+                "host": "mymaster2",
+            }
+        },
+        "slave": [],
+        "trx_stickiness": "master",
+        "global_transaction_id_injection": {
+            "type": 3,
+            "fetch_last_gtid": "SELECT @@GLOBAL.GTID_EXECUTED AS trx_id FROM DUAL",
+            "memcached_host": "mymemcached",
+            "memcached_key": "mymy#SID",
+            "memcached_wkey": "mymy#USER",
+            "wait_for_gtid_timeout": 4,
+            "wait_for_wgtid_timeout": 10,
+            "race_avoid": 3,
+            "running_ttl": 120
+        },
+        "filters": {
+            "quality_of_service": {
+                "session_consistency": 1
+            },
+            "random": []
+        }
+    }
+}
+```
+In previous configuration, if no slave is found consistent, read queries will wait at most 4 seconds that at least one slave become consistent. Write queries will wait at most 10 seconds that the last depth position of the queue ends its run. If no consistent node has been found the plugin will add all masters. Further, the memcached keys holding the queries execution context will be available for 2 minutes after query ends.
+
 ### Client side read consistency
 **[Use only with MySQL < 5.7.6]**.
+
+>BEWARE: Client side read consistency basically is the [old global transacction id injection feature](http://php.net/manual/en/mysqlnd-ms.quickstart.gtid.php) and is very expensive in terms of performance so it is strongly discouraged. If you need read consistency we strongly suggest to upgrade your MySql to a version >= 5.7.6  and use [server side read consistency](#server-side-read-consistency).
 
 In its most basic form a global transaction ID (GTID) is a counter in a table on the master. The counter is incremented whenever a transaction is committed on the master. Applications can use a GTID to search for slaves which have already replicated identified writes. 
 
@@ -199,7 +265,7 @@ On all slaves install the MySQL memcached plugin, if slaves can be promoted to m
 
 As for server side read consistency, read context can be partitioned using [placeholders](GLOBAL-TRANSACTION-IDS.md#placeholders) in [memcached_key](REFA:../PLUGIN-CONFIGURATION-FILE.md) directive. 
 
-Configuration #4: minimal configuration for client side read consistency use case
+Configuration #5: minimal configuration for client side read consistency use case
 
 ```
 {
@@ -233,64 +299,6 @@ Configuration #4: minimal configuration for client side read consistency use cas
 }
 ```
 Last configuration differs from configuration #2 used in server side read consistency for the [type](REFA:../PLUGIN-CONFIGURATION-FILE.md)=1 configuration directive which now has value `1` that means [client side read consistency](#client-side-read-consistency). The [memcached_host](REFA:../PLUGIN-CONFIGURATION-FILE.md) and [fetch_last_gtid](REFA:../PLUGIN-CONFIGURATION-FILE.md) must not be specified because all MySQL nodes will act as GTID state store.
-
-### Simple client side write consistency
-Simple client side write consistency enforce these simple rules:
-* Writes belonging to distinct context partitions can safely run concurrently on distinct MySQL masters without any data conflicts and replication issues.
-* Writes belonging to the same context partition will run only on the same master. 
-* Writes belonging to the same context partition can safely change master only when the time to live of the context has expired (no writes during the time to live interval).
-
-Basically with this feature a write context partition will choose a new master only on the first connection or when the configured [running_ttl](REFA:../PLUGIN-CONFIGURATION-FILE.md) will expire, that means no writes belonging to the same context partition has been run in the last running_ttl interval.    
-Simple client side write consistency does not have a dedicated [type](REFA:../PLUGIN-CONFIGURATION-FILE.md) but will be active if all following conditions are satisfied:
-* If a READ consistency service level is configured ([type](REFA:../PLUGIN-CONFIGURATION-FILE.md)=1 or [type](REFA:../PLUGIN-CONFIGURATION-FILE.md)=2)
-* if [memcached_host](REFA:../PLUGIN-CONFIGURATION-FILE.md) and [memcached_wkey](REFA:../PLUGIN-CONFIGURATION-FILE.md) are configured
-* if [mysqlnd_ms.multi_master](../INSTALLING-CONFIGURING/RUNTIME-CONFIGURATION.md#mysqlnd_ms.multi_master) php.ini directive is enabled.
-
-### Session consistency failures and timeouts
-Session consistency forces use of nodes consistent with current required consistency level. If no node satisfy required conditions, plugin can wait a limited amount of time that at least one node become consistent. For read consistency you can use [wait_for_gtid_timeout](REFA:../PLUGIN-CONFIGURATION-FILE.md) directive, by default value is 0. For write consistency you can use [wait_for_wgtid_timeout](REFA:../PLUGIN-CONFIGURATION-FILE.md) directive to set the max number of seconds a write context participant can spend choosing a consistent master, in other words it is the number of seconds a plugin instance should wait for the previous instance to set the chosen master on the persistent state store, default value is 5 seconds (BEWARE: don't set it to 0 or write consistency will not work). After timeout, if the requested consistency can't be enforced, the plugin fails. To avoid this kind of failures and possible consequent race conditions the [race_avoid](REFA:../PLUGIN-CONFIGURATION-FILE.md) directive can be used to force the use of all available masters despite their consistency state, currently the only available option for `race_avoid` is value 3 (add all masters), default value is 0 (disabled).
-
-For write consistency there is also the [running_ttl](REFA:../PLUGIN-CONFIGURATION-FILE.md) directive which set the ttl in seconds of the current running participants counter, it is used to avoid that unespected failures or crashed participants sticks the write context to a single master forever, default is 10 minutes (BEWARE: don't set it to few seconds or write consistency will not work).   
-
-Configuration #5: Timeouts and failures
-
-```
-{
-    "myapp": {
-        "master": {
-            "master_0": {
-                "host": "mymaster0",
-             }
-            "master_0": {
-                "host": "mymaster1",
-            },
-            "master_1": {
-                "host": "mymaster2",
-            }
-        },
-        "slave": [],
-        "trx_stickiness": "master",
-        "global_transaction_id_injection": {
-            "type": 3,
-            "fetch_last_gtid": "SELECT @@GLOBAL.GTID_EXECUTED AS trx_id FROM DUAL",
-            "memcached_host": "mymemcached",
-            "memcached_key": "mymy#SID",
-            "on_connect": 1,
-            "memcached_wkey": "mymy#USER",
-            "wait_for_gtid_timeout": 4,
-            "wait_for_wgtid_timeout": 10,
-            "race_avoid": 3,
-            "running_ttl": 120
-        },
-        "filters": {
-            "quality_of_service": {
-                "session_consistency": 1
-            },
-            "random": []
-        }
-    }
-}
-```
-In previous configuration, if no slave is found consistent, read queries will wait at most 4 seconds that at least one slave become consistent. Write queries will wait at most 10 seconds that the previous one same context write choose a consistent master. After timeouts and no consistent node has been found the plugin will add all masters. Further, if a crash happens after a same context write has chosen a master, the write context will remain sticky, to the crashed instance chosen master, for at most 2 minutes.
 
 ### Requesting configured session consistency
 Service levels can be set in the plugin configuration file and at runtime using [mysqlnd_ms_set_qos](REF:../MYSQLND_MS-FUNCTIONS/). If you do not need session consistency for all your application but only for limited code sections, you should not configure the [quality_of_service](REFA:../PLUGIN-CONFIGURATION-FILE.md) filter with enabled [session_consistency](REFA:../PLUGIN-CONFIGURATION-FILE.md), but set it at run time only when needed. 

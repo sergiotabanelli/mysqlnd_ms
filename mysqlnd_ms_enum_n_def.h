@@ -1025,7 +1025,7 @@ typedef struct st_mysqlnd_ms_gtid_trx_methods {
 	void (*gtid_reset)(MYSQLND_CONN_DATA * conn, enum_func_status status TSRMLS_DC);
 	void (*gtid_trace)(MYSQLND_CONN_DATA * conn, const char * key, size_t key_len, unsigned int ttl, const char * query, size_t query_len TSRMLS_DC);
 	void (*gtid_race_add_active)(MYSQLND_CONN_DATA * conn, zend_llist * server_list, zend_llist * selected_servers, zend_bool is_write TSRMLS_DC);
-	MYSQLND_CONN_DATA * (*gtid_validate)(MYSQLND_CONN_DATA * conn, zend_bool *retry TSRMLS_DC);
+	MYSQLND_CONN_DATA * (*gtid_validate)(MYSQLND_CONN_DATA * conn, zend_bool *retry, const char * query, size_t query_len TSRMLS_DC);
 } MYSQLND_MS_GTID_TRX_METHODS;
 
 /*
@@ -1147,8 +1147,8 @@ typedef struct st_mysqlnd_ms_conn_data
 		uint64_t last_chk_wtoken;
 		zend_bool first_read;
 		zend_bool executed;
-		zend_bool prev_found;
-		zend_bool prev_wfound;
+		uint64_t prev_found;
+		uint64_t prev_wfound;
 		char * last_whost;
 // END NOWAIT
 		char * last_gtid;
