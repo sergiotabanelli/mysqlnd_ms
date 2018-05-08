@@ -1,9 +1,12 @@
 # Cache integration
 >Note: Please, find more about version requirements, extension load order dependencies and the current status in the concepts section!
 
+>Note: In `mymysqlnd` cache integration has been extended to [server side read consistency](SERVICE-LEVEL-AND-CONSISTENCY.md#server-side-read-consistency) service level. Original implementation has cache integration only for eventual consistency. This documentation is about new cache integration with read consistency service level. For eventual consistency follow the [original documentation instructions](http://php.net/manual/en/mysqlnd-ms.quickstart.cache.php) 
+
 Databases clusters can deliver different levels of consistency. It is possible to advice the plugin to consider only cluster nodes that can deliver the consistency level requested. For example, if using asynchronous MySQL Replication with its cluster-wide eventual consistency, it is possible to request session consistency (read your writes) at any time using [mysqlnd_ms_set_qos](REF:../MYSQLND_MS-FUNCTIONS/) (see [service level and consistency](SERVICE-LEVEL-AND-CONSISTENCY.md)).
 
-Assuming `mymysqlnd` has been explicitly told to deliver no consistency level higher than eventual consistency, it is possible to replace a database node read access with a client-side cache using time-to-live (TTL) as its invalidation strategy. Both the database node and the cache may or may not serve current data as this is what eventual consistency defines (see [service level and consistency](SERVICE-LEVEL-AND-CONSISTENCY.md)).
+
+WithAssuming `mymysqlnd` it is possible to replace a database node read access with a client-side cache using time-to-live (TTL) as its invalidation strategy. Both the database node and the cache may or may not serve current data as this is what eventual consistency defines (see [service level and consistency](SERVICE-LEVEL-AND-CONSISTENCY.md)).
 
 Replacing a database node read access with a local cache access can improve overall performance and lower the database load. If the cache entry is every reused by other clients than the one creating the cache entry, a database access is saved and thus database load is lowered. Furthermore, system performance can become better if computation and delivery of a database query is slower than a local cache access.
 
