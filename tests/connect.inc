@@ -8,6 +8,9 @@
 	*/
 
 	$driver    = new mysqli_driver;
+    $real_memcached = getenv("MYSQL_TEST_REAL_MEMCACHED");
+	$memcached_host      = getenv("MYSQL_TEST_MEMCACHED_HOST")     ? getenv("MYSQL_TEST_MEMCACHED_HOST") : "127.0.0.1";
+	$memcached_port      = getenv("MYSQL_TEST_MEMCACHED_PORT")     ? getenv("MYSQL_TEST_MEMCACHED_PORT") : 11211;
 
 	$host      = getenv("MYSQL_TEST_HOST")     ? getenv("MYSQL_TEST_HOST") : "127.0.0.1";
 	$port      = getenv("MYSQL_TEST_PORT")     ? getenv("MYSQL_TEST_PORT") : 3306;

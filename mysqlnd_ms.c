@@ -1345,7 +1345,12 @@ mysqlnd_ms_aux_ss_gtid_mtoken(memcached_st *memc, const char *key, uint64_t *own
 		}
 		DBG_INF_FMT("Get key %s token %llu return %d", key, token, rc);
 	}
-	*owned_token = umodule(((int64_t)token  - 1), module);
+	if (rc == MEMCACHED_SUCCESS) {
+		*owned_token = umodule(((int64_t)token  - 1), module);
+	} else {
+		DBG_INF_FMT("Something wrong increment returned %d token %llu",  rc, token);
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Something wrong increment returned %d token %llu",  rc, token);
+	}
 	DBG_RETURN(rc == MEMCACHED_SUCCESS ? SUCCESS : FAIL);
 }
 /* }}} */
@@ -1626,7 +1631,8 @@ mysqlnd_ms_aux_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, char 
 	check = (*conn_data)->global_trx.memc && (*conn_data)->global_trx.memcached_key &&
 			((*conn_data)->global_trx.running_depth > 0 || ((*conn_data)->global_trx.first_read && (!gtid || *gtid == 0))) ? TRUE : FALSE;
 	if (check) {
-		if (((*conn_data)->global_trx.running_depth <= 0 || (ret = mysqlnd_ms_aux_ss_gtid_mtoken((*conn_data)->global_trx.memc, (*conn_data)->global_trx.memcached_key,
+		if (((*conn_data)->global_trx.running_depth <= 0 ||
+				(ret = mysqlnd_ms_aux_ss_gtid_mtoken((*conn_data)->global_trx.memc, (*conn_data)->global_trx.memcached_key,
 				&(*conn_data)->global_trx.owned_token, (*conn_data)->global_trx.module,
 				(*conn_data)->global_trx.injectable_query && (*conn_data)->global_trx.running_depth)) == SUCCESS) &&
 			(ret = mysqlnd_ms_aux_ss_gtid_mget((*conn_data)->global_trx.memc, &value, &mgtid, &(*conn_data)->global_trx.last_chk_token,
@@ -1660,7 +1666,7 @@ mysqlnd_ms_aux_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, char 
 				is_gtid = gtid || !host ? TRUE : FALSE;
 			} else {
 				DBG_INF_FMT("Something wrong could not get owned token for key %s",  (*conn_data)->global_trx.memcached_key);
-				php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Something wrong could not get owned token %s",  (*conn_data)->global_trx.memcached_key);
+				php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Something wrong could not get owned token %s",  (*conn_data)->global_trx.memcached_wkey);
 			}
 		} else {
 		  	is_gtid = (*conn_data)->global_trx.last_whost ? FALSE : TRUE;
@@ -1833,14 +1839,14 @@ mysqlnd_ms_aux_ss_gtid_connect(MYSQLND_CONN_DATA * proxy_conn, MYSQLND_MS_LIST_D
 				rc = memcached_add_by_key(memc,
 						global_trx->memcached_key, global_trx->memcached_key_len,
 						global_trx->memcached_key, global_trx->memcached_key_len,
-						"0", 1, (time_t)(*proxy_conn_data)->global_trx.running_ttl * 2, (uint32_t)0);
+						"0", 1, (time_t)0, (uint32_t)0);
 				DBG_INF_FMT("Add key %s returned %d", global_trx->memcached_key, rc);
 			}
 			if (global_trx->memcached_wkey_len > 0 && global_trx->running_wdepth > 0) {
 				rc = memcached_add_by_key(memc,
 						global_trx->memcached_wkey, global_trx->memcached_wkey_len,
 						global_trx->memcached_wkey, global_trx->memcached_wkey_len,
-						"0", 1, (time_t)(*proxy_conn_data)->global_trx.running_ttl * 2, (uint32_t)0);
+						"0", 1, (time_t)0, (uint32_t)0);
 				DBG_INF_FMT("Add wkey %s returned %d", global_trx->memcached_wkey, rc);
 			}
 		} else {
@@ -1910,7 +1916,7 @@ mysqlnd_ms_aux_ss_gtid_clean(MYSQLND_CONN_DATA * conn, enum_func_status status T
 					rc = memcached_delete_by_key(memc,
 							(*proxy_conn_data)->global_trx.memcached_wkey, (*proxy_conn_data)->global_trx.memcached_wkey_len,
 							ot, l,
-							(time_t)(*proxy_conn_data)->global_trx.running_ttl);
+							(time_t)0);
 					DBG_INF_FMT("Delete wkey %s returned %d", ot, rc);
 				}
 			}
@@ -1921,12 +1927,14 @@ mysqlnd_ms_aux_ss_gtid_clean(MYSQLND_CONN_DATA * conn, enum_func_status status T
 					rc = memcached_delete_by_key(memc,
 							(*proxy_conn_data)->global_trx.memcached_key, (*proxy_conn_data)->global_trx.memcached_key_len,
 							ot, l,
-							(time_t)(*proxy_conn_data)->global_trx.running_ttl);
+							(time_t)0);
 					DBG_INF_FMT("Delete key %s returned %d", ot, rc);
 				}
 			}
 	  	}
 	}
+	(*proxy_conn_data)->global_trx.owned_wtoken = 0;
+	(*proxy_conn_data)->global_trx.owned_token = 0;
 	DBG_INF_FMT("ret=%s", ret == PASS? "PASS":"FAIL");
 	DBG_RETURN(ret);
 }

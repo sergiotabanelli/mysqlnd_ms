@@ -784,7 +784,7 @@ mysqlnd_ms_xa_store_gc_participants(MYSQLND_MS_XA_STATE_STORE_MYSQL * store_data
 #else
 			MYSQLND * conn = mysqlnd_init(MYSQLND_CLIENT_NO_FLAG, FALSE);
 			if (mysqlnd_connect(conn,
-							Z_STRVAL_P(host),
+							Z_STRVAL_P(_ms_p_zval host),
 							Z_STRLEN_P(_ms_p_zval user) ? Z_STRVAL_P(_ms_p_zval user) : store_data->user,
 							Z_STRLEN_P(_ms_p_zval password) ? Z_STRVAL_P(_ms_p_zval password) : store_data->password,
 							Z_STRLEN_P(_ms_p_zval password) ? Z_STRLEN_P(_ms_p_zval password) : store_data->password_len,
