@@ -49,7 +49,7 @@ Configuration #1: Server side read consistency no special entries for caching
 }
 ```
 
-Example #1 Caching a read request
+Example #1 Eplicit caching of a read request
 
 ```
 <?php
@@ -120,7 +120,7 @@ The above example use [mysqlnd_qc_get_core_stats()](http://php.net/manual/en/fun
 
 Furthermore, using the [qc_ttl](REFA:../PLUGIN-CONFIGURATION-FILE.md) configuration directive, the plugin can transparently cache and apply its invalidation strategy on all read queries belonging  to the configured read context. This means that cache integration can be made completely transparent to applications!    
 
-Configuration #1: Server side read consistency with transparent cache integration
+Configuration #2: Server side read consistency with transparent cache integration
 
 ```
 {
@@ -155,9 +155,9 @@ Configuration #1: Server side read consistency with transparent cache integratio
     }
 }
 ```
-With previous configuration all read queries will transparently be cached through the mysqlnd_qc plugin. 
+With previous configuration all read queries will transparently be cached with a 60 seconds TTL through the mysqlnd_qc plugin. 
 
-Example #1 Caching a slave request requires `mysqlnd_qc.collect_statistics=1` php ini directive
+Example #2 Transparent cache of a read request
 
 ```
 <?php
