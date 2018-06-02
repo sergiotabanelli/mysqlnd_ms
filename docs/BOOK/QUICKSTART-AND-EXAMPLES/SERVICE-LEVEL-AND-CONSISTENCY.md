@@ -104,7 +104,7 @@ New MySQL functionalities available in more recent versions, like [multi source 
 * Writes belonging to the same context partition can safely run concurrently only on the same master. 
 * Writes belonging to the same context partition can safely run **NON** concurrently, there are no still pending same context writes, on any masters that has already replicated all previous same context writes.
 
->BEWARE: distinct write set partitions must not intersect each others. e.g. if a write set include all writes to table A, no other write set partition should include writes to table A.
+>BEWARE: distinct write sets partitions must not intersect each others. e.g. if a write set include all writes to table A, no other write set partition should include writes to table A.
 
 >NOTE: server side write consistency always include server side read consistency 
 

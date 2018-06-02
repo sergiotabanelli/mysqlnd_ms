@@ -1538,7 +1538,7 @@ mysqlnd_ms_aux_ss_gtid_validate(MYSQLND_CONN_DATA * conn, zend_bool *retry, cons
 				(*proxy_conn_data)->global_trx.executed = TRUE; // Do not set executed marker
 				goto end;
 			}
-			if (!(*proxy_conn_data)->global_trx.running_depth && !(*proxy_conn_data)->global_trx.last_whost) {
+			if ((*proxy_conn_data)->global_trx.running_wdepth == 0 && !(*proxy_conn_data)->global_trx.last_whost) {
 				(*proxy_conn_data)->global_trx.last_whost = mnd_pestrdup(hostw ? hostw : value, conn->persistent);
 			}
 		}
@@ -1869,13 +1869,13 @@ mysqlnd_ms_aux_ss_gtid_clean(MYSQLND_CONN_DATA * conn, enum_func_status status T
 	MS_DECLARE_AND_LOAD_CONN_DATA(conn_data, conn);
 	MS_DECLARE_AND_LOAD_CONN_DATA(proxy_conn_data, (*conn_data)->proxy_conn);
   	enum_func_status ret = PASS;
+	char ot[MAXGTIDSIZE];
+  	size_t l;
 	DBG_ENTER("mysqlnd_ms_aux_ss_gtid_clean");
 	if ((*proxy_conn_data)->global_trx.memc && (((*proxy_conn_data)->global_trx.memcached_key_len > 0 && (*proxy_conn_data)->global_trx.running_depth > 0)||
 			((*proxy_conn_data)->global_trx.memcached_wkey_len > 0 && (*proxy_conn_data)->global_trx.running_wdepth > 0))) {
 		memcached_st *memc = (*proxy_conn_data)->global_trx.memc;
 		memcached_return_t rc = MEMCACHED_SUCCESS;
-		char ot[MAXGTIDSIZE];
-	  	size_t l;
 	  	char *val = NULL;
 	  	if (!(*proxy_conn_data)->global_trx.executed) {
 			val = mysqlnd_ms_aux_ss_gtid_build_val(*conn_data, NULL, NULL, 0);
@@ -1903,7 +1903,7 @@ mysqlnd_ms_aux_ss_gtid_clean(MYSQLND_CONN_DATA * conn, enum_func_status status T
 			}
 			if ((*proxy_conn_data)->global_trx.memcached_key_len > 0 && (*proxy_conn_data)->global_trx.running_depth > 0) {
 				l = snprintf(ot, MAXGTIDSIZE, "%s:%" PRIuMAX, (*proxy_conn_data)->global_trx.memcached_key, (*proxy_conn_data)->global_trx.owned_token);
-				if ((*proxy_conn_data)->global_trx.auto_clean || (*proxy_conn_data)->global_trx.running_depth == 0) {
+				if ((*proxy_conn_data)->global_trx.auto_clean) {
 					rc = memcached_set_by_key(memc,
 							(*proxy_conn_data)->global_trx.memcached_key, (*proxy_conn_data)->global_trx.memcached_key_len,
 							ot, l,
@@ -1951,6 +1951,11 @@ mysqlnd_ms_aux_ss_gtid_clean(MYSQLND_CONN_DATA * conn, enum_func_status status T
 				}
 			}
 	  	}
+	}
+	// This is for simple write consistency
+	if ((*proxy_conn_data)->global_trx.memc && (*proxy_conn_data)->global_trx.memcached_wkey_len > 0 && (*proxy_conn_data)->global_trx.running_wdepth == 0) {
+		l = snprintf(ot, MAXGTIDSIZE, "%s:%" PRIuMAX, (*proxy_conn_data)->global_trx.memcached_wkey, (*proxy_conn_data)->global_trx.owned_wtoken);
+		memcached_touch_by_key((*proxy_conn_data)->global_trx.memc, (*proxy_conn_data)->global_trx.memcached_wkey, (*proxy_conn_data)->global_trx.memcached_wkey_len, ot, l, (time_t)(*proxy_conn_data)->global_trx.running_ttl);
 	}
 	(*proxy_conn_data)->global_trx.owned_wtoken = 0;
 	(*proxy_conn_data)->global_trx.owned_token = 0;
