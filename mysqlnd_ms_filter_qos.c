@@ -45,8 +45,6 @@
 #include "mysqlnd_ms_switch.h"
 
 
-// BEGIN HACK
-
 static enum_func_status
 mysqlnd_ms_qos_server_has_gtid(MYSQLND_CONN_DATA * conn, MYSQLND_MS_CONN_DATA ** conn_data, char *sql, size_t sql_len,
 								unsigned int wait_time,
@@ -149,7 +147,7 @@ mysqlnd_ms_section_filters_is_gtid_qos(MYSQLND_CONN_DATA * conn TSRMLS_DC)
 }
 /* }}} */
 
-// END HACK
+
 
 /* {{{ qos_filter_dtor */
 static void
@@ -584,7 +582,6 @@ mysqlnd_ms_choose_connection_qos(MYSQLND_CONN_DATA * conn, void * f_data, const 
 				}
 				DBG_INF("fall-through from session consistency");
 			}
-			// END HACK
 		case CONSISTENCY_STRONG:
 			/*
 			For now and forever...

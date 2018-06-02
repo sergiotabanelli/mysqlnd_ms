@@ -162,10 +162,6 @@ mysqlnd_ms_add_zval_to_hash(zval * zv, HashTable * ht, const char * skey, size_t
 				MYSQLND_MS_WARN_OOM();
 			}
 			break;
-// BEGIN HACK
-/*		case IS_BOOL:
-			DBG_INF("boolean");
-*/
 #if PHP_MAJOR_VERSION < 7
 		case IS_BOOL:
 			DBG_INF("boolean");
@@ -184,7 +180,6 @@ mysqlnd_ms_add_zval_to_hash(zval * zv, HashTable * ht, const char * skey, size_t
 			}
 			break;
 #endif
-//END HACK
 		case IS_LONG:
 			new_entry = mnd_calloc(1, sizeof(struct st_mysqlnd_ms_config_json_entry));
 			if (new_entry) {
@@ -266,7 +261,6 @@ mysqlnd_ms_zval_data_to_hashtable(zval * json_data TSRMLS_DC)
 }
 /* }}} */
 
-// BEGIN HACK
 /* {{{ mysqlnd_ms_config_json_load_configuration_aux */
 PHP_MYSQLND_MS_API enum_func_status
 mysqlnd_ms_config_json_load_configuration_aux(char * json_file_name, struct st_mysqlnd_ms_config_json_entry **section, zend_bool cfg TSRMLS_DC)
@@ -364,9 +358,6 @@ mysqlnd_ms_config_json_load_host_configuration(const char * host TSRMLS_DC)
 /* }}} */
 
 
-
-// END HACK
-
 /* {{{ mysqlnd_ms_config_json_load_configuration */
 PHP_MYSQLND_MS_API enum_func_status
 mysqlnd_ms_config_json_load_configuration(struct st_mysqlnd_ms_json_config * cfg TSRMLS_DC)
@@ -384,7 +375,6 @@ mysqlnd_ms_config_json_load_configuration(struct st_mysqlnd_ms_json_config * cfg
 	if (!json_file_name) {
 		ret = PASS;
 	} else if (json_file_name && cfg) {
-		// BEGIN HACK
 /*		do {
 			php_stream * stream;
 			int str_data_len;
@@ -432,7 +422,6 @@ mysqlnd_ms_config_json_load_configuration(struct st_mysqlnd_ms_json_config * cfg
 		} while (0);
 		*/
 		ret = mysqlnd_ms_config_json_load_configuration_aux(json_file_name, &cfg->main_section, TRUE);
-		// END HACK
 	}
 	DBG_RETURN(ret);
 }

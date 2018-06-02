@@ -29,9 +29,6 @@
 #include "ext/mysqlnd/mysqlnd_debug.h"
 #include "ext/mysqlnd/mysqlnd_priv.h"
 
-//BEGIN HACK
-//#include "ext/session/php_session.h"
-//END HACK
 #if PHP_VERSION_ID >= 50400
 #include "ext/mysqlnd/mysqlnd_ext_plugin.h"
 #endif
@@ -537,8 +534,6 @@ err:
 }
 /* }}} */
 
-// BEGIN HACK
-
 /* {{{ mysqlnd_ms_get_php_session */
 int
 mysqlnd_ms_get_php_session(zval * ret TSRMLS_DC) {
@@ -635,7 +630,6 @@ mysqlnd_ms_str_replace(const char *orig, const char *rep, const char *with, zend
 }
 /* }}} */
 
-// END HACK
 
 /* {{{ mysqlnd_ms_query_is_select */
 PHP_MYSQLND_MS_API enum enum_which_server
@@ -644,10 +638,8 @@ mysqlnd_ms_query_is_select(const char * query, size_t query_len, unsigned int * 
 	enum enum_which_server ret = USE_MASTER;
 	struct st_ms_token_and_value token = {0};
 	struct st_mysqlnd_query_scanner * scanner;
-	// BEGIN HACK
 	const char * master_on = INI_STR("mysqlnd_ms.master_on");
 	const char * inject_on = INI_STR("mysqlnd_ms.inject_on");
-	// END HACK
 	DBG_ENTER("mysqlnd_ms_query_is_select");
 
 	*forced = 0;

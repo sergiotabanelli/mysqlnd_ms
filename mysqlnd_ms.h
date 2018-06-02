@@ -70,11 +70,9 @@ ZEND_BEGIN_MODULE_GLOBALS(mysqlnd_ms)
 	zend_bool disable_rw_split;
 	char * config_startup_error;
 	HashTable xa_state_stores;
-	// BEGIN HACK
 	const char * master_on;
 	const char * inject_on;
 	const char * config_dir;
-	// END HACK
 ZEND_END_MODULE_GLOBALS(mysqlnd_ms)
 
 
@@ -84,8 +82,8 @@ ZEND_END_MODULE_GLOBALS(mysqlnd_ms)
 #define MYSQLND_MS_G(v) (mysqlnd_ms_globals.v)
 #endif
 
-#define PHP_MYSQLND_MS_VERSION "1.7.0-alpha"
-#define MYSQLND_MS_VERSION_ID 10700
+#define PHP_MYSQLND_MS_VERSION "2.0.0-alpha"
+#define MYSQLND_MS_VERSION_ID 20000
 
 #define MYSQLND_MS_ERROR_PREFIX "(mysqlnd_ms)"
 
@@ -109,12 +107,10 @@ extern struct st_mysqlnd_ms_json_config * mysqlnd_ms_json_config;
 ZEND_EXTERN_MODULE_GLOBALS(mysqlnd_ms)
 
 
-// BEGIN HACK
 enum_func_status
 mysqlnd_ms_set_tx(MYSQLND_CONN_DATA * conn, zend_bool mode TSRMLS_DC);
 enum_func_status
 mysqlnd_ms_unset_tx(MYSQLND_CONN_DATA * proxy_conn, zend_bool commit TSRMLS_DC);
-// END HACK
 void mysqlnd_ms_register_hooks();
 void mysqlnd_ms_conn_list_dtor(void * pDest);
 PHP_MYSQLND_MS_API zend_bool mysqlnd_ms_match_wild(const char * const str, const char * const wildstr TSRMLS_DC);

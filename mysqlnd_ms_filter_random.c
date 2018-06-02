@@ -921,7 +921,6 @@ mysqlnd_ms_choose_connection_random(void * f_data, const char * const query, con
 
 return_connection:
 	if (stgy->in_transaction && (stgy->trx_stickiness_strategy != TRX_STICKINESS_STRATEGY_DISABLED)) {
-		// BEGIN HACK
 		if (stgy->trx_stop_switching == FALSE) {
 			MS_DECLARE_AND_LOAD_CONN_DATA(conn_data, conn);
 			if (conn_data && *conn_data && (*conn_data)->global_trx.type != GTID_NONE && (*conn_data)->global_trx.is_master) {
@@ -935,7 +934,6 @@ return_connection:
 				}
 			}
 		}
-		// END HACK
 		/*
 		 Initial server for running trx has been identified. No matter
 		 whether we found a valid connection or not, we stop switching
@@ -947,11 +945,9 @@ return_connection:
 
 #if MYSQLND_VERSION_ID >= 50011
 	if ((conn) && (stgy->trx_stickiness_strategy != TRX_STICKINESS_STRATEGY_DISABLED) &&
-//BEGIN HACK
 		//(TRUE == stgy->in_transaction) && (TRUE == stgy->trx_begin_required) && !forced) {
 		// Why !forced ???????
 		(TRUE == stgy->in_transaction) && (TRUE == stgy->trx_begin_required)) {
-//END HACK
 		/* See mysqlnd_ms.c tx_begin notes! */
 		enum_func_status ret = FAIL;
 		MS_DECLARE_AND_LOAD_CONN_DATA(conn_data, conn);

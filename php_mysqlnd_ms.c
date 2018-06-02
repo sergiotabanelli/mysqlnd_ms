@@ -107,13 +107,9 @@ ZEND_DECLARE_MODULE_GLOBALS(mysqlnd_ms)
 
 unsigned int mysqlnd_ms_plugin_id;
 
-// BEGIN HACK
-//static zend_bool mysqlnd_ms_global_config_loaded = FALSE;
 static time_t mysqlnd_ms_global_config_loaded = 0;
-// END HACK
 struct st_mysqlnd_ms_json_config * mysqlnd_ms_json_config = NULL;
 
-// BEGIN HACK
 static void mysqlnd_ms_check_config(TSRMLS_D) /* {{{ */
 {
 	char * json_file_name = INI_STR("mysqlnd_ms.config_file");
@@ -133,7 +129,6 @@ static void mysqlnd_ms_check_config(TSRMLS_D) /* {{{ */
 	}
 }
 /* }}} */
-// END HACK
 
 /* {{{ php_mysqlnd_ms_config_globals_ctor */
 static void
@@ -146,11 +141,9 @@ mysqlnd_ms_globals_ctor(zend_mysqlnd_ms_globals * mysqlnd_ms_globals TSRMLS_DC)
 	mysqlnd_ms_globals->multi_master = FALSE;
 	mysqlnd_ms_globals->disable_rw_split = FALSE;
 	mysqlnd_ms_globals->config_startup_error = NULL;
-	// BEGIN HACK
 	mysqlnd_ms_globals->master_on = NULL;
 	mysqlnd_ms_globals->inject_on = NULL;
 	mysqlnd_ms_globals->config_dir = NULL;
-	// END HACK
 }
 /* }}} */
 
@@ -165,15 +158,7 @@ PHP_RINIT_FUNCTION(mysqlnd_ms)
 
 		zend_hash_init(&MYSQLND_MS_G(xa_state_stores), 0, NULL, mysqlnd_ms_xa_gc_hash_dtor, 1);
 		MYSQLND_MS_CONFIG_JSON_LOCK(mysqlnd_ms_json_config);
-		// BEGIN HACK
-		//if (FALSE == mysqlnd_ms_global_config_loaded) {
-
-		//	mysqlnd_ms_config_json_load_configuration(mysqlnd_ms_json_config TSRMLS_CC);
-		//	mysqlnd_ms_global_config_loaded = TRUE;
-
-		//}
 		mysqlnd_ms_check_config(TSRMLS_C);
-		// END HACK
 		MYSQLND_MS_CONFIG_JSON_UNLOCK(mysqlnd_ms_json_config);
 	}
 	return SUCCESS;
@@ -207,11 +192,9 @@ PHP_INI_BEGIN()
 	STD_PHP_INI_ENTRY("mysqlnd_ms.collect_statistics", "0", PHP_INI_SYSTEM, OnUpdateBool, collect_statistics, zend_mysqlnd_ms_globals, mysqlnd_ms_globals)
 	STD_PHP_INI_ENTRY("mysqlnd_ms.multi_master", "0", PHP_INI_SYSTEM, OnUpdateBool, multi_master, zend_mysqlnd_ms_globals, mysqlnd_ms_globals)
 	STD_PHP_INI_ENTRY("mysqlnd_ms.disable_rw_split", "0", PHP_INI_SYSTEM, OnUpdateBool, disable_rw_split, zend_mysqlnd_ms_globals, mysqlnd_ms_globals)
-	// BEGIN HACK
 	STD_PHP_INI_ENTRY("mysqlnd_ms.master_on", NULL, PHP_INI_SYSTEM, OnUpdateString, master_on, zend_mysqlnd_ms_globals, mysqlnd_ms_globals)
 	STD_PHP_INI_ENTRY("mysqlnd_ms.inject_on", NULL, PHP_INI_SYSTEM, OnUpdateString, inject_on, zend_mysqlnd_ms_globals, mysqlnd_ms_globals)
 	STD_PHP_INI_ENTRY("mysqlnd_ms.config_dir", NULL, PHP_INI_SYSTEM, OnUpdateString, config_dir, zend_mysqlnd_ms_globals, mysqlnd_ms_globals)
-	// END HACK
 PHP_INI_END()
 /* }}} */
 
@@ -240,12 +223,10 @@ PHP_MINIT_FUNCTION(mysqlnd_ms)
 	REGISTER_STRING_CONSTANT("MYSQLND_MS_MASTER_SWITCH", MASTER_SWITCH, CONST_CS | CONST_PERSISTENT);
 	REGISTER_STRING_CONSTANT("MYSQLND_MS_SLAVE_SWITCH", SLAVE_SWITCH, CONST_CS | CONST_PERSISTENT);
 	REGISTER_STRING_CONSTANT("MYSQLND_MS_LAST_USED_SWITCH", LAST_USED_SWITCH, CONST_CS | CONST_PERSISTENT);
-// BEGIN HACK
 	REGISTER_STRING_CONSTANT("MYSQLND_MS_STRONG_SWITCH", STRONG_SWITCH, CONST_CS | CONST_PERSISTENT);
 	REGISTER_STRING_CONSTANT("MYSQLND_MS_SESSION_SWITCH", SESSION_SWITCH, CONST_CS | CONST_PERSISTENT);
 	REGISTER_STRING_CONSTANT("MYSQLND_MS_EVENTUAL_SWITCH", EVENTUAL_SWITCH, CONST_CS | CONST_PERSISTENT);
 
-// END HACK
 #ifdef ALL_SERVER_DISPATCH
 	REGISTER_STRING_CONSTANT("MYSQLND_MS_ALL_SERVER_SWITCH", ALL_SERVER_SWITCH, CONST_CS | CONST_PERSISTENT);
 #endif
@@ -309,18 +290,14 @@ PHP_MINFO_FUNCTION(mysqlnd_ms)
 	php_info_print_table_row(2, "Transaction mode trx_stickiness supported", "yes");
 	php_info_print_table_row(2, "mysqlnd_ms_get_last_used_connection() supported", "yes");
 	php_info_print_table_row(2, "mysqlnd_ms_set_qos() supported", "yes");
-// BEGIN HACK
 	php_info_print_table_row(2, "mysqlnd_ms_set_trx() supported", "yes");
 	php_info_print_table_row(2, "mysqlnd_ms_unset_trx() supported", "yes");
-// END HACK
 #else
 	php_info_print_table_row(2, "Transaction mode trx_stickiness supported", "no");
 	php_info_print_table_row(2, "mysqlnd_ms_get_last_used_connection() supported", "no");
 	php_info_print_table_row(2, "mysqlnd_ms_set_qos() supported", "no");
-// BEGIN HACK
 	php_info_print_table_row(2, "mysqlnd_ms_set_trx() supported", "no");
 	php_info_print_table_row(2, "mysqlnd_ms_unset_trx() supported", "no");
-// END HACK
 #endif
 	php_info_print_table_row(2, "Table partitioning filter supported",
 #ifdef MYSQLND_MS_HAVE_FILTER_TABLE_PARTITION
@@ -479,79 +456,6 @@ static PHP_FUNCTION(mysqlnd_ms_get_last_gtid)
 	if (!(proxy_conn = zval_to_mysqlnd_inherited(handle TSRMLS_CC))) {
 		RETURN_FALSE;
 	}
-	// BEGIN HACK
-	/*
-	{
-		MYSQLND_RES * res = NULL;
-		zval * row;
-		zval ** gtid;
-
-		conn_data = (MYSQLND_MS_CONN_DATA **) mysqlnd_plugin_get_plugin_connection_data_data(proxy_conn->data, mysqlnd_ms_plugin_id);
-		if (!conn_data || !(*conn_data)) {
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " No mysqlnd_ms connection or no statement has been run yet");
-			RETURN_FALSE;
-		}
-
-		if (!(*conn_data)->stgy.last_used_conn) {
-  			php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " No mysqlnd_ms connection or no ID has been injected yet");
-			RETURN_FALSE;
-		}
-		conn = (*conn_data)->stgy.last_used_conn;
-		MS_LOAD_CONN_DATA(conn_data, conn);
-
-		if (!conn_data || !(*conn_data)) {
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "Failed to fetch plugin data. Please report a bug");
-			RETURN_FALSE;
-		}
-
-		if (!(*conn_data)->global_trx.fetch_last_gtid) {
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "SQL to fetch last global transaction ID is not set");
-			RETURN_FALSE;
-		}
-
-		(*conn_data)->skip_ms_calls = TRUE;
-		if (PASS != MS_CALL_ORIGINAL_CONN_DATA_METHOD(send_query)(conn, (*conn_data)->global_trx.fetch_last_gtid, (*conn_data)->global_trx.fetch_last_gtid_len TSRMLS_CC)) {
-			goto getlastidfailure;
-		}
-
-		if (PASS !=  MS_CALL_ORIGINAL_CONN_DATA_METHOD(reap_query)(conn TSRMLS_CC)) {
-			goto getlastidfailure;
-		}
-#if PHP_VERSION_ID < 50600
-		if (!(res = MS_CALL_ORIGINAL_CONN_DATA_METHOD(store_result)(conn TSRMLS_CC))) {
-#else
-		if (!(res = MS_CALL_ORIGINAL_CONN_DATA_METHOD(store_result)(conn, MYSQLND_STORE_NO_COPY TSRMLS_CC))) {
-#endif
-			goto getlastidfailure;
-		}
-
-		(*conn_data)->skip_ms_calls = FALSE;
-
-		MAKE_STD_ZVAL(row);
-		mysqlnd_fetch_into(res, MYSQLND_FETCH_NUM, row, MYSQLND_MYSQL);
-		if (Z_TYPE_P(row) != IS_ARRAY) {
-			zval_ptr_dtor(&row);
-			res->m.free_result(res, FALSE TSRMLS_CC);
-			goto getlastidfailure;
-		}
-
-		if (SUCCESS == zend_hash_index_find(Z_ARRVAL_P(row), 0, (void**)&gtid)) {
-			RETVAL_ZVAL(*gtid, 1, NULL);
-			zval_ptr_dtor(&row);
-			res->m.free_result(res, FALSE TSRMLS_CC);
-			return;
-		} else {
-			//no error code set on line, we need to bail explicitly 
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "Failed to read GTID from result set. Please report a bug");
-		}
-	}
-
-getlastidfailure:
-	if (conn_data && (*conn_data)) {
-		(*conn_data)->skip_ms_calls = FALSE;
-	}
-	RETURN_FALSE;
-	 */
 	conn_data = (MYSQLND_MS_CONN_DATA **) _ms_mysqlnd_plugin_get_plugin_connection_data_data(proxy_conn->data, mysqlnd_ms_plugin_id);
 	if (!conn_data || !(*conn_data)) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " No mysqlnd_ms connection or no statement has been run yet");
@@ -577,7 +481,6 @@ getlastidfailure:
 		}
 	}
 	RETURN_FALSE;
-	// END HACK
 }
 /* }}} */
 
@@ -733,7 +636,6 @@ static PHP_FUNCTION(mysqlnd_ms_set_qos)
 }
 /* }}} */
 
-// BEGIN HACK
 ZEND_BEGIN_ARG_INFO_EX(arginfo_mysqlnd_ms_set_trx, 0, 0, 2)
 	ZEND_ARG_INFO(0, connection)
 	ZEND_ARG_INFO(0, read_only)
@@ -786,7 +688,6 @@ static PHP_FUNCTION(mysqlnd_ms_unset_trx)
 	RETURN_TRUE;
 }
 /* }}} */
-// END HACK
 #endif
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_mysqlnd_ms_query_is_select, 0, 0, 1)
@@ -1498,10 +1399,8 @@ static const zend_function_entry mysqlnd_ms_functions[] = {
 	PHP_FE(mysqlnd_ms_get_last_used_connection,	arginfo_mysqlnd_ms_get_last_used_connection)
 	PHP_FE(mysqlnd_ms_get_last_gtid,	arginfo_mysqlnd_ms_get_last_gtid)
 	PHP_FE(mysqlnd_ms_set_qos,	arginfo_mysqlnd_ms_set_qos)
-// BEGIN HACK
 	PHP_FE(mysqlnd_ms_set_trx,	arginfo_mysqlnd_ms_set_trx)
 	PHP_FE(mysqlnd_ms_unset_trx,	arginfo_mysqlnd_ms_unset_trx)
-// END HACK
 #endif
 	PHP_FE(mysqlnd_ms_fabric_select_shard, arginfo_mysqlnd_ms_fabric_select_shard)
 	PHP_FE(mysqlnd_ms_fabric_select_global, arginfo_mysqlnd_ms_fabric_select_global)

@@ -10,7 +10,7 @@ As of MySQL 5.6.5 the MySQL server features built-in global transaction identifi
 
 Starting from MySQL 5.7.6 the MySQL server features the [session-track-gtids](https://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html#sysvar_session_track_gtids) system variable, which, if set, will allow a client to be aware of GTID assigned by MySQL to an executed transaction. This will allow the plugin to support effective server side GTIDs consistency scenarios without the need of client side GTID emulation. This is a big advantage in terms of safeness and  write loads. Indeed the **client side emulation** add an SQL write for every explicit transaction and, in autocommit mode, for every query not evaluated as read-only, that is, in default configuration, on every non `SELECT` query. Potentially there are some tricks to reduce writes due to GTID client side emulation, but, IMHO, use of server side GTID is far more better.    
 
-The `mymysqlnd_ms` plugin can either use the global transaction ID feature built-in to MySQL >= 5.7.6 or its own global transaction ID emulation. It use GTIDs to enforce three types of session consistency (see also [service level and consistency](REF:../CONCEPTS)/).
+The `mymysqlnd_ms` plugin can either use the global transaction ID feature built-in to MySQL >= 5.7.6 or its own global transaction ID emulation. It use GTIDs to enforce three types of session consistency (see also [service level and consistency](REF:../CONCEPTS/).
 
 ### Session consistency configuration directives
 The [global_transaction_id_injection](REFA:../PLUGIN-CONFIGURATION-FILE.md) section must include all configurations data needed by the QOS filter to enforce session consitency. 
@@ -21,10 +21,11 @@ The [global_transaction_id_injection](REFA:../PLUGIN-CONFIGURATION-FILE.md) sect
 * [type](REFA:../PLUGIN-CONFIGURATION-FILE.md)=2 for [server side read consistency](SERVICE-LEVEL-AND-CONSISTENCY.md#server-side-read-consistency)
 * [type](REFA:../PLUGIN-CONFIGURATION-FILE.md)=3 for [server side write consistency](SERVICE-LEVEL-AND-CONSISTENCY.md#server-side-write-consistency)
 * [wait_for_gtid_timeout](REFA:../PLUGIN-CONFIGURATION-FILE.md) used for read consistency, if no slave is found consistent, specify max seconds to wait for at least one slave to become consistent.
-* [wait_for_wgtid_timeout](REFA:../PLUGIN-CONFIGURATION-FILE.md) used in server side write consistency, specify max seconds a write operation can spend choosing a consistent master.
-* [running_ttl](REFA:../PLUGIN-CONFIGURATION-FILE.md) used in server side write consistency, specify max running seconds for a write operation.
+* [wait_for_wgtid_timeout](REFA:../PLUGIN-CONFIGURATION-FILE.md) used in server side write consistency, set the max number of seconds a write context participant wait when context [running_wdepth](REFA:../PLUGIN-CONFIGURATION-FILE.md) queue reachs its limit, that is when there is still a running write queries in the last depth position of the queue.
+* [running_depth](REFA:../PLUGIN-CONFIGURATION-FILE.md) used server side read consistency, set the max number of concurrent running write queries for the context, usually read contexts does not need running_depth greater then 0 which is the default value.
+* [running_wdepth](REFA:../PLUGIN-CONFIGURATION-FILE.md) used in server side write consistency, set the max number of concurrent running write queries for the context.
+* [running_ttl](REFA:../PLUGIN-CONFIGURATION-FILE.md) used in server side read and write consistency, sets the memcached ttl in seconds of the running queries context state.
 * [race_avoid](REFA:../PLUGIN-CONFIGURATION-FILE.md) strategy used if session consitency does not find any valid node.
-* [on_connect](REFA:../PLUGIN-CONFIGURATION-FILE.md) used for read consistency, specify if the GTID state should be retrived to initialize session consistency on connection init (read consitency escapes connection boundaries).
 
 In consistency enforcing `mymysqlnd_ms` takes the role of context coordinator. Therefore the plugin can and should be configured to use a persistent shared state store. Currently, `mymysqlnd_ms` supports only compatible memcached protocol state store. The [memcached_host](REFA:../PLUGIN-CONFIGURATION-FILE.md) directive specify the backend shared state store hostname. You can use any memcached protocol capable server, e.g. [memcached](https://memcached.org/), [couchbase](https://www.couchbase.com/) or also [mysql with the memcached plugin](https://dev.mysql.com/doc/refman/5.6/en/innodb-memcached-setup.html), if not specified a [memcached_port](REFA:../PLUGIN-CONFIGURATION-FILE.md) the memcached default will be used.
 
@@ -64,8 +65,7 @@ Configuration #1 Server side read consistency
             "type": 2,
             "fetch_last_gtid": "SELECT @@GLOBAL.GTID_EXECUTED AS trx_id FROM DUAL",
             "memcached_host": "mymemcached",
-            "memcached_key": "mymy#SID",
-            "on_connect": 1,
+            "memcached_key": "mymy#SID"
         },
         "filters": {
             "quality_of_service": {
@@ -100,7 +100,6 @@ Configuration #2 Server side write consistency
             "fetch_last_gtid": "SELECT @@GLOBAL.GTID_EXECUTED AS trx_id FROM DUAL",
             "memcached_host": "mymemcached",
             "memcached_key": "mymy#SID",
-            "on_connect": 1,
             "memcached_wkey": "mymy#USER"
         },
         "filters": {
@@ -167,6 +166,8 @@ In previous example the [gtid_block_size](REFA:../PLUGIN-CONFIGURATION-FILE.md) 
 >BEWARE: Set `gtid_block_size` only for group replication clusters. If you set it for NON group replication clusters or if you don't set it for group replication clusters, session consitency will not work. 
 
 #### Client side GTIDs
+>BEWARE: Client side read consistency basically is the [old global transacction id injection feature](http://php.net/manual/en/mysqlnd-ms.quickstart.gtid.php) and is very expensive in terms of performance so it is strongly discouraged. If you need read consistency we strongly suggest to upgrade your MySQL to a version >= 5.7.6  and use [server side read consistency](SERVICE-LEVEL-AND-CONSISTENCY.md#server-side-read-consistency).
+
 In its most basic form a global transaction ID (GTID) is a counter in a table on the master. The counter is incremented whenever a transaction is committed on the master. Slaves replicate the table. The counter serves two purposes. In case of a master failure, it helps the database administrator to identify the most recent slave for promoting it to the new master. The most recent slave is the one with the highest counter value. Applications can use the global transaction ID to search for slaves which have replicated a certain write (identified by a global transaction ID) already.
 
 `mymysqlnd_ms` can inject SQL for every committed transaction to increment a GTID counter. The so created GTID is accessible by the application to identify an applications write operation. This enables the plugin to deliver session consistency (read your writes) service level by not only querying masters but also slaves which have replicated the change already. Read load is taken away from the master.

@@ -32,11 +32,9 @@ MYSQLND_MS_FILTER_DATA * mysqlnd_ms_qos_filter_ctor(struct st_mysqlnd_ms_config_
 													zend_llist * master_connections, zend_llist * slave_connections,
 													MYSQLND_ERROR_INFO * error_info, zend_bool persistent TSRMLS_DC);
 #if PHP_VERSION_ID > 50399
-// BEGIN HACK
 enum_func_status mysqlnd_ms_section_filters_set_gtid_qos(MYSQLND_CONN_DATA * conn, char * gtid, size_t gtid_len TSRMLS_DC);
 enum_func_status mysqlnd_ms_section_filters_is_gtid_qos(MYSQLND_CONN_DATA * conn TSRMLS_DC);
 
-// END HACK
 enum_func_status mysqlnd_ms_section_filters_prepend_qos(MYSQLND * proxy_conn,
 		enum mysqlnd_ms_filter_qos_consistency consistency,
 		enum mysqlnd_ms_filter_qos_option option,
