@@ -1,7 +1,7 @@
 # Runtime Configuration
 The behaviour of these functions is affected by settings in php.ini.
 
-### mymysqlnd_ms Configure Options
+### `mymysqlnd_ms` Configure Options
 
 Name | Default | Changeable
 --- | --- | --- |
@@ -16,12 +16,12 @@ Name | Default | Changeable
 
 Here's a short explanation of the configuration directives.
 
-### mysqlnd_ms.enable 
+### `mysqlnd_ms.enable` 
 type integer
 
 Enables or disables the plugin. If disabled, the extension will not plug into mysqlnd to proxy internal mysqlnd C API calls.
 
-### mysqlnd_ms.force_config_usage 
+### `mysqlnd_ms.force_config_usage` 
 type integer
 
 If enabled, the plugin checks if the host (server) parameters value of any MySQL connection attempt, matches a section name from the plugin configuration file. If not, the connection attempt is blocked.
@@ -30,7 +30,7 @@ This setting is not only useful to restrict PHP to certain servers but also to d
 
 Please, see also [Debugging and Tracing](REFA:../PLUGIN-CONFIGURATION-FILE.md).
 
-### mysqlnd_ms.config_file
+### `mysqlnd_ms.config_file`
 type string
 
 Specific [plugin configuration file](REFA:../PLUGIN-CONFIGURATION-FILE.md). Whenever a connection to MySQL is being opened, the plugin compares the host parameter value of the connect call, with the cluster section names from the plugin specific configuration file. If, for example, the plugin specific configuration file has a section `myapp` then the section should be referenced by opening a MySQL connection to the host `myapp`
@@ -60,7 +60,7 @@ mysqlnd_ms.config_file=/path/to/mysqlnd_ms_plugin.json
     }
 }
 ```
-### mysqlnd_ms.config_dir
+### `mysqlnd_ms.config_dir`
 type string
 
 Directory where clusters specific configuration files can be placed, i.e. a specific cluster [plugin configuration file](REFA:../PLUGIN-CONFIGURATION-FILE.md) named `myapp` can be placed in the directory specified by the `config_dir` php.ini directive. In this case the cluster name section must be omitted, previous example for a config file named `myapp` will be:
@@ -89,7 +89,7 @@ mysqlnd_ms.config_file=/path/to/mysqlnd_ms/config_dir
 }
 ```
 
-### mysqlnd_ms.master_on
+### `mysqlnd_ms.master_on`
 type string
 
 By default all query statement that does not start with "SELECT" goes to the master. The `master_on` php.ini directive specifies which query goes to master, i.e.:
@@ -99,17 +99,17 @@ mysqlnd_ms.master_on=INSERT,UPDATE,DELETE,LOAD,REPLACE,CREATE,ALTER,DROP,TRUNCAT
 ```
 Will route all queries that start with one of the listed tokens to the master/s node/s.
 
-### mysqlnd_ms.collect_statistics
+### `mysqlnd_ms.collect_statistics`
 type integer
 
 Enables or disables the collection of statistics. The collection of statistics is disabled by default for performance reasons. Statistics are returned by the function [mysqlnd_ms_get_stats](REF:../MYSQLND_MS-FUNCTIONS/).
 
-### mysqlnd_ms.multi_master
+### `mysqlnd_ms.multi_master`
 type integer
 
 Enables or disables support of MySQL multi master replication setups. Please, see also [supported clusters](REF:../CONCEPTS/).
 
-### mysqlnd_ms.disable_rw_split
+### `mysqlnd_ms.disable_rw_split`
 type integer
 
 Enables or disables built-in read write splitting.
@@ -120,4 +120,3 @@ The SQL hint `MYSQLND_MS_USE_SLAVE` will not be recognized. If found, the statem
 
 Disabling read write splitting impacts the return value of [mysqlnd_ms_query_is_select](REF:../MYSQLND_MS-FUNCTIONS/). The function will no longer propose query execution on slave servers.
 
->NOTE: Multiple master servers

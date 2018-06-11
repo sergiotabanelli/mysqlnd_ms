@@ -53,7 +53,7 @@ Server side write consistency has following rules:
 * Writes belonging to the same context partition can safely run **NON** concurrently, there are no still pending same context writes, on any masters that has already replicated all previous same context writes.
 
 In server side write consistency a context partition state is made by a token counter used for progressive queries id assignment and an information query record that holds information about the chosen master and the GTID associated with the query. In autocommit mode and if a query is evaluated as a write query, more or less happens the following: 
-1. The token counter are atomically incremented and the returned values are respectively assigned as id for the query.
+1. The token counter is atomically incremented and the returned value is assigned as id for the query.
 2. The state of the previous [running_wdepth](REFA:../PLUGIN-CONFIGURATION-FILE.md) write queries is retrieved and checked.
 3. If at least one previous queries is still running then the plugin choose the same master otherwise it will check other masters against the GTID of the last previous write query and choose a master according to the configured filters.
 4. The choosen master is written as current state for the query id.

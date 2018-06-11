@@ -7,7 +7,6 @@
 * [Transient errors](REF:)
 * [Failover](REF:)
 * [Load balancing](REF:)
-* [Read-write splitting](REF:)
 * [Filter](REF:)
 * [Service level and consistency](CONCEPTS/SERVICE-LEVEL-AND-CONSISTENCY.md)
 * [Global transaction IDs](REF:)
