@@ -67,6 +67,7 @@ In non autocommit mode steps 1 to 5 are executed on transaction init, steps 6 an
 For every query evaluated as a write query: 
 * Step 1 needs an atomic increment operation to the configured memcached state store. 
 * Step 2 needs a read of [running_wdepth](REFA:../PLUGIN-CONFIGURATION-FILE.md) records from the configured memcached state store.
+* In step 3, if no previous write queries are still running, the plugin will check configured master nodes and retrieve the MySQL executed GTID using the [fetch_last_gtid](REFA:../PLUGIN-CONFIGURATION-FILE.md) query, the retrieved executed GTID are locally stored. Next write queries will be checked first against the locally stored executed GTID and only on check failure a new effective consistency check is done and a new [fetch_last_gtid](REFA:../PLUGIN-CONFIGURATION-FILE.md) query is sent to the node.
 * Step 4 needs a write operation to the configured memcached state store.
 * Step 6 needs a write operation to the configured memcached state store.
 * Step 7 needs a delete operation to the configured memcached state store.
