@@ -58,7 +58,7 @@ In server side write consistency a context partition state is made by a token co
 3. If at least one previous queries is still running then the plugin choose the same master otherwise it will check other masters against the GTID of the last previous write query and choose a master according to the configured filters.
 4. The choosen master is written as current state for the query id.
 5. The query is sent to the choosen master.
-6. When query ends, if the query will effectively produced a valid transaction the associated GTID is written as current state for the query id, anyway the state of the query will be marked as executed.
+6. When query ends, if the query will effectively produce a valid transaction the associated GTID is written as current state for the query id, anyway the state of the query will be marked as executed.
 7. if [auto_clean](REFA:../PLUGIN-CONFIGURATION-FILE.md) directive is active the state of the previous (id - 2*[running_wdepth](REFA:../PLUGIN-CONFIGURATION-FILE.md)) write query is deleted from the state store.
 
 In non autocommit mode steps 1 to 5 are executed on transaction init, steps 6 and 7 when transaction ends.
