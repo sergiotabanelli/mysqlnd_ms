@@ -1,6 +1,8 @@
 # mymysqlnd_ms
 This is a fork of the mysqlnd replication and load balancing plugin pecl extension [mysqlnd_ms](http://php.net/manual/en/book.mysqlnd-ms.php). 
 
+For an introduction to replication lag cure and multi-master write conflicts management check [MYSQLND_MS REVAMPED: Single and multi-master read/write consistency enforcing in MySQL async clusters with PHP and mysqlnd_ms extension](https://gist.github.com/sergiotabanelli/ce992b630d08a0bc7a9cec7c577638f5)
+
 >**DOCUMENTATION IS SLIGHTLY DIFFERNET FROM ORIGINAL ONE AND IT IS STILL NOT READY, YOU CAN FIND IT STARTING FROM [DOCS](docs/BOOK.md) DIRECTORY**
 
 # MAJOR CHANGES
