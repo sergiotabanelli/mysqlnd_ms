@@ -542,7 +542,10 @@ extern struct st_mysqlnd_conn_methods * ms_orig_mysqlnd_conn_handle_methods;
 #define SECT_PASS_NAME						"password"
 #define SECT_DB_NAME						"db"
 #define SECT_CONNECT_FLAGS_NAME				"connect_flags"
+#define SECT_SSL_KEY_NAME					"ssl_key"
+#define SECT_SSL_CERT_NAME					"ssl_cert"
 #define SECT_SSL_CA_NAME					"ssl_ca"
+#define SECT_SSL_CAPATH_NAME				"ssl_capath"
 #define SECT_SSL_CIPHER_NAME				"ssl_cipher"
 #define SECT_FILTER_PRIORITY_NAME 			"priority"
 #define SECT_FILTER_NAME					"filters"
@@ -767,7 +770,10 @@ typedef struct st_mysqlnd_ms_list_data
 	size_t emulated_scheme_len;
 	zend_bool persistent;
 
-	MYSQLND_MS_CONN_DV_STRING(ssl_ca);
+    MYSQLND_MS_CONN_DV_STRING(ssl_key);
+    MYSQLND_MS_CONN_DV_STRING(ssl_cert);
+    MYSQLND_MS_CONN_DV_STRING(ssl_ca);
+    MYSQLND_MS_CONN_DV_STRING(ssl_capath);
 	MYSQLND_MS_CONN_DV_STRING(ssl_cipher);
 
 } MYSQLND_MS_LIST_DATA;
@@ -1099,7 +1105,10 @@ typedef struct st_mysqlnd_ms_conn_data
 		MYSQLND_MS_CONN_DV_STRINGL(db);
 		unsigned long mysql_flags;
 
-		MYSQLND_MS_CONN_DV_STRING(ssl_ca);
+        MYSQLND_MS_CONN_DV_STRING(ssl_key);
+        MYSQLND_MS_CONN_DV_STRING(ssl_cert);
+        MYSQLND_MS_CONN_DV_STRING(ssl_ca);
+		MYSQLND_MS_CONN_DV_STRING(ssl_capath);
 		MYSQLND_MS_CONN_DV_STRING(ssl_cipher);
 	} cred;
 

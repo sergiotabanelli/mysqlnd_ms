@@ -387,9 +387,11 @@ mysqlnd_ms_lazy_connect(MYSQLND_MS_LIST_DATA * element, zend_bool master TSRMLS_
 										(*proxy_conn_data)->server_charset->name);
 	} else {
 		// TODO: GALVIN Changes for ssl certificates
-        MS_CALL_ORIGINAL_CONN_DATA_METHOD(ssl_set)(connection, NULL, NULL,
+        MS_CALL_ORIGINAL_CONN_DATA_METHOD(ssl_set)(connection,
+                                                   MYSQLND_MS_CONN_STRING(element->ssl_key),
+                                                   MYSQLND_MS_CONN_STRING(element->ssl_cert),
                                                    MYSQLND_MS_CONN_STRING(element->ssl_ca),
-                                                         NULL,
+                                                   MYSQLND_MS_CONN_STRING(element->ssl_capath),
                                                    MYSQLND_MS_CONN_STRING(element->ssl_cipher));
 
 		ret = MS_CALL_ORIGINAL_CONN_DATA_METHOD(connect)(connection, MYSQLND_MS_CONN_A_CSTRING(element->host), MYSQLND_MS_CONN_A_CSTRING(element->user),
@@ -544,9 +546,11 @@ mysqlnd_ms_connect_to_host_aux_elm(MYSQLND_CONN_DATA * proxy_conn, MYSQLND_CONN_
 						MYSQLND_MS_ERROR_PREFIX " Couldn't force charset to '%s'", (*proxy_conn_data)->server_charset->name);
 		} else {
 			// TODO: GALVIN Changes for ssl certificates
-			MS_CALL_ORIGINAL_CONN_DATA_METHOD(ssl_set)(conn, NULL, NULL,
+			MS_CALL_ORIGINAL_CONN_DATA_METHOD(ssl_set)(conn,
+                                                       MYSQLND_MS_CONN_STRING(cred->ssl_key),
+                                                       MYSQLND_MS_CONN_STRING(cred->ssl_cert),
 													   MYSQLND_MS_CONN_STRING(cred->ssl_ca),
-													   NULL,
+													   MYSQLND_MS_CONN_STRING(cred->ssl_capath),
 													   MYSQLND_MS_CONN_STRING(cred->ssl_cipher));
 
 			ret = MS_CALL_ORIGINAL_CONN_DATA_METHOD(connect)(conn, MYSQLND_MS_CONN_A_CSTRING(host), MYSQLND_MS_CONN_A_CSTRING(cred->user), MYSQLND_MS_CONN_A_CSTRINGL(cred->passwd), MYSQLND_MS_CONN_A_CSTRINGL(cred->db),
@@ -576,8 +580,10 @@ mysqlnd_ms_connect_to_host_aux_elm(MYSQLND_CONN_DATA * proxy_conn, MYSQLND_CONN_
 
 		MYSQLND_MS_CONN_STRINGL_DUP((*new_element)->db, cred->db, conn->persistent);
 
+        MYSQLND_MS_CONN_STRING_DUP((*new_element)->ssl_key, cred->ssl_key, conn->persistent);
+        MYSQLND_MS_CONN_STRING_DUP((*new_element)->ssl_cert, cred->ssl_cert, conn->persistent);
         MYSQLND_MS_CONN_STRING_DUP((*new_element)->ssl_ca, cred->ssl_ca, conn->persistent);
-
+        MYSQLND_MS_CONN_STRING_DUP((*new_element)->ssl_capath, cred->ssl_capath, conn->persistent);
         MYSQLND_MS_CONN_STRING_DUP((*new_element)->ssl_cipher, cred->ssl_cipher, conn->persistent);
 
         (*new_element)->connect_flags = mysql_flags;
@@ -2465,7 +2471,10 @@ mysqlnd_ms_connect_to_host(MYSQLND_CONN_DATA * proxy_conn, MYSQLND_CONN_DATA * c
 		char * db_to_use = NULL;
 		char * host_to_use = NULL;
 
-		char * ssl_ca = NULL;
+        char * ssl_key = NULL;
+        char * ssl_cert = NULL;
+        char * ssl_ca = NULL;
+        char * ssl_capath = NULL;
 		char * ssl_cipher = NULL;
 
 		MYSQLND_MS_CONN_DV_STRING(host);
@@ -2554,7 +2563,29 @@ mysqlnd_ms_connect_to_host(MYSQLND_CONN_DATA * proxy_conn, MYSQLND_CONN_DATA * c
 			MYSQLND_MS_S_TO_CONN_STRINGL(cred.db, db_to_use, strlen(db_to_use));
 		}
 
-		// CA support
+        // SSL KEY support
+        ssl_key = mysqlnd_ms_config_json_string_from_section(subsection, SECT_SSL_KEY_NAME, sizeof(SECT_SSL_KEY_NAME) - 1, 0,
+                                                            &value_exists, &is_list_value TSRMLS_CC);
+        if (is_list_value) {
+            mysqlnd_ms_client_n_php_error(error_info, CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, E_RECOVERABLE_ERROR TSRMLS_CC,
+                    MYSQLND_MS_ERROR_PREFIX " Invalid value for "SECT_SSL_KEY_NAME". Cannot be a list/hash' . Stopping");
+            failures++;
+        } else if (value_exists && ssl_key) {
+            MYSQLND_MS_S_TO_CONN_STRING(cred.ssl_key, ssl_key);
+        }
+
+        // SSL CERT support
+        ssl_cert = mysqlnd_ms_config_json_string_from_section(subsection, SECT_SSL_CERT_NAME, sizeof(SECT_SSL_CERT_NAME) - 1, 0,
+                                                             &value_exists, &is_list_value TSRMLS_CC);
+        if (is_list_value) {
+            mysqlnd_ms_client_n_php_error(error_info, CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, E_RECOVERABLE_ERROR TSRMLS_CC,
+                    MYSQLND_MS_ERROR_PREFIX " Invalid value for "SECT_SSL_CERT_NAME". Cannot be a list/hash' . Stopping");
+            failures++;
+        } else if (value_exists && ssl_cert) {
+            MYSQLND_MS_S_TO_CONN_STRING(cred.ssl_cert, ssl_cert);
+        }
+
+        // SSL CA support
 		ssl_ca = mysqlnd_ms_config_json_string_from_section(subsection, SECT_SSL_CA_NAME, sizeof(SECT_SSL_CA_NAME) - 1, 0,
 															   &value_exists, &is_list_value TSRMLS_CC);
 		if (is_list_value) {
@@ -2565,7 +2596,18 @@ mysqlnd_ms_connect_to_host(MYSQLND_CONN_DATA * proxy_conn, MYSQLND_CONN_DATA * c
 			MYSQLND_MS_S_TO_CONN_STRING(cred.ssl_ca, ssl_ca);
 		}
 
-		// SSL cipher support
+        // SSL CAPATH support
+        ssl_capath = mysqlnd_ms_config_json_string_from_section(subsection, SECT_SSL_CAPATH_NAME, sizeof(SECT_SSL_CAPATH_NAME) - 1, 0,
+                                                            &value_exists, &is_list_value TSRMLS_CC);
+        if (is_list_value) {
+            mysqlnd_ms_client_n_php_error(error_info, CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, E_RECOVERABLE_ERROR TSRMLS_CC,
+                    MYSQLND_MS_ERROR_PREFIX " Invalid value for "SECT_SSL_CAPATH_NAME". Cannot be a list/hash' . Stopping");
+            failures++;
+        } else if (value_exists && ssl_capath) {
+            MYSQLND_MS_S_TO_CONN_STRING(cred.ssl_capath, ssl_capath);
+        }
+
+        // SSL cipher support
 		ssl_cipher = mysqlnd_ms_config_json_string_from_section(subsection, SECT_SSL_CIPHER_NAME, sizeof(SECT_SSL_CIPHER_NAME) - 1, 0,
 															   &value_exists, &is_list_value TSRMLS_CC);
 		if (is_list_value) {
@@ -2632,10 +2674,19 @@ mysqlnd_ms_connect_to_host(MYSQLND_CONN_DATA * proxy_conn, MYSQLND_CONN_DATA * c
 		}
 		i++; /* to pass only the first conn handle */
 
-		if (ssl_ca) {
+        if (ssl_key) {
+            mnd_efree(ssl_key);
+        }
+        if (ssl_cert) {
+            mnd_efree(ssl_cert);
+        }
+        if (ssl_ca) {
 			mnd_efree(ssl_ca);
 		}
-		if (ssl_cipher) {
+        if (ssl_capath) {
+            mnd_efree(ssl_capath);
+        }
+        if (ssl_cipher) {
 			mnd_efree(ssl_cipher);
 		}
 
