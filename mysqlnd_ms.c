@@ -5859,9 +5859,9 @@ mysqlnd_ms_protocol_rset_header_read(_MS_PROTOCOL_CONN_READ_D TSRMLS_DC)
 		case 0x00:
 			DBG_INF("UPSERT");
 			/*
-			 * Verr� chiamata direttamente la read dell'OK
-			 * (attenzione il byte iniziale � gi� stato letto)
-			 * L'OK avr� le informazioni di SESSION_TRACK le informazioni
+			 * Verrà chiamata direttamente la read dell'OK
+			 * (attenzione il byte iniziale è già stato letto)
+			 * L'OK avrà le informazioni di SESSION_TRACK le informazioni
 			 * I valori estratti verranno copiati nel pacchetto di destinazione
 			 * il message verra copiato in info_or_local_file e poi messo a NULL
 			 *
