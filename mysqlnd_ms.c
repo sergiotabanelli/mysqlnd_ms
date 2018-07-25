@@ -2562,7 +2562,7 @@ mysqlnd_ms_connect_to_host(MYSQLND_CONN_DATA * proxy_conn, MYSQLND_CONN_DATA * c
 					MYSQLND_MS_ERROR_PREFIX " Invalid value for "SECT_SSL_CA_NAME". Cannot be a list/hash' . Stopping");
 			failures++;
 		} else if (value_exists && ssl_ca) {
-			MYSQLND_MS_S_TO_CONN_STRINGL(cred.ssl_ca, ssl_ca, strlen(ssl_ca));
+			MYSQLND_MS_S_TO_CONN_STRING(cred.ssl_ca, ssl_ca);
 		}
 
 		// SSL cipher support
@@ -2573,7 +2573,7 @@ mysqlnd_ms_connect_to_host(MYSQLND_CONN_DATA * proxy_conn, MYSQLND_CONN_DATA * c
 					MYSQLND_MS_ERROR_PREFIX " Invalid value for "SECT_SSL_CIPHER_NAME". Cannot be a list/hash' . Stopping");
 			failures++;
 		} else if (value_exists && ssl_cipher) {
-			MYSQLND_MS_S_TO_CONN_STRINGL(cred.ssl_cipher, ssl_cipher, strlen(ssl_cipher));
+			MYSQLND_MS_S_TO_CONN_STRING(cred.ssl_cipher, ssl_cipher);
         }
 
 		host_to_use = mysqlnd_ms_config_json_string_from_section(subsection, SECT_HOST_NAME, sizeof(SECT_HOST_NAME) - 1, 0,
