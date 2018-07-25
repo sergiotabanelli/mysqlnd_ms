@@ -572,7 +572,7 @@ mysqlnd_ms_config_json_section_is_object_list(struct st_mysqlnd_ms_config_json_e
 /* {{{ mysqlnd_ms_config_json_next_sub_section */
 PHP_MYSQLND_MS_API struct st_mysqlnd_ms_config_json_entry *
 mysqlnd_ms_config_json_next_sub_section(struct st_mysqlnd_ms_config_json_entry * main_section,
-										char ** section_name, size_t * section_name_len, _ms_ulong * nkey TSRMLS_DC)
+										char ** section_name, size_t * section_name_len, ulong * nkey TSRMLS_DC)
 {
 	struct st_mysqlnd_ms_config_json_entry * ret = NULL;
 	struct st_mysqlnd_ms_config_json_entry _ms_p_zval * entry;

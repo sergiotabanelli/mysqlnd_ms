@@ -386,7 +386,11 @@ mysqlnd_ms_lazy_connect(MYSQLND_MS_LIST_DATA * element, zend_bool master TSRMLS_
 										MYSQLND_MS_ERROR_PREFIX " Couldn't force charset to '%s'",
 										(*proxy_conn_data)->server_charset->name);
 	} else {
-
+		// TODO: GALVIN Changes for ssl certificates
+        MS_CALL_ORIGINAL_CONN_DATA_METHOD(ssl_set)(connection, NULL, NULL,
+                                                   MYSQLND_MS_CONN_STRING(element->ssl_ca),
+                                                         NULL,
+                                                   MYSQLND_MS_CONN_STRING(element->ssl_cipher));
 
 		ret = MS_CALL_ORIGINAL_CONN_DATA_METHOD(connect)(connection, MYSQLND_MS_CONN_A_CSTRING(element->host), MYSQLND_MS_CONN_A_CSTRING(element->user),
 				MYSQLND_MS_CONN_A_CSTRINGL(element->passwd),
@@ -539,6 +543,12 @@ mysqlnd_ms_connect_to_host_aux_elm(MYSQLND_CONN_DATA * proxy_conn, MYSQLND_CONN_
 			mysqlnd_ms_client_n_php_error(&MYSQLND_MS_ERROR_INFO(conn), CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, E_ERROR TSRMLS_CC,
 						MYSQLND_MS_ERROR_PREFIX " Couldn't force charset to '%s'", (*proxy_conn_data)->server_charset->name);
 		} else {
+			// TODO: GALVIN Changes for ssl certificates
+			MS_CALL_ORIGINAL_CONN_DATA_METHOD(ssl_set)(conn, NULL, NULL,
+													   MYSQLND_MS_CONN_STRING(cred->ssl_ca),
+													   NULL,
+													   MYSQLND_MS_CONN_STRING(cred->ssl_cipher));
+
 			ret = MS_CALL_ORIGINAL_CONN_DATA_METHOD(connect)(conn, MYSQLND_MS_CONN_A_CSTRING(host), MYSQLND_MS_CONN_A_CSTRING(cred->user), MYSQLND_MS_CONN_A_CSTRINGL(cred->passwd), MYSQLND_MS_CONN_A_CSTRINGL(cred->db),
 															 cred->port, MYSQLND_MS_CONN_A_CSTRING(cred->socket), mysql_flags TSRMLS_CC);
 		}
@@ -566,9 +576,13 @@ mysqlnd_ms_connect_to_host_aux_elm(MYSQLND_CONN_DATA * proxy_conn, MYSQLND_CONN_
 
 		MYSQLND_MS_CONN_STRINGL_DUP((*new_element)->db, cred->db, conn->persistent);
 
-		(*new_element)->connect_flags = mysql_flags;
+        MYSQLND_MS_CONN_STRINGL_DUP((*new_element)->ssl_ca, cred->ssl_ca, conn->persistent);
 
-		MYSQLND_MS_CONN_STRING_DUP((*new_element)->socket, cred->socket, conn->persistent);
+        MYSQLND_MS_CONN_STRINGL_DUP((*new_element)->ssl_cipher, cred->ssl_cipher, conn->persistent);
+
+        (*new_element)->connect_flags = mysql_flags;
+
+        MYSQLND_MS_CONN_STRING_DUP((*new_element)->socket, cred->socket, conn->persistent);
 
 		(*new_element)->emulated_scheme_len = mysqlnd_ms_get_scheme_from_list_data((*new_element), &(*new_element)->emulated_scheme,
 																					persistent TSRMLS_CC);
@@ -2450,6 +2464,10 @@ mysqlnd_ms_connect_to_host(MYSQLND_CONN_DATA * proxy_conn, MYSQLND_CONN_DATA * c
 		char * pass_to_use = NULL;
 		char * db_to_use = NULL;
 		char * host_to_use = NULL;
+
+		char * ssl_ca = NULL;
+		char * ssl_cipher = NULL;
+
 		MYSQLND_MS_CONN_DV_STRING(host);
 		int64_t port, flags;
 
@@ -2536,6 +2554,28 @@ mysqlnd_ms_connect_to_host(MYSQLND_CONN_DATA * proxy_conn, MYSQLND_CONN_DATA * c
 			MYSQLND_MS_S_TO_CONN_STRINGL(cred.db, db_to_use, strlen(db_to_use));
 		}
 
+		// CA support
+		ssl_ca = mysqlnd_ms_config_json_string_from_section(subsection, SECT_SSL_CA_NAME, sizeof(SECT_SSL_CA_NAME) - 1, 0,
+															   &value_exists, &is_list_value TSRMLS_CC);
+		if (is_list_value) {
+			mysqlnd_ms_client_n_php_error(error_info, CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, E_RECOVERABLE_ERROR TSRMLS_CC,
+					MYSQLND_MS_ERROR_PREFIX " Invalid value for "SECT_SSL_CA_NAME". Cannot be a list/hash' . Stopping");
+			failures++;
+		} else if (value_exists && ssl_ca) {
+			MYSQLND_MS_S_TO_CONN_STRINGL(cred.ssl_ca, ssl_ca, strlen(ssl_ca));
+		}
+
+		// SSL cipher support
+		ssl_cipher = mysqlnd_ms_config_json_string_from_section(subsection, SECT_SSL_CIPHER_NAME, sizeof(SECT_SSL_CIPHER_NAME) - 1, 0,
+															   &value_exists, &is_list_value TSRMLS_CC);
+		if (is_list_value) {
+			mysqlnd_ms_client_n_php_error(error_info, CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, E_RECOVERABLE_ERROR TSRMLS_CC,
+					MYSQLND_MS_ERROR_PREFIX " Invalid value for "SECT_SSL_CIPHER_NAME". Cannot be a list/hash' . Stopping");
+			failures++;
+		} else if (value_exists && ssl_cipher) {
+			MYSQLND_MS_S_TO_CONN_STRINGL(cred.ssl_cipher, ssl_cipher, strlen(ssl_cipher));
+        }
+
 		host_to_use = mysqlnd_ms_config_json_string_from_section(subsection, SECT_HOST_NAME, sizeof(SECT_HOST_NAME) - 1, 0,
 														  &value_exists, &is_list_value TSRMLS_CC);
 		if (is_list_value) {
@@ -2591,6 +2631,13 @@ mysqlnd_ms_connect_to_host(MYSQLND_CONN_DATA * proxy_conn, MYSQLND_CONN_DATA * c
 			}
 		}
 		i++; /* to pass only the first conn handle */
+
+		if (ssl_ca) {
+			mnd_efree(ssl_ca);
+		}
+		if (ssl_cipher) {
+			mnd_efree(ssl_cipher);
+		}
 
 		if (socket_to_use) {
 			mnd_efree(socket_to_use);
@@ -5747,9 +5794,9 @@ mysqlnd_ms_protocol_rset_header_read(_MS_PROTOCOL_CONN_READ_D TSRMLS_DC)
 		case 0x00:
 			DBG_INF("UPSERT");
 			/*
-			 * Verrà chiamata direttamente la read dell'OK
-			 * (attenzione il byte iniziale è già stato letto)
-			 * L'OK avrà le informazioni di SESSION_TRACK le informazioni
+			 * Verrï¿½ chiamata direttamente la read dell'OK
+			 * (attenzione il byte iniziale ï¿½ giï¿½ stato letto)
+			 * L'OK avrï¿½ le informazioni di SESSION_TRACK le informazioni
 			 * I valori estratti verranno copiati nel pacchetto di destinazione
 			 * il message verra copiato in info_or_local_file e poi messo a NULL
 			 *
