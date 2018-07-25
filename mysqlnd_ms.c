@@ -576,9 +576,9 @@ mysqlnd_ms_connect_to_host_aux_elm(MYSQLND_CONN_DATA * proxy_conn, MYSQLND_CONN_
 
 		MYSQLND_MS_CONN_STRINGL_DUP((*new_element)->db, cred->db, conn->persistent);
 
-        MYSQLND_MS_CONN_STRINGL_DUP((*new_element)->ssl_ca, cred->ssl_ca, conn->persistent);
+        MYSQLND_MS_CONN_STRING_DUP((*new_element)->ssl_ca, cred->ssl_ca, conn->persistent);
 
-        MYSQLND_MS_CONN_STRINGL_DUP((*new_element)->ssl_cipher, cred->ssl_cipher, conn->persistent);
+        MYSQLND_MS_CONN_STRING_DUP((*new_element)->ssl_cipher, cred->ssl_cipher, conn->persistent);
 
         (*new_element)->connect_flags = mysql_flags;
 
