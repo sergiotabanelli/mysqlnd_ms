@@ -3478,6 +3478,7 @@ MYSQLND_METHOD(mysqlnd_ms, connect)(MYSQLND_CONN_DATA * conn,
 
 	if (FALSE == section_found && !the_section) {
 		DBG_INF("section not found");
+
 		ret = MS_CALL_ORIGINAL_CONN_DATA_METHOD(connect)(conn, MYSQLND_MS_CONN_A_STRING(host), MYSQLND_MS_CONN_A_STRING(user), MYSQLND_MS_CONN_A_STRINGL(passwd), MYSQLND_MS_CONN_A_STRINGL(db), port, MYSQLND_MS_CONN_A_STRING(socket), mysql_flags TSRMLS_CC);
 	} else {
 		zend_bool value_exists = FALSE;

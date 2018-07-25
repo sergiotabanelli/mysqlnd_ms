@@ -9,6 +9,7 @@ For an introduction to replication lag cure and multi-master write conflicts man
 Most changes are in [Global transaction IDs](docs/BOOK/QUICKSTART-AND-EXAMPLES/GLOBAL-TRANSACTION-IDS.md) injection implementation and session consistency implementation of the [Quality Of Service filter](docs/BOOK/QUICKSTART-AND-EXAMPLES/SERVICE-LEVEL-AND-CONSISTENCY.md).
 
 * PHP7.x porting
+* SSL support for PDO (workaround using the mysqlnd_ms.ini file)
 * [New QOS session consinstency](docs/BOOK/QUICKSTART-AND-EXAMPLES/SERVICE-LEVEL-AND-CONSISTENCY.md) and [transaction id injection](docs/BOOK/QUICKSTART-AND-EXAMPLES/GLOBAL-TRANSACTION-IDS.md)
 * [Server side read consistency](docs/BOOK/QUICKSTART-AND-EXAMPLES/SERVICE-LEVEL-AND-CONSISTENCY.md#server-side-read-consistency) (mysql >= 5.7.6 with --session-track-gtids=OWN_GTID)
   * Mysql native built-in read consistency 
