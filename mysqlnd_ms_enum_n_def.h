@@ -33,6 +33,9 @@
 #else
 #include "ext/standard/php_smart_string.h"
 #endif
+#if PHP_VERSION_ID >= 70100
+#include "ext/mysqlnd/mysqlnd_connection.h"
+#endif
 
 //#include "mysqlnd_ms.h"
 

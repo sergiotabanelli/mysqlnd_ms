@@ -62,7 +62,7 @@ PHP_MYSQLND_MS_API struct st_mysqlnd_ms_config_json_entry * mysqlnd_ms_config_js
 PHP_MYSQLND_MS_API struct st_mysqlnd_ms_config_json_entry * mysqlnd_ms_config_json_sub_section(struct st_mysqlnd_ms_config_json_entry *, const char * section, size_t section_len, zend_bool * exists TSRMLS_DC);
 PHP_MYSQLND_MS_API zend_bool mysqlnd_ms_config_json_section_is_list(struct st_mysqlnd_ms_config_json_entry * TSRMLS_DC);
 PHP_MYSQLND_MS_API zend_bool mysqlnd_ms_config_json_section_is_object_list(struct st_mysqlnd_ms_config_json_entry * section TSRMLS_DC);
-PHP_MYSQLND_MS_API struct st_mysqlnd_ms_config_json_entry * mysqlnd_ms_config_json_next_sub_section(struct st_mysqlnd_ms_config_json_entry * main_section, char ** section_name, size_t * section_name_len, ulong * nkey TSRMLS_DC);
+PHP_MYSQLND_MS_API struct st_mysqlnd_ms_config_json_entry * mysqlnd_ms_config_json_next_sub_section(struct st_mysqlnd_ms_config_json_entry * main_section, char ** section_name, size_t * section_name_len, _ms_ulong * nkey TSRMLS_DC);
 
 PHP_MYSQLND_MS_API char * mysqlnd_ms_config_json_string_from_section(struct st_mysqlnd_ms_config_json_entry * section, const char * name, size_t name_len, ulong nkey, zend_bool * exists, zend_bool * is_list_value TSRMLS_DC);
 PHP_MYSQLND_MS_API int64_t mysqlnd_ms_config_json_int_from_section(struct st_mysqlnd_ms_config_json_entry * section, const char * name, size_t name_len, ulong nkey, zend_bool * exists, zend_bool * is_list_value TSRMLS_DC);

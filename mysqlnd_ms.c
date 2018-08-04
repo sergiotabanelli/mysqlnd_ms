@@ -121,6 +121,8 @@ static struct st_mysqlnd_protocol_methods my_mysqlnd_protocol_methods;
 #define _MS_PROTOCOL_CONN_READ_NET_A net
 #define _ms_net_receive net->data->m.receive_ex
 #define _ms_net_packet_no net->packet_no
+#define _MS_PROTOCOL_CONN_DATA_LOAD_NET_D(conn, cnet) MYSQLND_NET * ##cnet = conn->net
+#define _MS_PROTOCOL_CONN_DATA_LOAD_VIO_D(conn, cvio) MYSQLND_NET * ##cvio = conn->net
 #else
 static struct st_mysqlnd_protocol_payload_decoder_factory_methods * ms_orig_mysqlnd_protocol_methods;
 static struct st_mysqlnd_protocol_payload_decoder_factory_methods my_mysqlnd_protocol_methods;
@@ -135,6 +137,8 @@ static struct st_mysqlnd_protocol_payload_decoder_factory_methods my_mysqlnd_pro
 #define _MS_PROTOCOL_CONN_READ_NET_A net, vio
 #define _ms_net_receive net->data->m.receive
 #define _ms_net_packet_no net->data->packet_no
+#define _MS_PROTOCOL_CONN_DATA_LOAD_NET_D(conn, cnet) MYSQLND_PFC * cnet = conn->protocol_frame_codec
+#define _MS_PROTOCOL_CONN_DATA_LOAD_VIO_D(conn, cvio) MYSQLND_VIO * cvio = conn->vio
 #endif
 static enum_func_status	(*ms_orig_ok_read)(_MS_PROTOCOL_CONN_READ_D TSRMLS_DC);
 static enum_func_status	(*ms_orig_rset_header_read)(_MS_PROTOCOL_CONN_READ_D TSRMLS_DC);
@@ -2363,6 +2367,86 @@ MYSQLND_MS_GTID_TRX_METHODS gtid_methods[GTID_LAST_ENUM_ENTRY] =
 		MS_CHECK_FOR_TRANSIENT_ERROR((MYSQLND_MS_ERROR_INFO((connection)).error_no), (conn_data), (transient_error_no)); \
 	} \
 
+/* {{{ mysqlnd_ms_clone_client_options */
+/*
+TODO: This should be done better, i.e. alloc mysqlnd_ms struct before connect and use the pool reply_cmds features ...
+probably a usefull solution also for reconnection and failover.
+*/
+enum_func_status
+mysqlnd_ms_clone_client_options(MYSQLND_CONN_DATA * proxy_conn, MYSQLND_CONN_DATA * conn TSRMLS_DC)
+{
+	_MS_PROTOCOL_CONN_DATA_LOAD_NET_D(proxy_conn, proxy_net);
+	_MS_PROTOCOL_CONN_DATA_LOAD_VIO_D(proxy_conn, proxy_vio);
+	_MS_PROTOCOL_CONN_DATA_LOAD_NET_D(conn, net);
+	_MS_PROTOCOL_CONN_DATA_LOAD_VIO_D(conn, vio);
+
+	DBG_ENTER("mysqlnd_ms_clone_client_options");
+	MS_CALL_ORIGINAL_CONN_DATA_METHOD(free_options)(conn);
+	/* We don't clone connect_attr hashtable */
+	if (proxy_conn->options->auth_protocol && (PASS != MS_CALL_ORIGINAL_CONN_DATA_METHOD(set_client_option)(conn, 
+		MYSQLND_OPT_AUTH_PROTOCOL, proxy_conn->options->auth_protocol TSRMLS_CC))) {
+		DBG_RETURN(FAIL);
+	}
+	if (proxy_conn->options->charset_name && PASS != MS_CALL_ORIGINAL_CONN_DATA_METHOD(set_client_option)(conn,
+		MYSQL_SET_CHARSET_NAME, proxy_conn->options->charset_name TSRMLS_CC)) {
+		DBG_RETURN(FAIL);
+	}
+	if (proxy_conn->options->num_commands) {
+		unsigned int i;
+		for (i = 0; i < proxy_conn->options->num_commands; i++) {
+			char * new_command;
+			if (PASS != MS_CALL_ORIGINAL_CONN_DATA_METHOD(set_client_option)(conn,
+				MYSQL_INIT_COMMAND, proxy_conn->options->init_commands[i] TSRMLS_CC)) {
+				DBG_RETURN(FAIL);
+			}
+		}
+	}
+	conn->options->flags = proxy_conn->options->flags;
+#ifdef MYSQLND_STRING_TO_INT_CONVERSION
+	conn->options->int_and_float_native = proxy_conn->options->int_and_float_native;
+#endif
+	conn->options->max_allowed_packet = proxy_conn->options->max_allowed_packet;
+	conn->options->protocol = proxy_conn->options->protocol;
+	vio->data->options.net_read_buffer_size = proxy_vio->data->options.net_read_buffer_size;
+	vio->data->options.timeout_connect = proxy_vio->data->options.timeout_connect;
+	vio->data->options.timeout_read = proxy_vio->data->options.timeout_read;
+	vio->data->options.timeout_write = proxy_vio->data->options.timeout_write;
+	vio->data->options.ssl_verify_peer = proxy_vio->data->options.ssl_verify_peer;
+	if (proxy_vio->data->options.ssl_ca && PASS != MS_CALL_ORIGINAL_CONN_DATA_METHOD(set_client_option)(conn,
+		MYSQLND_OPT_SSL_CA, proxy_vio->data->options.ssl_ca TSRMLS_CC)) {
+		DBG_RETURN(FAIL);
+	}
+	if (proxy_vio->data->options.ssl_capath && PASS != MS_CALL_ORIGINAL_CONN_DATA_METHOD(set_client_option)(conn,
+		MYSQLND_OPT_SSL_CAPATH, proxy_vio->data->options.ssl_capath TSRMLS_CC)) {
+		DBG_RETURN(FAIL);
+	}
+	if (proxy_vio->data->options.ssl_cert && PASS != MS_CALL_ORIGINAL_CONN_DATA_METHOD(set_client_option)(conn,
+		MYSQLND_OPT_SSL_CERT, proxy_vio->data->options.ssl_cert TSRMLS_CC)) {
+		DBG_RETURN(FAIL);
+	}
+	if (proxy_vio->data->options.ssl_cipher && PASS != MS_CALL_ORIGINAL_CONN_DATA_METHOD(set_client_option)(conn,
+		MYSQLND_OPT_SSL_CIPHER, proxy_vio->data->options.ssl_cipher TSRMLS_CC)) {
+		DBG_RETURN(FAIL);
+	}
+	if (proxy_vio->data->options.ssl_key && PASS != MS_CALL_ORIGINAL_CONN_DATA_METHOD(set_client_option)(conn,
+		MYSQLND_OPT_SSL_KEY, proxy_vio->data->options.ssl_key TSRMLS_CC)) {
+		DBG_RETURN(FAIL);
+	}
+	if (proxy_vio->data->options.ssl_passphrase && PASS != MS_CALL_ORIGINAL_CONN_DATA_METHOD(set_client_option)(conn,
+		MYSQLND_OPT_SSL_PASSPHRASE, proxy_vio->data->options.ssl_passphrase TSRMLS_CC)) {
+		DBG_RETURN(FAIL);
+	}
+	if (proxy_net->data->sha256_server_public_key && PASS != MS_CALL_ORIGINAL_CONN_DATA_METHOD(set_client_option)(conn,
+		MYSQL_SERVER_PUBLIC_KEY, proxy_net->data->sha256_server_public_key TSRMLS_CC)) {
+		DBG_RETURN(FAIL);
+	}
+	if (proxy_net->cmd_buffer.length && PASS != MS_CALL_ORIGINAL_CONN_DATA_METHOD(set_client_option)(conn,
+		MYSQLND_OPT_NET_CMD_BUFFER_SIZE, (const char * const) &proxy_net->cmd_buffer.length  TSRMLS_CC)) {
+		DBG_RETURN(FAIL);
+	}
+	DBG_RETURN(PASS);
+}
+/* }}} */
 
 /* {{{ mysqlnd_ms_connect_to_host_aux */
 enum_func_status
@@ -2563,6 +2647,7 @@ mysqlnd_ms_connect_to_host(MYSQLND_CONN_DATA * proxy_conn, MYSQLND_CONN_DATA * c
 				if (tmp_conn_handle) {
 					tmp_conn = MS_GET_CONN_DATA_FROM_CONN(tmp_conn_handle);
 				}
+				mysqlnd_ms_clone_client_options(proxy_conn, tmp_conn TSRMLS_CC);
 			}
 			MYSQLND_MS_S_TO_CONN_STRING(host, host_to_use);
 			if (tmp_conn) {
@@ -3946,7 +4031,7 @@ MYSQLND_METHOD(mysqlnd_ms_stmt, dtor)(MYSQLND_STMT * const s, zend_bool implicit
 /* }}} */
 
 /* {{{ mysqlnd_ms::escape_string */
-static ulong
+static _ms_ulong
 MYSQLND_METHOD(mysqlnd_ms, escape_string)(MYSQLND_CONN_DATA * const proxy_conn, char * newstr, const char * escapestr, size_t escapestr_len TSRMLS_DC)
 {
 	MS_DECLARE_AND_LOAD_CONN_DATA(conn_data, proxy_conn);
@@ -4984,7 +5069,7 @@ MYSQLND_METHOD(mysqlnd_ms, get_server_statistics)(MYSQLND_CONN_DATA * proxy_conn
 
 
 /* {{{ mysqlnd_ms::get_server_version */
-static unsigned long
+static _ms_ulong
 MYSQLND_METHOD(mysqlnd_ms, get_server_version)(const MYSQLND_CONN_DATA * const proxy_conn TSRMLS_DC)
 {
 	MS_DECLARE_AND_LOAD_CONN_DATA(conn_data, proxy_conn);
@@ -5747,9 +5832,9 @@ mysqlnd_ms_protocol_rset_header_read(_MS_PROTOCOL_CONN_READ_D TSRMLS_DC)
 		case 0x00:
 			DBG_INF("UPSERT");
 			/*
-			 * Verrà chiamata direttamente la read dell'OK
-			 * (attenzione il byte iniziale è già stato letto)
-			 * L'OK avrà le informazioni di SESSION_TRACK le informazioni
+			 * Verrï¿½ chiamata direttamente la read dell'OK
+			 * (attenzione il byte iniziale ï¿½ giï¿½ stato letto)
+			 * L'OK avrï¿½ le informazioni di SESSION_TRACK le informazioni
 			 * I valori estratti verranno copiati nel pacchetto di destinazione
 			 * il message verra copiato in info_or_local_file e poi messo a NULL
 			 *
