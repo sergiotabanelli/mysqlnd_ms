@@ -11,6 +11,9 @@
     $real_memcached = getenv("MYSQL_TEST_REAL_MEMCACHED");
 	$memcached_host      = getenv("MYSQL_TEST_MEMCACHED_HOST")     ? getenv("MYSQL_TEST_MEMCACHED_HOST") : "127.0.0.1";
 	$memcached_port      = getenv("MYSQL_TEST_MEMCACHED_PORT")     ? getenv("MYSQL_TEST_MEMCACHED_PORT") : 11211;
+	$client_key      = getenv("MYSQL_TEST_SSL_KEY")     ? getenv("MYSQL_TEST_SSL_KEY") : "client-key.pem";
+	$client_cert      = getenv("MYSQL_TEST_SSL_CERT")     ? getenv("MYSQL_TEST_SSL_CERT") : "client-cert.pem";
+	$ca_cert      = getenv("MYSQL_TEST_SSL_CA")     ? getenv("MYSQL_TEST_SSL_CA") : "ca.pem";
 
 	$host      = getenv("MYSQL_TEST_HOST")     ? getenv("MYSQL_TEST_HOST") : "127.0.0.1";
 	$port      = getenv("MYSQL_TEST_PORT")     ? getenv("MYSQL_TEST_PORT") : 3306;

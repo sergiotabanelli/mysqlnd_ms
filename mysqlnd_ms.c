@@ -121,8 +121,9 @@ static struct st_mysqlnd_protocol_methods my_mysqlnd_protocol_methods;
 #define _MS_PROTOCOL_CONN_READ_NET_A net
 #define _ms_net_receive net->data->m.receive_ex
 #define _ms_net_packet_no net->packet_no
-#define _MS_PROTOCOL_CONN_DATA_LOAD_NET_D(conn, cnet) MYSQLND_NET * ##cnet = conn->net
-#define _MS_PROTOCOL_CONN_DATA_LOAD_VIO_D(conn, cvio) MYSQLND_NET * ##cvio = conn->net
+#define _MS_PROTOCOL_CONN_DATA_LOAD_NET_D(conn, cnet) MYSQLND_NET * cnet = conn->net
+#define _MS_PROTOCOL_CONN_DATA_LOAD_VIO_D(conn, cvio) MYSQLND_NET * cvio = conn->net
+#define _MS_PROTOCOL_CONN_DATA_NET_SPK(cnet) cnet->data->options.sha256_server_public_key
 #else
 static struct st_mysqlnd_protocol_payload_decoder_factory_methods * ms_orig_mysqlnd_protocol_methods;
 static struct st_mysqlnd_protocol_payload_decoder_factory_methods my_mysqlnd_protocol_methods;
@@ -139,6 +140,7 @@ static struct st_mysqlnd_protocol_payload_decoder_factory_methods my_mysqlnd_pro
 #define _ms_net_packet_no net->data->packet_no
 #define _MS_PROTOCOL_CONN_DATA_LOAD_NET_D(conn, cnet) MYSQLND_PFC * cnet = conn->protocol_frame_codec
 #define _MS_PROTOCOL_CONN_DATA_LOAD_VIO_D(conn, cvio) MYSQLND_VIO * cvio = conn->vio
+#define _MS_PROTOCOL_CONN_DATA_NET_SPK(cnet) cnet->data->sha256_server_public_key
 #endif
 static enum_func_status	(*ms_orig_ok_read)(_MS_PROTOCOL_CONN_READ_D TSRMLS_DC);
 static enum_func_status	(*ms_orig_rset_header_read)(_MS_PROTOCOL_CONN_READ_D TSRMLS_DC);
@@ -2436,8 +2438,8 @@ mysqlnd_ms_clone_client_options(MYSQLND_CONN_DATA * proxy_conn, MYSQLND_CONN_DAT
 		MYSQLND_OPT_SSL_PASSPHRASE, proxy_vio->data->options.ssl_passphrase TSRMLS_CC)) {
 		DBG_RETURN(FAIL);
 	}
-	if (proxy_net->data->sha256_server_public_key && PASS != MS_CALL_ORIGINAL_CONN_DATA_METHOD(set_client_option)(conn,
-		MYSQL_SERVER_PUBLIC_KEY, proxy_net->data->sha256_server_public_key TSRMLS_CC)) {
+	if (_MS_PROTOCOL_CONN_DATA_NET_SPK(proxy_net) && PASS != MS_CALL_ORIGINAL_CONN_DATA_METHOD(set_client_option)(conn,
+		MYSQL_SERVER_PUBLIC_KEY, _MS_PROTOCOL_CONN_DATA_NET_SPK(proxy_net) TSRMLS_CC)) {
 		DBG_RETURN(FAIL);
 	}
 	if (proxy_net->cmd_buffer.length && PASS != MS_CALL_ORIGINAL_CONN_DATA_METHOD(set_client_option)(conn,
@@ -4514,10 +4516,10 @@ MYSQLND_METHOD(mysqlnd_ms, set_client_option)(MYSQLND_CONN_DATA * const proxy_co
 {
 	enum_func_status ret = PASS;
 	MS_DECLARE_AND_LOAD_CONN_DATA(conn_data, proxy_conn);
-
 	DBG_ENTER("mysqlnd_ms::set_client_option");
+
 	if (CONN_DATA_NOT_SET(conn_data)) {
-		DBG_RETURN(MS_CALL_ORIGINAL_CONN_DATA_METHOD(set_client_option)(proxy_conn, option, value TSRMLS_CC));
+		ret = MS_CALL_ORIGINAL_CONN_DATA_METHOD(set_client_option)(proxy_conn, option, value TSRMLS_CC);
 	} else {
 		MYSQLND_MS_LIST_DATA * el;
 

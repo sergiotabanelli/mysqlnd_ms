@@ -805,6 +805,23 @@
 		return ('OWN_GTID' == $row['Value']) ? true : false;
 	}
 	
+	function mst_mysqli_server_supports_ssl($host, $user, $passwd, $db, $port, $socket) {
+
+		$link = mst_mysqli_connect($host, $user, $passwd, $db, $port, $socket);
+		if (mysqli_connect_errno()) {
+			return sprintf("[%d] %s\n", mysqli_connect_errno(), mysqli_connect_error());
+		}
+
+		if (!($res = $link->query("SHOW GLOBAL VARIABLES LIKE 'HAVE_SSL'"))) {
+			return false;
+		}
+		$row = $res->fetch_assoc();
+		if (!$row)
+			return false;
+
+		return ('YES' == $row['Value']) ? true : false;
+	}
+
 	function mst_mysqli_server_supports_memcached_plugin($host, $user, $passwd, $db, $port, $socket) {
 
 		$link = mst_mysqli_connect($host, $user, $passwd, $db, $port, $socket);

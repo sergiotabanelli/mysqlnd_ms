@@ -82,7 +82,7 @@ ZEND_END_MODULE_GLOBALS(mysqlnd_ms)
 #define MYSQLND_MS_G(v) (mysqlnd_ms_globals.v)
 #endif
 
-#define PHP_MYSQLND_MS_VERSION "2.0.0-alpha"
+#define PHP_MYSQLND_MS_VERSION "2.0.0"
 #define MYSQLND_MS_VERSION_ID 20000
 
 #define MYSQLND_MS_ERROR_PREFIX "(mysqlnd_ms)"

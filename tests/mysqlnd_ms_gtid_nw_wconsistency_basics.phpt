@@ -1,5 +1,5 @@
 --TEST--
-GTID nowait Write Consistency
+GTID nowait Write Consistency (TOBE REWRITTEN)
 --SKIPIF--
 <?php
 if (version_compare(PHP_VERSION, '5.3.99-dev', '<'))
@@ -268,6 +268,8 @@ mysqlnd_ms.multi_master=1
 		printf("[clean] %s\n", $error);
 		
 ?>
+--XFAIL--
+should be rewritten for nowait consensus
 --EXPECTF--
 array(1) {
   ["_role"]=>

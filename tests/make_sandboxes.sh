@@ -10,6 +10,8 @@ if [ ! -f "$SANDBOX_BINARY/$MYSQL_VERSION/share/innodb_memcached_config.sql" ]; 
 	exit 1
 fi
 
+SCRIPTPATH=$( cd "$(dirname "$0")" ; pwd -P )
+
 make_multiple_sandbox --gtid --how_many_nodes=4 --group_directory=MYSQLND_MS "$MYSQL_VERSION"
 
 if [ "$?" != "0" ] ; then exit 1 ; fi
@@ -26,6 +28,9 @@ do
         plugin-load=libmemcached.so
         daemon_memcached_option="-p$myport"
         session_track_gtids=1
+		ssl-ca=$SCRIPTPATH/ca.pem
+		ssl-cert=$SCRIPTPATH/server-cert.pem
+		ssl-key=$SCRIPTPATH/server-key.pem
     )
     $multi_sb/node$N/add_option ${options[*]}
     myport=$(($myport+1))
@@ -44,5 +49,4 @@ user_cmd="$user_cmd MASTER_PASSWORD='rsandbox', master_host='127.0.0.1', "
 user_cmd="$user_cmd master_port=$baseport;"
 user_cmd="$user_cmd START SLAVE;"    
 $multi_sb/n2 -v -u root -e "$user_cmd"
-SCRIPTPATH=$( cd "$(dirname "$0")" ; pwd -P )
 sed -i -e "s/\(\s*\)\$baseport\s*=.*/\1\$baseport=$baseport;/" $SCRIPTPATH/config.inc

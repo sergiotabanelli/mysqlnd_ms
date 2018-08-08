@@ -4,7 +4,7 @@
 	and gives no acceess to original environment :(. If it would at least
 	preserve and overwrite only selected ones ...
 	*/
-	$baseport = 20393;
+	$baseport = 14519;
 	$mport = $baseport;
 	$sport = $baseport+1;
 	$emport = $baseport+2;
@@ -17,7 +17,10 @@
 	putenv("MYSQL_TEST_DB=test");
 	putenv("MYSQL_TEST_ENGINE=InnoDB");
 	putenv("MYSQL_TEST_MEMCACHED_PORT_ADD_HACK=7905");
-	
+	putenv("MYSQL_TEST_SSL_KEY=client-key.pem");
+	putenv("MYSQL_TEST_SSL_CERT=client-cert.pem");
+	putenv("MYSQL_TEST_SSL_CA=ca.pem");
+
 	putenv("MYSQL_TEST_SKIP_CONNECT_FAILURE=1");
 	putenv("MYSQL_TEST_CONNECT_FLAGS=0");
 	putenv("MYSQL_TEST_EXPERIMENTAL=0");
