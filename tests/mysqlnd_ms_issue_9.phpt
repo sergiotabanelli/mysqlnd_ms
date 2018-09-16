@@ -84,7 +84,7 @@ $settings = array(
 		),
 		"failover" => array (
         	"strategy" => "loop_before_master",
-        	"remember_failed" => true,
+//        	"remember_failed" => true,
         	"max_retries" => 0
 		)
 	)
