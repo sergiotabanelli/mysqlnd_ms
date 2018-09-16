@@ -1,5 +1,5 @@
 --TEST--
-Issue 7 oprofile performance drop analysis
+Issue 9 oprofile performance drop analysis
 --SKIPIF--
 <?php
 if (version_compare(PHP_VERSION, '5.3.99-dev', '<'))
@@ -48,15 +48,15 @@ $settings = array(
 			),
 		),
 		'filters' => array(
-        	"random": {
-        		"sticky":"1"
-        	}
+        	"random" => array(
+        		"sticky" => "1"
+			)
 		),
-		"failover": {
-        	"strategy":"loop_before_master",
-        	"remember_failed" : true,
-        	"max_retries": 0
-       }
+		"failover" => array (
+        	"strategy" => "loop_before_master",
+        	"remember_failed" => true,
+        	"max_retries" => 0
+		)
 	),
 	"myapp1" => array(
 		'master' => array(
@@ -78,17 +78,16 @@ $settings = array(
 			),
 		),
 		'filters' => array(
-        	"random": {
-        		"sticky":"1"
-        	}
+        	"random" => array(
+        		"sticky" => "1"
+			)
 		),
-		"failover": {
-        	"strategy":"loop_before_master",
-        	"remember_failed" : true,
-        	"max_retries": 0
-       }
-	),
-
+		"failover" => array (
+        	"strategy" => "loop_before_master",
+        	"remember_failed" => true,
+        	"max_retries" => 0
+		)
+	)
 );
 
 if ($error = mst_create_config("test_mysqlnd_ms_issue_9.ini", $settings))
