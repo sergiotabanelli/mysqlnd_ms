@@ -108,6 +108,28 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_issue_9.ini
 <?php
 	require_once("connect.inc");
 	require_once("util.inc");
+	function mini_bench_to($arg_t, $arg_ra=false) 
+	{
+		$tttime=round((end($arg_t)-$arg_t['start'])*1000,4);
+		if ($arg_ra) $ar_aff['total_time']=$tttime;
+		else $aff="total time : ".$tttime."ms\n";
+		$prv_cle='start';
+		$prv_val=$arg_t['start'];
+
+		foreach ($arg_t as $cle=>$val)
+		{
+			if($cle!='start')    
+			{
+				$prcnt_t=round(((round(($val-$prv_val)*1000,4)/$tttime)*100),1);
+				if ($arg_ra) $ar_aff[$prv_cle.' -> '.$cle]=$prcnt_t;
+				$aff.=$prv_cle.' -> '.$cle.' : '.$prcnt_t." %\n";
+				$prv_val=$val;
+				$prv_cle=$cle;
+			}
+		}
+		if ($arg_ra) return $ar_aff;
+		return $aff;
+	}
 	$iterations = 100;
 	$link = mst_mysqli_connect("myapp", $user, $passwd, $db, $port, $socket);
 	if (mysqli_connect_errno()) {
@@ -119,11 +141,11 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_issue_9.ini
 	}
 	$t['start'] = microtime(true);
 	for ($i = 1; $i <= $iterations; $i++) {
-		$res = mst_mysqli_query(2 + $i, $link, "SELECT * FROM TEST");
+		$res = mst_mysqli_query(2 + $i, $link, "SELECT * FROM test");
 	}
 	$t['loop_nofail'] = microtime(true);
 	for ($ii = 1; $ii <= $iterations; $ii++) {
-		$res = mst_mysqli_query(2 + $i + $ii, $link1, "SELECT * FROM TEST");
+		$res = mst_mysqli_query(2 + $i + $ii, $link1, "SELECT * FROM test");
 	}
 	$t['loop_fail'] = microtime(true);
 	$str_result_bench=mini_bench_to($t);
