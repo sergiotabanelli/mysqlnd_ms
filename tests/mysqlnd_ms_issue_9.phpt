@@ -8,10 +8,6 @@ if (version_compare(PHP_VERSION, '5.3.99-dev', '<'))
 require_once('skipif.inc');
 require_once("connect.inc");
 
-if (!getenv("MYSQL_TEST_OPROFILE")) {
-	die(sprintf("SKIP oprofile - install oprofile (opref) and set MYSQL_TEST_OPROFILE=1 (config.inc) to enable\n"));
-}
-
 _skipif_check_extensions(array("mysqli"));
 _skipif_connect($master_host_only, $user, $passwd, $db, $master_port, $master_socket);
 _skipif_connect($slave_host_only, $user, $passwd, $db, $slave_port, $slave_socket);
@@ -74,7 +70,7 @@ $settings = array(
 			),
 			"slave2" => array(
 				'host' 	=> $emulated_slave_host_only,
-				'port' 	=> (int)$master_port - 10, // NOTE: $master_port - 10 must be unused and connection must get "connection refused" error.
+				'port' 	=> (int)$master_port - 1, // NOTE: $master_port - 10 must be unused and connection must get "connection refused" error.
 			),
 		),
 		'filters' => array(
@@ -159,9 +155,9 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_issue_9.ini
 	$result_bench=mini_bench_to($t, true);
 	$lf = end($result_bench);
 	if ($lf > 60) {
-		print "Performance drop";
+		print "Performance drop\n";
+		var_dump($result_bench);
 	}
-	var_dump($result_bench);
 	print "done!";
 ?>
 --CLEAN--
