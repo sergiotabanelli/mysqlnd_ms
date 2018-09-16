@@ -74,7 +74,7 @@ $settings = array(
 			),
 			"slave2" => array(
 				'host' 	=> $emulated_slave_host_only,
-				'port' 	=> (int)$master_port - 1, // NOTE: $master_port - 1 must be unused and connection must get "connection refused" error.
+				'port' 	=> (int)$master_port - 10, // NOTE: $master_port - 10 must be unused and connection must get "connection refused" error.
 			),
 		),
 		'filters' => array(
@@ -141,11 +141,15 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_issue_9.ini
 	}
 	$t['start'] = microtime(true);
 	for ($i = 1; $i <= $iterations; $i++) {
+		$link = mst_mysqli_connect("myapp", $user, $passwd, $db, $port, $socket);
 		$res = mst_mysqli_query(2 + $i, $link, "SELECT * FROM test");
+		$link->close();
 	}
 	$t['loop_nofail'] = microtime(true);
 	for ($ii = 1; $ii <= $iterations; $ii++) {
+		$link1 = mst_mysqli_connect("myapp1", $user, $passwd, $db, $port, $socket);
 		$res = mst_mysqli_query(2 + $i + $ii, $link1, "SELECT * FROM test");
+		$link1->close();
 	}
 	$t['loop_fail'] = microtime(true);
 	$str_result_bench=mini_bench_to($t);
