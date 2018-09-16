@@ -122,7 +122,7 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_issue_9.ini
 			{
 				$prcnt_t=round(((round(($val-$prv_val)*1000,4)/$tttime)*100),1);
 				if ($arg_ra) $ar_aff[$prv_cle.' -> '.$cle]=$prcnt_t;
-				$aff.=$prv_cle.' -> '.$cle.' : '.$prcnt_t." %\n";
+				else $aff.=$prv_cle.' -> '.$cle.' : '.$prcnt_t." %\n";
 				$prv_val=$val;
 				$prv_cle=$cle;
 			}
@@ -156,7 +156,7 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_issue_9.ini
 		$link1->close();
 	}
 	$t['loop_fail'] = microtime(true);
-	$result_bench=mini_bench_to($t,true);
+	$result_bench=mini_bench_to($t, true);
 	$lf = end($result_bench);
 	if ($lf > 60) {
 		print "Performance drop";
