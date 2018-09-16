@@ -91,7 +91,7 @@ $settings = array(
 
 );
 
-if ($error = mst_create_config("test_mysqlnd_ms_issue_7.ini", $settings))
+if ($error = mst_create_config("test_mysqlnd_ms_issue_9.ini", $settings))
 	die(sprintf("SKIP %s\n", $error));
 if ($error = mst_mysqli_drop_test_table($master_host_only, $user, $passwd, $db, $master_port, $master_socket))
 	die(sprintf("SKIP Failed to drop test table on master %s\n", $error));
@@ -104,7 +104,7 @@ if ($error = mst_mysqli_create_test_table($emulated_slave_host_only, $user, $pas
 ?>
 --INI--
 mysqlnd_ms.enable=1
-mysqlnd_ms.config_file=test_mysqlnd_ms_issue_7.ini
+mysqlnd_ms.config_file=test_mysqlnd_ms_issue_9.ini
 --FILE--
 <?php
 	require_once("connect.inc");
@@ -135,8 +135,8 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_issue_7.ini
 <?php
 	require_once("connect.inc");
 	require_once("util.inc");
-	if (!unlink("test_mysqlnd_ms_issue_7.ini"))
-	  printf("[clean] Cannot unlink ini file 'test_mysqlnd_ms_issue_7.ini'.\n");
+	if (!unlink("test_mysqlnd_ms_issue_9.ini"))
+	  printf("[clean] Cannot unlink ini file 'test_mysqlnd_ms_issue_9.ini'.\n");
 	if ($error = mst_mysqli_drop_test_table($master_host_only, $user, $passwd, $db, $master_port, $master_socket))
 		printf("[clean] Failed to drop test table on master %s\n", $error);
 	if ($error = mst_mysqli_drop_test_table($emulated_slave_host_only, $user, $passwd, $db, $emulated_slave_port, $emulated_slave_socket))
