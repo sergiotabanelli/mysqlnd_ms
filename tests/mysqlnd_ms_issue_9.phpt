@@ -156,7 +156,7 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_issue_9.ini
 		$link1->close();
 	}
 	$t['loop_fail'] = microtime(true);
-	$result_bench=mini_bench_to($t);
+	$result_bench=mini_bench_to($t,true);
 	$lf = end($result_bench);
 	if ($lf > 60) {
 		print "Performance drop";
