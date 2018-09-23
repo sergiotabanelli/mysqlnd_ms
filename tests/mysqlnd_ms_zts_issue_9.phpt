@@ -1,5 +1,5 @@
 --TEST--
-Issue 9 performance drop analysis
+Issue 9 zts performance drop analysis
 --SKIPIF--
 <?php
 if (version_compare(PHP_VERSION, '5.3.99-dev', '<'))
@@ -9,6 +9,7 @@ require_once('skipif.inc');
 require_once("connect.inc");
 
 _skipif_check_extensions(array("mysqli"));
+_skipif_check_extensions(array("pthreads"));
 _skipif_connect($master_host_only, $user, $passwd, $db, $master_port, $master_socket);
 _skipif_connect($slave_host_only, $user, $passwd, $db, $slave_port, $slave_socket);
 _skipif_connect($emulated_slave_host_only, $user, $passwd, $db, $emulated_slave_port, $emulated_slave_socket);
@@ -51,36 +52,6 @@ $settings = array(
 		"failover" => array (
         	"strategy" => "loop_before_master",
         	"remember_failed" => true,
-        	"max_retries" => 0
-		)
-	),
-	"myapp1" => array(
-		'master' => array(
-			"master1" => array(
-				'host' 		=> $master_host_only,
-				'port' 		=> (int)$master_port,
-				'socket' 	=> $master_socket,
-			),
-		),
-		'slave' => array(
-			"slave1" => array(
-				'host' 	=> $slave_host_only,
-				'port' 	=> (int)$slave_port,
-				'socket' => $slave_socket,
-			),
-			"slave2" => array(
-				'host' 	=> $emulated_slave_host_only,
-				'port' 	=> (int)$master_port - 1, // NOTE: $master_port - 10 must be unused and connection must get "connection refused" error.
-			),
-		),
-		'filters' => array(
-        	"random" => array(
-        		"sticky" => "1"
-			)
-		),
-		"failover" => array (
-        	"strategy" => "loop_before_master",
-//        	"remember_failed" => true,
         	"max_retries" => 0
 		)
 	)
@@ -126,38 +97,69 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_issue_9.ini
 		if ($arg_ra) return $ar_aff;
 		return $aff;
 	}
+
+	class Perftest extends Thread
+	{
+		public $link;
+		public $til;
+
+		public function __construct($link, $til) {
+			$this->link = $link;
+			$this->til = $til;
+		}
+
+		public function run()
+		{
+			//echo Thread::getCurrentThreadId(),"\n";
+			while(time() < $this->til)
+			{
+				if ($this->link) 
+				{
+					$mysqli = $this->link;
+				} else {
+					$mysqli = mst_mysqli_connect("myapp", $user, $passwd, $db, $port, $socket);
+				}
+				$mysqli->query("SELECT * FROM test");
+				if (!$this->link) 
+				{
+					$mysqli->close();
+				}
+			}
+		}
+	}
 	$iterations = 100;
-	$link = mst_mysqli_connect("myapp", $user, $passwd, $db, $port, $socket);
-	if (mysqli_connect_errno()) {
-		printf("[001] [%d] %s\n", mysqli_connect_errno(), mysqli_connect_error());
+	$til = time() + 70; // Test duration
+	for ($i=0;$i<$iterations;$i++)
+	{
+		$workers[$i] = new Perftest(null, $til);
+		$workers[$i]->start();
 	}
-	$link1 = mst_mysqli_connect("myapp1", $user, $passwd, $db, $port, $socket);
-	if (mysqli_connect_errno()) {
-		printf("[002] [%d] %s\n", mysqli_connect_errno(), mysqli_connect_error());
+	$link = mst_mysqli_connect($slave_host_only, $user, $passwd, $db, $slave_port, $slave_socket);
+	$result= $link->query("show global status like 'Com_select'");
+	$start = (int)($result->fetch_row()[1]);
+	sleep(30);
+	$result= $link->query("show global status like 'Com_select'");
+	$end = (int)($result->fetch_row()[1]);
+	$qpsnf = ($end-$start)/30;
+	echo " select qps nofail = ". $qpsnf . "\n";
+	exec($stop_eslave);
+	$result= $link->query("show global status like 'Com_select'");
+	$start = (int)($result->fetch_row()[1]);
+	sleep(30);
+	$result= $link->query("show global status like 'Com_select'");
+	$end = (int)($result->fetch_row()[1]);
+	$qpsf = ($end-$start)/30;
+	echo " select qps fail = ". $qpsf . "\n";
+	while(time() < $this->til) {
+		sleep(1);
 	}
-	$t['start'] = microtime(true);
-	for ($i = 1; $i <= $iterations; $i++) {
-		$link = mst_mysqli_connect("myapp", $user, $passwd, $db, $port, $socket);
-		$res = mst_mysqli_query(2 + $i, $link, "SELECT  * FROM test");
-		if ($res->num_rows != 5)
-			var_dump($res);
-		$link->close();
+	if ($qpsnf > $qpsf) {
+		$drop = (($qpsnf - $qpsf)*100)/$qpsnf;
+		if ($drop > 10) {
+			echo "Performance drop: $drop %\n";
+		} 
 	}
-	$t['loop_nofail'] = microtime(true);
-	for ($ii = 1; $ii <= $iterations; $ii++) {
-		$link1 = mst_mysqli_connect("myapp1", $user, $passwd, $db, $port, $socket);
-		$res = mst_mysqli_query(2 + $i + $ii, $link1, "SELECT  * FROM test");
-		if ($res->num_rows != 5)
-			var_dump($res);
-		$link1->close();
-	}
-	$t['loop_fail'] = microtime(true);
-	$result_bench=mini_bench_to($t, true);
-	$lf = end($result_bench);
-	if ($lf > 60) {
-		print "Performance drop\n";
-		var_dump($result_bench);
-	}
+	exec($start_eslave);
 	print "done!";
 ?>
 --CLEAN--

@@ -4,12 +4,19 @@
 	and gives no acceess to original environment :(. If it would at least
 	preserve and overwrite only selected ones ...
 	*/
+	$home = getenv("HOME");
+	$sandboxhome = getenv("SANDBOX_HOME");
+	if (!$sandboxhome) {
+		$sandboxhome = "$home/sandboxes";
+	}
 	$baseport = 14519;
 	$mport = $baseport;
 	$sport = $baseport+1;
 	$emport = $baseport+2;
 	$esport = $baseport+3;
 	
+	putenv("MYSQL_TEST_STOP_ESLAVE=$sandboxhome/MYSQLND_MS/node4/stop")
+	putenv("MYSQL_TEST_START_ESLAVE=$sandboxhome/MYSQLND_MS/node4/start")
 	putenv("MYSQL_TEST_HOST=127.0.0.1");
 	putenv("MYSQL_TEST_PORT=$emport");
 	putenv("MYSQL_TEST_USER=root");
