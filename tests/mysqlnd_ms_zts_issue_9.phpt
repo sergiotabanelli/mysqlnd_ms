@@ -128,7 +128,9 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_issue_9.ini
 		}
 	}
 	$iterations = 100;
-	$til = time() + 70; // Test duration
+	$wait = 10;
+	$sleep = 30;
+	$til = time() + 2*$sleep + $wait; // Test duration
 	for ($i=0;$i<$iterations;$i++)
 	{
 		$workers[$i] = new Perftest(null, $til);
@@ -137,18 +139,18 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_issue_9.ini
 	$link = mst_mysqli_connect($slave_host_only, $user, $passwd, $db, $slave_port, $slave_socket);
 	$result= $link->query("show global status like 'Com_select'");
 	$start = (int)($result->fetch_row()[1]);
-	sleep(30);
+	sleep($sleep);
 	$result= $link->query("show global status like 'Com_select'");
 	$end = (int)($result->fetch_row()[1]);
-	$qpsnf = ($end-$start)/30;
+	$qpsnf = ($end-$start)/$sleep;
 	echo " select qps nofail = ". $qpsnf . "\n";
 	exec($stop_eslave);
 	$result= $link->query("show global status like 'Com_select'");
 	$start = (int)($result->fetch_row()[1]);
-	sleep(30);
+	sleep($sleep);
 	$result= $link->query("show global status like 'Com_select'");
 	$end = (int)($result->fetch_row()[1]);
-	$qpsf = ($end-$start)/30;
+	$qpsf = ($end-$start)/$sleep;
 	echo " select qps fail = ". $qpsf . "\n";
 	while(time() < $this->til) {
 		sleep(1);
