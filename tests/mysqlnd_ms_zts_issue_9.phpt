@@ -146,13 +146,20 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_zts_issue_9.ini
 		$workers[$i]->start();
 	}
 	$link = mst_mysqli_connect($slave_host_only, $user, $passwd, $db, $slave_port, $slave_socket);
+	$link1 = mst_mysqli_connect($emulated_slave_host_only, $user, $passwd, $db, $emulated_slave_port, $emulated_slave_socket);
 	$result= $link->query("show global status like 'Com_select'");
 	$start = (int)($result->fetch_row()[1]);
+	$result= $link1->query("show global status like 'Com_select'");
+	$start1 = (int)($result->fetch_row()[1]);
 	sleep($sleep);
 	$result= $link->query("show global status like 'Com_select'");
 	$end = (int)($result->fetch_row()[1]);
+	$result= $link1->query("show global status like 'Com_select'");
+	$end1 = (int)($result->fetch_row()[1]);
 	$qpsnf = ($end-$start)/$sleep;
+	$qpsnf1 = ($end1-$start1)/$sleep;
 	echo "select qps nofail = ". $qpsnf . " $end - $start\n";
+	echo "select qps1 nofail = ". $qpsnf1 . " $end1 - $start1\n";
 	$wtil = time() + $wait;
 	exec($stop_eslave);
 	while(time() < $wtil + 1) {
