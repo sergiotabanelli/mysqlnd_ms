@@ -57,7 +57,7 @@ $settings = array(
 	)
 );
 
-if ($error = mst_create_config("test_mysqlnd_ms_issue_9.ini", $settings))
+if ($error = mst_create_config("test_mysqlnd_ms_zts_issue_9.ini", $settings))
 	die(sprintf("SKIP %s\n", $error));
 if ($error = mst_mysqli_drop_test_table($master_host_only, $user, $passwd, $db, $master_port, $master_socket))
 	die(sprintf("SKIP Failed to drop test table on master %s\n", $error));
@@ -70,7 +70,7 @@ if ($error = mst_mysqli_create_test_table($emulated_slave_host_only, $user, $pas
 ?>
 --INI--
 mysqlnd_ms.enable=1
-mysqlnd_ms.config_file=test_mysqlnd_ms_issue_9.ini
+mysqlnd_ms.config_file=test_mysqlnd_ms_zts_issue_9.ini
 --FILE--
 <?php
 	require_once("connect.inc");
@@ -111,16 +111,20 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_issue_9.ini
 		public function run()
 		{
 			//echo Thread::getCurrentThreadId(),"\n";
+			if (is_array($this->link) {
+				extract($this->link);
+			} 
+
 			while(time() < $this->til)
 			{
-				if ($this->link) 
+				if (is_array($this->link))
 				{
-					$mysqli = $this->link;
+					$mysqli = mst_mysqli_connect($myapp, $user, $passwd, $db, $port, $socket);
 				} else {
-					$mysqli = mst_mysqli_connect("myapp", $user, $passwd, $db, $port, $socket);
+					$mysqli = $this->link;
 				}
 				$mysqli->query("SELECT * FROM test");
-				if (!$this->link) 
+				if (!is_array($this->link)) 
 				{
 					$mysqli->close();
 				}
@@ -131,9 +135,15 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_issue_9.ini
 	$wait = 10;
 	$sleep = 30;
 	$til = time() + 2*$sleep + $wait; // Test duration
+	$al['myapp'] = 'myapp';
+	$al['user'] = $user;
+	$al['passwd'] = $passwd;
+	$al['db'] = $db;
+	$al['port'] = $port;
+	$al['socket'] = $socket;
 	for ($i=0;$i<$iterations;$i++)
 	{
-		$workers[$i] = new Perftest(null, $til);
+		$workers[$i] = new Perftest($al, $til);
 		$workers[$i]->start();
 	}
 	$link = mst_mysqli_connect($slave_host_only, $user, $passwd, $db, $slave_port, $slave_socket);
@@ -168,7 +178,7 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_issue_9.ini
 <?php
 	require_once("connect.inc");
 	require_once("util.inc");
-	if (!unlink("test_mysqlnd_ms_issue_9.ini"))
+	if (!unlink("test_mysqlnd_ms_zts_issue_9.ini"))
 	  printf("[clean] Cannot unlink ini file 'test_mysqlnd_ms_issue_9.ini'.\n");
 	if ($error = mst_mysqli_drop_test_table($master_host_only, $user, $passwd, $db, $master_port, $master_socket))
 		printf("[clean] Failed to drop test table on master %s\n", $error);
