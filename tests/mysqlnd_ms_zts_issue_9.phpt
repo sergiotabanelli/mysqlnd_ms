@@ -111,28 +111,19 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_zts_issue_9.ini
 		public function run()
 		{
 			//echo Thread::getCurrentThreadId(),"\n";
-			if (is_array($this->link)) {
-				extract($this->link);
-			} 
-
 			while(time() < $this->til)
 			{
-				if (is_array($this->link))
-				{
-					$mysqli = mst_mysqli_connect($myapp, $user, $passwd, $db, $port, $socket);
-					var_dump($mysqli);
-					if (mysqli_connect_errno()) {
-						printf("[%d] %s\n", mysqli_connect_errno(), mysqli_connect_error());
-						break;
-					}
-				} else {
-					$mysqli = $this->link;
+				$mysqli = mst_mysqli_connect($this->link['myapp'], $this->link['user'], $this->link['passwd'], $this->link['db'], $this->link['port'], $this->link['socket']);
+				if (mysqli_connect_errno()) {
+					printf("On connection [%d] %s\n", mysqli_connect_errno(), mysqli_connect_error());
+					break;
 				}
 				$mysqli->query("SELECT * FROM test");
-				if (!is_array($this->link)) 
-				{
-					$mysqli->close();
+				if (mysqli_connect_errno()) {
+					printf("On query [%d] %s\n", mysqli_connect_errno(), mysqli_connect_error());
+					break;
 				}
+				$mysqli->close();
 			}
 		}
 	}
