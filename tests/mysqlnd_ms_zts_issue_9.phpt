@@ -110,15 +110,16 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_zts_issue_9.ini
 
 		public function run()
 		{
-			//echo Thread::getCurrentThreadId(),"\n";
+			$i = 0;
 			while(time() < $this->til)
 			{
+				$i++;
 				$mysqli = mst_mysqli_connect($this->link['myapp'], $this->link['user'], $this->link['passwd'], $this->link['db'], $this->link['port'], $this->link['socket']);
 				if (mysqli_connect_errno()) {
 					printf("On connection [%d] %s\n", mysqli_connect_errno(), mysqli_connect_error());
 					break;
 				}
-				$mysqli->query("SELECT * FROM test");
+				$mysqli->query("/* $i */SELECT * FROM test");
 				if (mysqli_connect_errno()) {
 					printf("On query [%d] %s\n", mysqli_connect_errno(), mysqli_connect_error());
 					break;
@@ -127,7 +128,7 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_zts_issue_9.ini
 			}
 		}
 	}
-	$iterations = 10;
+	$iterations = 1;
 	$wait = 1;
 	$sleep = 3;
 	$til = time() + 2*$sleep + $wait; // Test duration
@@ -149,7 +150,7 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_zts_issue_9.ini
 	$result= $link->query("show global status like 'Com_select'");
 	$end = (int)($result->fetch_row()[1]);
 	$qpsnf = ($end-$start)/$sleep;
-	echo " select qps nofail = ". $qpsnf . "\n";
+	echo "select qps nofail = ". $qpsnf . "\n";
 	exec($stop_eslave);
 	$result= $link->query("show global status like 'Com_select'");
 	$start = (int)($result->fetch_row()[1]);
