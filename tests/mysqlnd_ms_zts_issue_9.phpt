@@ -120,6 +120,7 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_zts_issue_9.ini
 				if (is_array($this->link))
 				{
 					$mysqli = mst_mysqli_connect($myapp, $user, $passwd, $db, $port, $socket);
+					var_dump($mysqli);
 					if (mysqli_connect_errno()) {
 						printf("[%d] %s\n", mysqli_connect_errno(), mysqli_connect_error());
 						break;
