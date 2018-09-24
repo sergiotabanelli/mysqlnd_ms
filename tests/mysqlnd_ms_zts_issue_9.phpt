@@ -160,7 +160,7 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_zts_issue_9.ini
 	$end = (int)($result->fetch_row()[1]);
 	$qpsf = ($end-$start)/$sleep;
 	echo "select qps fail = ". $qpsf . "\n";
-	while(time() < $til) {
+	while(time() < $til + 1) {
 		sleep(1);
 	}
 	if ($qpsnf > $qpsf) {
