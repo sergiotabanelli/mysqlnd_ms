@@ -133,6 +133,7 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_zts_issue_9.ini
 	$wait = 6; // This is the maximum running time for the mysql stop command, needed to be sure that the 
 				// Com_select qps will include $sleep seconds of queries  
 	$sleep = 10; // Qps measurement interval
+	$tbuf = 3; // Run threads for $tbuf seconds more
 	$al['myapp'] = 'myapp';
 	$al['user'] = $user;
 	$al['passwd'] = $passwd;
@@ -141,10 +142,9 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_zts_issue_9.ini
 	$al['socket'] = $socket;
 	for ($i=0;$i<$iterations;$i++)
 	{
-		$workers[$i] = new Perftest($al, 2*$sleep + $wait);
+		$workers[$i] = new Perftest($al, 2*$sleep + $wait + $tbuf); // 3 seconds buffer
 		$workers[$i]->start();
 	}
-	$til = time() + 2*$sleep + $wait; // Test duration
 	$link = mst_mysqli_connect($slave_host_only, $user, $passwd, $db, $slave_port, $slave_socket);
 	$result= $link->query("show global status like 'Com_select'");
 	$start = (int)($result->fetch_row()[1]);
@@ -153,16 +153,21 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_zts_issue_9.ini
 	$end = (int)($result->fetch_row()[1]);
 	$qpsnf = ($end-$start)/$sleep;
 	echo "select qps nofail = ". $qpsnf . " $end - $start\n";
+	$wtil = time() + $wait;
 	exec($stop_eslave);
+	while(time() < $wtil + 1) {
+		sleep(1);
+	}
 	$result= $link->query("show global status like 'Com_select'");
 	$start = (int)($result->fetch_row()[1]);
 	sleep($sleep);
 	$result= $link->query("show global status like 'Com_select'");
 	$end = (int)($result->fetch_row()[1]);
 	$qpsf = ($end-$start)/$sleep;
-	echo "select qps fail = ". $qpsf . "$end - $start\n";
-	while(time() < $til + 1) {
-		sleep(1);
+	echo "select qps fail = ". $qpsf . " $end - $start\n";
+	for ($i=0;$i<$iterations;$i++)
+	{
+		$workers[$i]->join();
 	}
 	if ($qpsnf > $qpsf) {
 		$drop = (($qpsnf - $qpsf)*100)/$qpsnf;
