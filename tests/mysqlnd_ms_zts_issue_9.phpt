@@ -135,9 +135,9 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_zts_issue_9.ini
 			}
 		}
 	}
-	$iterations = 100;
-	$wait = 10;
-	$sleep = 30;
+	$iterations = 10;
+	$wait = 1;
+	$sleep = 3;
 	$til = time() + 2*$sleep + $wait; // Test duration
 	$al['myapp'] = 'myapp';
 	$al['user'] = $user;
@@ -166,7 +166,7 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_zts_issue_9.ini
 	$end = (int)($result->fetch_row()[1]);
 	$qpsf = ($end-$start)/$sleep;
 	echo " select qps fail = ". $qpsf . "\n";
-	while(time() < $this->til) {
+	while(time() < $til) {
 		sleep(1);
 	}
 	if ($qpsnf > $qpsf) {
