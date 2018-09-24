@@ -101,17 +101,18 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_zts_issue_9.ini
 	class Perftest extends Thread
 	{
 		public $link;
-		public $til;
+		public $runfor;
 
-		public function __construct($link, $til) {
+		public function __construct($link, $runfor) {
 			$this->link = $link;
-			$this->til = $til;
+			$this->runfor = $runfor;
 		}
 
 		public function run()
 		{
 			$i = 0;
-			while(time() < $this->til)
+			$t = time();
+			while(time() < $t + $this->runfor)
 			{
 				$i++;
 				$mysqli = mst_mysqli_connect($this->link['myapp'], $this->link['user'], $this->link['passwd'], $this->link['db'], $this->link['port'], $this->link['socket']);
@@ -132,7 +133,6 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_zts_issue_9.ini
 	$wait = 6; // This is the maximum running time for the mysql stop command, needed to be sure that the 
 				// Com_select qps will include $sleep seconds of queries  
 	$sleep = 10; // Qps measurement interval
-	$til = time() + 2*$sleep + $wait; // Test duration
 	$al['myapp'] = 'myapp';
 	$al['user'] = $user;
 	$al['passwd'] = $passwd;
@@ -141,9 +141,10 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_zts_issue_9.ini
 	$al['socket'] = $socket;
 	for ($i=0;$i<$iterations;$i++)
 	{
-		$workers[$i] = new Perftest($al, $til);
+		$workers[$i] = new Perftest($al, 2*$sleep + $wait);
 		$workers[$i]->start();
 	}
+	$til = time() + 2*$sleep + $wait; // Test duration
 	$link = mst_mysqli_connect($slave_host_only, $user, $passwd, $db, $slave_port, $slave_socket);
 	$result= $link->query("show global status like 'Com_select'");
 	$start = (int)($result->fetch_row()[1]);
@@ -151,7 +152,7 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_zts_issue_9.ini
 	$result= $link->query("show global status like 'Com_select'");
 	$end = (int)($result->fetch_row()[1]);
 	$qpsnf = ($end-$start)/$sleep;
-	echo "select qps nofail = ". $qpsnf . "\n";
+	echo "select qps nofail = ". $qpsnf . " $end - $start\n";
 	exec($stop_eslave);
 	$result= $link->query("show global status like 'Com_select'");
 	$start = (int)($result->fetch_row()[1]);
@@ -159,7 +160,7 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_zts_issue_9.ini
 	$result= $link->query("show global status like 'Com_select'");
 	$end = (int)($result->fetch_row()[1]);
 	$qpsf = ($end-$start)/$sleep;
-	echo "select qps fail = ". $qpsf . "\n";
+	echo "select qps fail = ". $qpsf . "$end - $start\n";
 	while(time() < $til + 1) {
 		sleep(1);
 	}
