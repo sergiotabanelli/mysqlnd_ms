@@ -15,8 +15,8 @@
 	$emport = $baseport+2;
 	$esport = $baseport+3;
 	
-	putenv("MYSQL_TEST_STOP_ESLAVE=$sandboxhome/MYSQLND_MS/node4/stop")
-	putenv("MYSQL_TEST_START_ESLAVE=$sandboxhome/MYSQLND_MS/node4/start")
+	putenv("MYSQL_TEST_STOP_ESLAVE=$sandboxhome/MYSQLND_MS/node4/stop");
+	putenv("MYSQL_TEST_START_ESLAVE=$sandboxhome/MYSQLND_MS/node4/start");
 	putenv("MYSQL_TEST_HOST=127.0.0.1");
 	putenv("MYSQL_TEST_PORT=$emport");
 	putenv("MYSQL_TEST_USER=root");
