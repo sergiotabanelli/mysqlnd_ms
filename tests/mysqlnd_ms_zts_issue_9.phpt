@@ -111,7 +111,7 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_zts_issue_9.ini
 		public function run()
 		{
 			//echo Thread::getCurrentThreadId(),"\n";
-			if (is_array($this->link) {
+			if (is_array($this->link)) {
 				extract($this->link);
 			} 
 
