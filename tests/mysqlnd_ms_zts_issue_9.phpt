@@ -128,9 +128,10 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_zts_issue_9.ini
 			}
 		}
 	}
-	$iterations = 1;
-	$wait = 1;
-	$sleep = 3;
+	$iterations = 10;
+	$wait = 6; // This is the maximum running time for the mysql stop command, needed to be sure that the 
+				// Com_select qps will include $sleep seconds of queries  
+	$sleep = 10; // Qps measurement interval
 	$til = time() + 2*$sleep + $wait; // Test duration
 	$al['myapp'] = 'myapp';
 	$al['user'] = $user;
@@ -158,7 +159,7 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_zts_issue_9.ini
 	$result= $link->query("show global status like 'Com_select'");
 	$end = (int)($result->fetch_row()[1]);
 	$qpsf = ($end-$start)/$sleep;
-	echo " select qps fail = ". $qpsf . "\n";
+	echo "select qps fail = ". $qpsf . "\n";
 	while(time() < $til) {
 		sleep(1);
 	}
