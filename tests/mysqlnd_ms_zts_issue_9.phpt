@@ -129,7 +129,7 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_zts_issue_9.ini
 			}
 		}
 	}
-	$iterations = 10;
+	$iterations = 50; // Threads number
 	$wait = 6; // This is the maximum running time for the mysql stop command, needed to be sure that the 
 				// Com_select qps will include $sleep seconds of queries  
 	$sleep = 10; // Qps measurement interval
