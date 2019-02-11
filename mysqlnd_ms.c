@@ -129,11 +129,19 @@ static struct st_mysqlnd_protocol_payload_decoder_factory_methods * ms_orig_mysq
 static struct st_mysqlnd_protocol_payload_decoder_factory_methods my_mysqlnd_protocol_methods;
 
 #define _MS_PROTOCOL_TYPE MYSQLND_PROTOCOL_PAYLOAD_DECODER_FACTORY
+#if PHP_VERSION_ID < 70300
 #define _MS_PROTOCOL_CONN_LOAD_CONN_D MYSQLND_CONN_DATA * conn = header->factory->conn
 #define _MS_PROTOCOL_CONN_LOAD_NET_D MYSQLND_PFC * net = header->protocol_frame_codec
-#define _MS_PROTOCOL_CONN_LOAD_VIO_D MYSQLND_VIO * vio = header->vio
 #define _MS_PROTOCOL_CONN_READ_D void * _packet
 #define _MS_PROTOCOL_CONN_READ_A _packet
+#define _MS_PROTOCOL_CONN_LOAD_VIO_D MYSQLND_VIO * vio = header->vio
+#else
+#define _MS_PROTOCOL_CONN_LOAD_CONN_D
+#define _MS_PROTOCOL_CONN_LOAD_NET_D MYSQLND_PFC * net = conn->protocol_frame_codec
+#define _MS_PROTOCOL_CONN_READ_D MYSQLND_CONN_DATA * conn, void * _packet 
+#define _MS_PROTOCOL_CONN_READ_A conn, _packet 
+#define _MS_PROTOCOL_CONN_LOAD_VIO_D MYSQLND_VIO * vio = conn->vio
+#endif
 #define _MS_PROTOCOL_CONN_READ_NET_D MYSQLND_PFC * net, MYSQLND_VIO * vio
 #define _MS_PROTOCOL_CONN_READ_NET_A net, vio
 #define _ms_net_receive net->data->m.receive
@@ -3865,12 +3873,20 @@ mysqlnd_ms_stmt_free_plugin_data(MYSQLND_STMT * s TSRMLS_DC)
 	MS_LOAD_STMT_DATA(stmt_data, s);
 	if (stmt_data && *stmt_data) {
 		if ((*stmt_data)->query) {
+#if PHP_VERSION_ID < 70300
 			mnd_pefree((*stmt_data)->query, s->persistent);
+#else
+			mnd_pefree((*stmt_data)->query, s->data->conn->persistent);
+#endif
 			(*stmt_data)->query = NULL;
 			(*stmt_data)->query_len = 0;
 		}
 	}
+#if PHP_VERSION_ID < 70300
 	mnd_pefree(*stmt_data, s->persistent);
+#else
+	mnd_pefree(*stmt_data, s->data->conn->persistent);
+#endif
 	*stmt_data = NULL;
 	DBG_VOID_RETURN;
 }
@@ -5225,7 +5241,11 @@ MYSQLND_METHOD(mysqlnd_ms_stmt, prepare)(MYSQLND_STMT * const s, const char * co
 #else
 		s->m->close_on_server(s, TRUE TSRMLS_CC);
 #endif
+#if PHP_VERSION_ID < 70300
 		mnd_pefree(s->data, s->data->persistent);
+#else
+		mnd_efree(s->data);
+#endif
 
 		// new handle
 		{
@@ -5239,7 +5259,11 @@ MYSQLND_METHOD(mysqlnd_ms_stmt, prepare)(MYSQLND_STMT * const s, const char * co
 				DBG_RETURN(FAIL);
 			}
 			s->data = new_handle->data;
+#if PHP_VERSION_ID < 70300
 			mnd_pefree(new_handle, new_handle->data->persistent);
+#else
+			mnd_efree(new_handle);
+#endif
 		}
 	}
 
@@ -5276,7 +5300,11 @@ MYSQLND_METHOD(mysqlnd_ms_stmt, prepare)(MYSQLND_STMT * const s, const char * co
 		MYSQLND_MS_STMT_DATA ** stmt_data = NULL;
 		MS_LOAD_STMT_DATA(stmt_data, s);
 		if (!(*stmt_data)) {
+#if PHP_VERSION_ID < 70300
 			*stmt_data = mnd_pecalloc(1, sizeof(MYSQLND_MS_STMT_DATA), s->persistent);
+#else
+			*stmt_data = mnd_pecalloc(1, sizeof(MYSQLND_MS_STMT_DATA), s->data->conn->persistent);
+#endif
 			if (!(*stmt_data)) {
 				MYSQLND_MS_WARN_OOM();
 				DBG_RETURN(FAIL);
@@ -5285,12 +5313,20 @@ MYSQLND_METHOD(mysqlnd_ms_stmt, prepare)(MYSQLND_STMT * const s, const char * co
 			(*stmt_data)->query_len = 0;
 		} else {
 			if ((*stmt_data)->query) {
+#if PHP_VERSION_ID < 70300
 				mnd_pefree((*stmt_data)->query, s->persistent);
+#else
+				mnd_pefree((*stmt_data)->query, s->data->conn->persistent);
+#endif
 				(*stmt_data)->query = NULL;
 				(*stmt_data)->query_len = 0;
 			}
 		}
+#if PHP_VERSION_ID < 70300
 		(*stmt_data)->query = mnd_pestrndup(query, query_len, s->persistent);
+#else
+		(*stmt_data)->query = mnd_pestrndup(query, query_len, s->data->conn->persistent);
+#endif
 		(*stmt_data)->query_len = query_len;
 	}
 
@@ -6094,6 +6130,7 @@ premature_end:
 }
 /* }}} */
 
+#if PHP_VERSION_ID < 70300
 /* {{{ mysqlnd_ms_protocol::get_rset_header_packet */
 static struct st_mysqlnd_packet_rset_header *
 MYSQLND_METHOD(mysqlnd_ms_protocol, get_rset_header_packet)(_MS_PROTOCOL_TYPE * const protocol, zend_bool persistent TSRMLS_DC)
@@ -6123,7 +6160,35 @@ MYSQLND_METHOD(mysqlnd_ms_protocol, get_ok_packet)(_MS_PROTOCOL_TYPE * const pro
 	DBG_RETURN(packet);
 }
 /* }}} */
+#else
+/* {{{ mysqlnd_ms_protocol::init_rset_header_packet */
+static void
+MYSQLND_METHOD(mysqlnd_ms_protocol, init_rset_header_packet)(struct st_mysqlnd_packet_rset_header * packet TSRMLS_DC)
+{
+	DBG_ENTER("mysqlnd_ms_protocol::init_rset_header_packet");
+	ms_orig_mysqlnd_protocol_methods->init_rset_header_packet(packet TSRMLS_CC);
+	if (packet && packet->header.m->read_from_net != mysqlnd_ms_protocol_rset_header_read) {
+		ms_orig_rset_header_read = packet->header.m->read_from_net;
+		packet->header.m->read_from_net = mysqlnd_ms_protocol_rset_header_read;
+	}
+	DBG_VOID_RETURN;
+}
+/* }}} */
 
+/* {{{ mysqlnd_ms_protocol::init_ok_packet */
+static void
+MYSQLND_METHOD(mysqlnd_ms_protocol, init_ok_packet)(struct st_mysqlnd_packet_ok * packet TSRMLS_DC)
+{
+	DBG_ENTER("mysqlnd_ms_protocol::init_ok_packet");
+	ms_orig_mysqlnd_protocol_methods->init_ok_packet(packet TSRMLS_CC);
+	if (packet && packet->header.m->read_from_net != mysqlnd_ms_protocol_ok_read) {
+		ms_orig_ok_read = packet->header.m->read_from_net;
+		packet->header.m->read_from_net = mysqlnd_ms_protocol_ok_read;
+	}
+	DBG_VOID_RETURN;
+}
+/* }}} */
+#endif
 
 /* {{{ mysqlnd_ms::init */
 /*
@@ -6291,8 +6356,13 @@ mysqlnd_ms_register_hooks()
 	mysqlnd_stmt_set_methods(&my_mysqlnd_stmt_methods);
 */
 	MS_LOAD_AND_COPY_PROTOCOL_METHODS(ms_orig_mysqlnd_protocol_methods, my_mysqlnd_protocol_methods);
+#if PHP_VERSION_ID < 70300
 	ms_orig_mysqlnd_protocol_methods->get_ok_packet = MYSQLND_METHOD(mysqlnd_ms_protocol, get_ok_packet);
 	ms_orig_mysqlnd_protocol_methods->get_rset_header_packet = MYSQLND_METHOD(mysqlnd_ms_protocol, get_rset_header_packet);
+#else
+	ms_orig_mysqlnd_protocol_methods->init_ok_packet = MYSQLND_METHOD(mysqlnd_ms_protocol, init_ok_packet);
+	ms_orig_mysqlnd_protocol_methods->init_rset_header_packet = MYSQLND_METHOD(mysqlnd_ms_protocol, init_rset_header_packet);
+#endif
 	ms_orig_mysqlnd_protocol_methods = &my_mysqlnd_protocol_methods;
 }
 /* }}} */

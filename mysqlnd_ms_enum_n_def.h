@@ -203,7 +203,11 @@ extern zval *php_get_session_var(zend_string *name);
 #define _MS_RETURN_ZSTR(str, persistent) return str
 
 #define _MS_HASH_Z_PTR_P(pDest) Z_PTR_P(pDest)
-
+#if PHP_VERSION_ID >= 70300
+#define HASH_FLAG_PERSISTENT       (1<<0)
+#define RAND_RANGE(__n, __min, __max, __tmax) \
+	(__n) = php_mt_rand_range((__min), (__max))
+#endif
 #define _MS_HASH_PERSISTENT(ht) (ht->u.flags & HASH_FLAG_PERSISTENT)
 
 #define ALLOC_INIT_ZVAL(z)
