@@ -709,7 +709,7 @@ mysqlnd_ms_query_is_select(const char * query, size_t query_len, unsigned int * 
 	} else if (token.token == QC_TOKEN_SET) {
 		ret = USE_ALL;
 #endif
-	} else if (master_on && strlen(master_on) && Z_STRVAL(token.value)) {
+	} else if (master_on && strlen(master_on) && Z_TYPE(token.value) == IS_STRING && Z_STRVAL(token.value)) {
 		char * master_tok;
 		char * tok;
 		DBG_INF_FMT("master_on %s", master_on);
@@ -729,7 +729,7 @@ mysqlnd_ms_query_is_select(const char * query, size_t query_len, unsigned int * 
 	} else {
 		ret = USE_MASTER;
 	}
-	if (ret == USE_MASTER && inject_on && strlen(inject_on) && Z_STRVAL(token.value)) {
+	if (ret == USE_MASTER && inject_on && strlen(inject_on) && Z_TYPE(token.value) == IS_STRING && Z_STRVAL(token.value)) {
 		char * master_tok;
 		char * tok;
 		DBG_INF_FMT("inject_on %s", inject_on);
