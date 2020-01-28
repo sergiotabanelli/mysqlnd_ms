@@ -500,6 +500,10 @@ static PHP_FUNCTION(mysqlnd_ms_check_gtid_in_set)
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss", &gtid_set, &tmp, &gtid, &tmp) == FAILURE) {
 		return;
 	}
+	if (!gtid_set || !gtid || !*gtid_set || !*gtid) {
+		RETURN_FALSE;
+	}
+
 	if (mysqlnd_ms_aux_gtid_chk_last(gtid_set, strlen(gtid_set), gtid, strlen(gtid)) == PASS) {
 		RETURN_TRUE;
 	}

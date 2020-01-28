@@ -746,7 +746,7 @@ mysqlnd_ms_aux_gtid_chk_exec(const char * gtid_set, const char * gtid)
 		}
 		DBG_RETURN(PASS);
 	} else {
-		DBG_INF_FMT("No gtid extracted %s %s", gtid_set, uuid);
+		DBG_INF_FMT("No gtid extracted %s %s", gtid_set, gtid);
 	}
 	DBG_RETURN(FAIL);
 }
