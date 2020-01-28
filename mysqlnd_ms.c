@@ -675,81 +675,94 @@ mysqlnd_ms_aux_gtid_strnstr (const char *s1, const char *s2, size_t s2_len)
 	}
 	return NULL;
 }
+/* }}} */
 
 /* {{{ mysqlnd_ms_aux_gtid_last_in_set */
 static uintmax_t
-mysqlnd_ms_aux_gtid_last_in_set(const char * gtid_set, size_t gtid_set_len, uintmax_t block, size_t block_size)
+mysqlnd_ms_aux_gtid_last_in_set(const char * gtid_set, size_t gtid_set_len, uintmax_t gtid)
 {
 	size_t i = 0;
 	const char * p;
-	uintmax_t ret = 0, max = 0, cutoff = UINTMAX_MAX/10;
+	uintmax_t max = 0, min = UINTMAX_MAX, cutoff = UINTMAX_MAX/10;
 	int cutlim = UINTMAX_MAX%10;
+	if (gtid == UINTMAX_MAX) {
+		errno = ERANGE;
+		return gtid;
+	}
 	for (p = gtid_set; p[i] != 0 && p[i] != ',' && p+i < gtid_set+gtid_set_len; i++) {
 		if (max > 0 && !isdigit(p[i])) {
-			if (ret < max && (!block_size || max/block_size == block)) ret = max;
+			if (gtid == max || (gtid >= min && gtid <= max)) {
+				return max;
+			} else if (p[i] == '-') {
+				min = max;
+			} else if (min != UINTMAX_MAX) {
+				min = UINTMAX_MAX;
+			}
 			max = 0;
 		} else if (isdigit(p[i])){
 			if (max > cutoff || (max == cutoff && (p[i] - '0') > cutlim)) {
-				max = UINTMAX_MAX;
 				errno = ERANGE;
+				return UINTMAX_MAX;
 			} else {
 				max *= (uintmax_t)10;
 				max += (p[i] - '0');
 			}
 		}
 	}
-	if (ret < max && (!block_size || max/block_size == block)) ret = max;
-	return ret;
+	return gtid == max || (gtid >= min && gtid <= max) ? max : 0;
+}
+/* }}} */
+
+/* {{{ mysqlnd_ms_aux_gtid_extract */
+static uintmax_t
+mysqlnd_ms_aux_gtid_extract(const char * gtid)
+{
+	char * p = strchr(gtid, ':');
+	return strtoumax(p ? p + 1 : gtid, NULL, 10);
 }
 /* }}} */
 
 
-/* {{{ mysqlnd_ms_aux_gtid_extract_last */
-static uintmax_t
-mysqlnd_ms_aux_gtid_extract_last(const char * gtid_set, const char * uuid, uintmax_t block, size_t block_size)
+/* {{{ mysqlnd_ms_aux_gtid_chk_exec */
+static enum_func_status
+mysqlnd_ms_aux_gtid_chk_exec(const char * gtid_set, const char * gtid)
 {
-	char * p = uuid ? strchr(uuid, ':') : NULL;
-	uintmax_t ret = 0;
-	size_t len = uuid ? (p ? p - uuid : strlen(uuid)) : 0;
-	DBG_ENTER("mysqlnd_ms_aux_gtid_extract_last");
-	if (!(p = strchr(gtid_set, ':')) || !len) {
-		ret = strtoumax(p ? p + 1 : gtid_set, NULL, 10);
-		DBG_INF_FMT("No uuid or integer, len %d pos %d last gtid extracted %s %" PRIu64, len, p ? p - gtid_set : 0, gtid_set, ret);
-	} else if ((p = mysqlnd_ms_aux_gtid_strnstr(gtid_set, uuid, len))) {
-		DBG_INF_FMT("Found uuid gtid_set %s, uuid %s, len %d, p %s, poslen %d, block %d, block_size %d", gtid_set, uuid, len, p+len+1, strlen(p+len+1), block, block_size);
-		if ((ret = mysqlnd_ms_aux_gtid_last_in_set(p+len+1, strlen(p+len+1), block, block_size))) {
-			DBG_INF_FMT("Last gtid extracted %s %s %" PRIu64, gtid_set, uuid, ret);
+	char * p = strchr(gtid, ':');
+	size_t len = p ? p - gtid : strlen(gtid);
+	DBG_ENTER("mysqlnd_ms_aux_gtid_chk_exec");
+	if (!strchr(gtid_set, ':') || !strchr(gtid, ':')) {
+		uintmax_t ngtid = mysqlnd_ms_aux_gtid_extract(gtid);
+		uintmax_t lgtid = mysqlnd_ms_aux_gtid_extract(gtid_set);
+		if (errno == ERANGE || ngtid == UINTMAX_MAX || lgtid == UINTMAX_MAX || ngtid > lgtid) {
+			DBG_RETURN(FAIL);
 		}
+		DBG_RETURN(PASS);
+	} else if (p = mysqlnd_ms_aux_gtid_strnstr(gtid_set, gtid, len)) {
+		uintmax_t ngtid = mysqlnd_ms_aux_gtid_extract(gtid);
+		uintmax_t lgtid = mysqlnd_ms_aux_gtid_last_in_set(p+len+1, strlen(p+len+1), ngtid);
+		DBG_INF_FMT("Found uuid gtid_set %s, gtid %s, p %s gtid %" PRIu64 " last %" PRIu64, gtid_set, gtid, p, ngtid, lgtid);
+		if (errno == ERANGE || ngtid == UINTMAX_MAX || lgtid == UINTMAX_MAX || ngtid > lgtid) {
+			DBG_RETURN(FAIL);
+		}
+		DBG_RETURN(PASS);
 	} else {
 		DBG_INF_FMT("No gtid extracted %s %s", gtid_set, uuid);
 	}
-	DBG_RETURN(ret);
+	DBG_RETURN(FAIL);
 }
 /* }}} */
 
 /* {{{ mysqlnd_ms_aux_gtid_chk_last */
-static enum_func_status
+PHP_MYSQLND_MS_API enum_func_status
 mysqlnd_ms_aux_gtid_chk_last(const char * last_gtid, size_t last_gtid_len,
-		const char * gtid, size_t gtid_len, uintmax_t * max, size_t block_size)
+		const char * gtid, size_t gtid_len)
 {
 	DBG_ENTER("mysqlnd_ms_aux_gtid_chk_last");
-	if (max) {
-		*max = 0;
-	}
 	if (last_gtid && last_gtid_len == gtid_len && memcmp(last_gtid, gtid, gtid_len) == 0) {
 		DBG_RETURN(PASS);
 	} else if (gtid && gtid_len && last_gtid && last_gtid_len) {
-		uintmax_t ngtid = mysqlnd_ms_aux_gtid_extract_last(gtid, NULL, 0, 0);
-		uintmax_t lgtid = mysqlnd_ms_aux_gtid_extract_last(last_gtid, gtid, block_size ? ngtid/block_size : 0, block_size);
-		DBG_INF_FMT("Last %" PRIu64 " Check %" PRIu64 "", lgtid, ngtid);
-		if ((ngtid == UINTMAX_MAX || lgtid == UINTMAX_MAX) && errno == ERANGE) {
-			DBG_RETURN(FAIL);
-		} else {
-			if (max) {
-				*max = ngtid > lgtid ? ngtid : lgtid;
-			}
-			DBG_RETURN(ngtid > lgtid ? FAIL : PASS);
-		}
+		enum_func_status ret = mysqlnd_ms_aux_gtid_chk_exec(last_gtid, gtid);
+		DBG_RETURN(ret);
 	}
 	DBG_RETURN(FAIL);
 }
@@ -973,11 +986,11 @@ mysqlnd_ms_aux_gtid_choose_connection(MYSQLND_CONN_DATA * conn, const char * gti
 			DBG_INF_FMT("Empty gtid %s, valid server rgtid %s wgtid %s %s %u %s", (*conn_data)->global_trx.last_gtid, (*conn_data)->global_trx.last_wgtid, gtid, MYSQLND_MS_CONN_STRING(element->host), element->port, MYSQLND_MS_CONN_STRING(element->socket));
 			zend_llist_add_element(selected_servers, &element);
 		} else if (_MS_CONN_GET_STATE(element->conn) != CONN_QUIT_SENT &&
-				_MS_CONN_GET_STATE(element->conn) > CONN_ALLOCED && (mysqlnd_ms_aux_gtid_chk_last((*conn_data)->global_trx.last_gtid, (*conn_data)->global_trx.last_gtid_len, gtid, strlen(gtid), NULL, (*conn_data)->global_trx.gtid_block_size) == PASS
-				|| mysqlnd_ms_aux_gtid_chk_last((*conn_data)->global_trx.last_wgtid, (*conn_data)->global_trx.last_wgtid_len, gtid, strlen(gtid), NULL, (*conn_data)->global_trx.gtid_block_size) == PASS)) {
+				_MS_CONN_GET_STATE(element->conn) > CONN_ALLOCED && (mysqlnd_ms_aux_gtid_chk_last((*conn_data)->global_trx.last_gtid, (*conn_data)->global_trx.last_gtid_len, gtid, strlen(gtid)) == PASS
+				|| mysqlnd_ms_aux_gtid_chk_last((*conn_data)->global_trx.last_wgtid, (*conn_data)->global_trx.last_wgtid_len, gtid, strlen(gtid)) == PASS)) {
 			DBG_INF_FMT("Gtid %s already checked, valid server rgtid %s wgtid %s %s %u %s", (*conn_data)->global_trx.last_gtid, (*conn_data)->global_trx.last_wgtid, gtid, MYSQLND_MS_CONN_STRING(element->host), element->port, MYSQLND_MS_CONN_STRING(element->socket));
 			zend_llist_add_element(selected_servers, &element);
-		} else if (PASS == MYSQLND_MS_GTID_CALL_PASS((*conn_data)->global_trx.m->gtid_get_last, element, NULL TSRMLS_CC) && PASS == mysqlnd_ms_aux_gtid_chk_last((*conn_data)->global_trx.last_gtid, (*conn_data)->global_trx.last_gtid_len, gtid, strlen(gtid), NULL, (*conn_data)->global_trx.gtid_block_size)) {
+		} else if (PASS == MYSQLND_MS_GTID_CALL_PASS((*conn_data)->global_trx.m->gtid_get_last, element, NULL TSRMLS_CC) && PASS == mysqlnd_ms_aux_gtid_chk_last((*conn_data)->global_trx.last_gtid, (*conn_data)->global_trx.last_gtid_len, gtid, strlen(gtid))) {
 			DBG_INF_FMT("Gtid %s found, valid server %s %s %u %s", (*conn_data)->global_trx.last_gtid, gtid, MYSQLND_MS_CONN_STRING(element->host), element->port, MYSQLND_MS_CONN_STRING(element->socket));
 			zend_llist_add_element(selected_servers, &element);
 		} else {
@@ -1379,7 +1392,7 @@ mysqlnd_ms_aux_ss_gtid_mget(memcached_st *memc, char **value, char **gtid, uint6
 				}
 				if (retval && rcf == MEMCACHED_SUCCESS)
 				{
-					*last_chk = mysqlnd_ms_aux_gtid_extract_last(keys[i], NULL, 0, 0);
+					*last_chk = mysqlnd_ms_aux_gtid_extract(keys[i]);
 					DBG_INF_FMT("Found counter %d Key %llu is %s value %s last_r %s last_e %s last_eg %s fetch result %d", i, *last_chk, keys[i], retval, last_r, last_e, last_eg, rcf);
 					if (*retval == GTID_RUNNING_MARKER) {
 						if (last_r)
@@ -1401,7 +1414,7 @@ mysqlnd_ms_aux_ss_gtid_mget(memcached_st *memc, char **value, char **gtid, uint6
 								if (last_e && strcmp(last_e, retval)) {
 									max_e = 0;
 								}
-								ngtid = mysqlnd_ms_aux_gtid_extract_last(tgid, NULL, 0, 0);
+								ngtid = mysqlnd_ms_aux_gtid_extract(tgid);
 								if (ngtid > max_e) {
 									if (last_e)
 										free(last_e);
@@ -2096,7 +2109,7 @@ mysqlnd_ms_cs_gtid_init(MYSQLND_CONN_DATA * proxy_conn TSRMLS_DC)
 			if (!gtid) {
 				DBG_INF_FMT("First master %s gtid %s", MYSQLND_MS_CONN_STRING(element->host), (*conn_data)->global_trx.last_gtid);
 				gtid = (*conn_data)->global_trx.last_gtid;
-			} else if (mysqlnd_ms_aux_gtid_chk_last((*conn_data)->global_trx.last_gtid, (*conn_data)->global_trx.last_gtid_len, gtid, strlen(gtid), NULL, 0) == PASS) {
+			} else if (mysqlnd_ms_aux_gtid_chk_last((*conn_data)->global_trx.last_gtid, (*conn_data)->global_trx.last_gtid_len, gtid, strlen(gtid)) == PASS) {
 				DBG_INF_FMT("Found bigger master %s gtid %s", MYSQLND_MS_CONN_STRING(element->host), (*conn_data)->global_trx.last_gtid);
 				gtid = (*conn_data)->global_trx.last_gtid;
 			} else {

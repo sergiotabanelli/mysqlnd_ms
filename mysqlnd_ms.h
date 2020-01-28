@@ -114,6 +114,8 @@ mysqlnd_ms_unset_tx(MYSQLND_CONN_DATA * proxy_conn, zend_bool commit TSRMLS_DC);
 void mysqlnd_ms_register_hooks();
 void mysqlnd_ms_conn_list_dtor(void * pDest);
 PHP_MYSQLND_MS_API zend_bool mysqlnd_ms_match_wild(const char * const str, const char * const wildstr TSRMLS_DC);
+PHP_MYSQLND_MS_API enum_func_status mysqlnd_ms_aux_gtid_chk_last(const char * last_gtid, size_t last_gtid_len,
+		const char * gtid, size_t gtid_len);
 struct st_mysqlnd_ms_list_data;
 enum_func_status mysqlnd_ms_lazy_connect(struct st_mysqlnd_ms_list_data * element, zend_bool master TSRMLS_DC);
 

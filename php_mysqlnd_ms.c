@@ -484,6 +484,28 @@ static PHP_FUNCTION(mysqlnd_ms_get_last_gtid)
 }
 /* }}} */
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_mysqlnd_ms_check_gtid_in_set, 0, 0, 2)
+  ZEND_ARG_INFO(0, gtid_set)
+  ZEND_ARG_INFO(0, gtid)
+ZEND_END_ARG_INFO()
+
+/* {{{ proto long mysqlnd_ms_check_gtid_in_set(string gtid_set, string gtid)
+   */
+static PHP_FUNCTION(mysqlnd_ms_check_gtid_in_set)
+{
+	char * gtid_set;
+	char * gtid;
+	_ms_size_type tmp;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss", &gtid_set, &tmp, &gtid, &tmp) == FAILURE) {
+		return;
+	}
+	if (mysqlnd_ms_aux_gtid_chk_last(gtid_set, strlen(gtid_set), gtid, strlen(gtid)) == PASS) {
+		RETURN_TRUE;
+	}
+	RETURN_FALSE;
+}
+/* }}} */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_mysqlnd_ms_set_qos, 0, 0, 2)
 	ZEND_ARG_INFO(0, object)
@@ -1401,6 +1423,7 @@ static const zend_function_entry mysqlnd_ms_functions[] = {
 	PHP_FE(mysqlnd_ms_set_qos,	arginfo_mysqlnd_ms_set_qos)
 	PHP_FE(mysqlnd_ms_set_trx,	arginfo_mysqlnd_ms_set_trx)
 	PHP_FE(mysqlnd_ms_unset_trx,	arginfo_mysqlnd_ms_unset_trx)
+	PHP_FE(mysqlnd_ms_check_gtid_in_set,	arginfo_mysqlnd_ms_check_gtid_in_set)
 #endif
 	PHP_FE(mysqlnd_ms_fabric_select_shard, arginfo_mysqlnd_ms_fabric_select_shard)
 	PHP_FE(mysqlnd_ms_fabric_select_global, arginfo_mysqlnd_ms_fabric_select_global)
