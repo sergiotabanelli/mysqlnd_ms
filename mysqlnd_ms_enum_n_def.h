@@ -320,6 +320,10 @@ static zend_always_inline int _ms_hash_str_get_current_key(HashTable *ht, char *
 #define SET_STMT_ERROR(stmt, e, s, m) SET_CLIENT_ERROR(stmt->error_info, e, s, m)
 
 #endif
+#if PHP_VERSION_ID >= 70400
+#define MYSQLND_LLU_SPEC PRIu64
+#define MYSQLND_LL_SPEC PRIi64
+#endif
 #if PHP_MAJOR_VERSION < 7
 #define MYSQLND_MS_ADD_ASSOC_LONG(arg, key, n) add_assoc_long_ex((arg), (key), sizeof((key)), (n))
 #define MYSQLND_MS_ADD_ASSOC_STRING(arg, key, str) add_assoc_string_ex((arg), (key), sizeof((key)), (str) ? (str):"", 1)

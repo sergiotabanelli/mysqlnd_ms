@@ -5464,7 +5464,9 @@ MYSQLND_METHOD(mysqlnd_ms_stmt, execute)(MYSQLND_STMT * const s TSRMLS_DC)
 					stmt_to_prepare->send_types_to_server = 1;
 				}
 				stmt->result_bind = NULL;
+#if PHP_VERSION_ID < 70400
 				stmt_to_prepare->result_zvals_separated_once = stmt->result_zvals_separated_once;
+#endif
 				{
 					MYSQLND_MS_STMT_DATA ** stmt_data;
 					size_t real_size = sizeof(MYSQLND_STMT) + mysqlnd_plugin_count() * sizeof(void *);
