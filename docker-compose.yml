@@ -1,0 +1,80 @@
+version: '3.7'
+
+services:
+  mysql1:
+    image: mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=password
+    restart: always
+    command: --server-id=1
+    expose:
+      - "11211"
+    volumes:
+      - type: bind
+        source: ./tests/mysql/initdb1.d
+        target: /docker-entrypoint-initdb.d
+        consistency: delegated
+      - type: bind
+        source: ./tests/mysql/conf.d
+        target: /etc/mysql/conf.d
+        consistency: delegated
+  mysql2:
+    image: mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=password
+    restart: always
+    command: --server-id=2
+    expose:
+      - "11211"
+    volumes:
+      - type: bind
+        source: ./tests/mysql/initdb2.d
+        target: /docker-entrypoint-initdb.d
+        consistency: delegated
+      - type: bind
+        source: ./tests/mysql/conf.d
+        target: /etc/mysql/conf.d
+        consistency: delegated
+  mysql3:
+    image: mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=password
+    restart: always
+    command: --server-id=3
+    expose:
+      - "11211"
+    volumes:
+      - type: bind
+        source: ./tests/mysql/initdb3.d
+        target: /docker-entrypoint-initdb.d
+        consistency: delegated
+      - type: bind
+        source: ./tests/mysql/conf.d
+        target: /etc/mysql/conf.d
+        consistency: delegated
+  mysql4:
+    image: mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=password
+    restart: always
+    command: --server-id=4
+    expose:
+      - "11211"
+    volumes:
+      - type: bind
+        source: ./tests/mysql/initdb4.d
+        target: /docker-entrypoint-initdb.d
+        consistency: delegated
+      - type: bind
+        source: ./tests/mysql/conf.d
+        target: /etc/mysql/conf.d
+        consistency: delegated
+  mysqlnd_ms:
+    image: mysqlnd_ms
+    build: .
+    tty: true
+    volumes:
+      - type: bind
+        source: .
+        target: /mysqlnd_ms
+        consistency: delegated

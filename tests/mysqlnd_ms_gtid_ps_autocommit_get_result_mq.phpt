@@ -2,6 +2,7 @@
 PS, autocommit, GTID, stmt.get_result, mq
 --SKIPIF--
 <?php
+die("SKIP not used anymore");
 require_once('skipif.inc');
 require_once("connect.inc");
 

@@ -9,18 +9,30 @@
 	if (!$sandboxhome) {
 		$sandboxhome = "$home/sandboxes";
 	}
-	$baseport = 14519;
-	$mport = $baseport;
-	$sport = $baseport+1;
-	$emport = $baseport+2;
-	$esport = $baseport+3;
-	
-	putenv("MYSQL_TEST_STOP_ESLAVE=$sandboxhome/MYSQLND_MS/node4/stop");
-	putenv("MYSQL_TEST_START_ESLAVE=$sandboxhome/MYSQLND_MS/node4/start");
-	putenv("MYSQL_TEST_HOST=127.0.0.1");
+	$baseport = 0;
+	if ($baseport) {
+		$mport = $baseport;
+		$sport = $baseport+1;
+		$emport = $baseport+2;
+		$esport = $baseport+3;
+		$mhost = $shost = $emhost = $eshost = '127.0.0.1';
+		$password = 'msandbox';
+	} else {
+		$mport = $sport = $emport = $esport = 3306;
+		$mhost = 'mysql1';
+		$shost = 'mysql2';
+		$emhost = 'mysql3';
+		$eshost = 'mysql4';
+		$password = 'password';
+	}
+	if (file_exists("$sandboxhome/MYSQLND_MS")) {
+		putenv("MYSQL_TEST_STOP_ESLAVE=$sandboxhome/MYSQLND_MS/node4/stop");
+		putenv("MYSQL_TEST_START_ESLAVE=$sandboxhome/MYSQLND_MS/node4/start");
+	}
+	putenv("MYSQL_TEST_HOST=$emhost");
 	putenv("MYSQL_TEST_PORT=$emport");
 	putenv("MYSQL_TEST_USER=root");
-	putenv("MYSQL_TEST_PASSWD=msandbox");
+	putenv("MYSQL_TEST_PASSWD=$password");
 	putenv("MYSQL_TEST_DB=test");
 	putenv("MYSQL_TEST_ENGINE=InnoDB");
 	putenv("MYSQL_TEST_MEMCACHED_PORT_ADD_HACK=7905");
@@ -32,7 +44,7 @@
 	putenv("MYSQL_TEST_CONNECT_FLAGS=0");
 	putenv("MYSQL_TEST_EXPERIMENTAL=0");
 
-	putenv("MYSQL_TEST_REAL_MEMCACHED=1");
+	putenv("MYSQL_TEST_REAL_MEMCACHED=0");
 	putenv("MYSQL_TEST_MEMCACHED_HOST=127.0.0.1");
 	putenv("MYSQL_TEST_MEMCACHED_PORT=11211");
 
@@ -61,9 +73,9 @@
 	*/
 
 	/* emulated master - standalone MySQL, not part of a replication cluster */
-	putenv("MYSQL_TEST_EMULATED_MASTER_HOST=127.0.0.1:$emport");
+	putenv("MYSQL_TEST_EMULATED_MASTER_HOST=$emhost:$emport");
 	/* emulated slave - standalone MySQL, not part of a replication cluster */
-	putenv("MYSQL_TEST_EMULATED_SLAVE_HOST=127.0.0.1:$esport");
+	putenv("MYSQL_TEST_EMULATED_SLAVE_HOST=$eshost:$esport");
 
 	/*
 	Some tests require real replication cluster.
@@ -75,7 +87,7 @@
 	*/
 
 	/* master - master of a replication cluster */
-	putenv("MYSQL_TEST_MASTER_HOST=127.0.0.1:$mport");
+	putenv("MYSQL_TEST_MASTER_HOST=$mhost:$mport");
 	/* slave - slave of the replication cluster using the above master */
-	putenv("MYSQL_TEST_SLAVE_HOST=127.0.0.1:$sport");
+	putenv("MYSQL_TEST_SLAVE_HOST=$shost:$sport");
 ?>

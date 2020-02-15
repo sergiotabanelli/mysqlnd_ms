@@ -201,7 +201,7 @@ mysqlnd_ms.multi_master=1
 	mst_mysqli_insert_gtid_memcached(36/*offset*/, $memc_link, $sql['global_wkey'] . ":109", $emaster1 .'m1:200?', $db); 
 	mst_mysqli_set_my_gtid_executed($master1_link, 'm2:500,m1:200');
 	mst_mysqli_set_my_gtid_executed($master2_link, 'm2:500');
-	mst_mysqli_set_my_gtid_executed($master3_link, 'm1:401'); // Only master3 has the right gtid	
+	mst_mysqli_set_my_gtid_executed($master3_link, 'm1:400'); // Only master3 has the right gtid	
   	mst_mysqli_query(37/*offset*/, $link, "SET @myrole = 'Master3'");
  	$rgtid = mst_mysqli_fetch_gtid_memcached(38/*offset*/, $memc_link, $db, "m.id = '" . $sql['global_wkey'] . ":110'");
  	if (strncmp($rgtid, $emaster3, strlen($emaster3)) != 0) {

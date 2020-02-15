@@ -3684,7 +3684,7 @@ MYSQLND_METHOD(mysqlnd_ms, query)(MYSQLND_CONN_DATA * conn, const char * query, 
 	}
 
 	connection = mysqlnd_ms_pick_server_ex(conn, (char**)&query, &query_len, &free_query, &switched_servers TSRMLS_CC);
-	if (connection && CONN_DATA_TRX_SET(conn_data) && FALSE == (*conn_data)->stgy.in_transaction && (*conn_data)->global_trx.m->gtid_validate) {
+	if (connection && CONN_DATA_TRX_SET(conn_data) && (*conn_data)->global_trx.m->gtid_validate) {
 		zend_bool retry = FALSE;
 		connection = (*conn_data)->global_trx.m->gtid_validate(connection, &retry, query, query_len TSRMLS_CC);
 		if (!connection && retry) {
@@ -3914,6 +3914,9 @@ mysqlnd_ms_conn_free_plugin_data(MYSQLND_CONN_DATA * conn TSRMLS_DC)
 
 	DBG_INF_FMT("data_pp=%p *data_pp=%p", data_pp, data_pp ? *data_pp : NULL);
 	if (data_pp && *data_pp) {
+		// Clean pending if exists
+		if (CONN_DATA_TRX_SET(data_pp) && !(*data_pp)->global_trx.executed && ((*data_pp)->global_trx.owned_wtoken || (*data_pp)->global_trx.owned_token))
+			MYSQLND_MS_GTID_CALL((*data_pp)->global_trx.m->gtid_reset, (*data_pp)->proxy_conn, FAIL TSRMLS_CC);
 		if ((*data_pp)->connect_host) {
 			mnd_pefree((*data_pp)->connect_host, conn->persistent);
 			(*data_pp)->connect_host = NULL;
@@ -5393,7 +5396,7 @@ MYSQLND_METHOD(mysqlnd_ms_stmt, execute)(MYSQLND_STMT * const s TSRMLS_DC)
 		query = (*stmt_data)->query;
 		query_len = (*stmt_data)->query_len;
 		connection = mysqlnd_ms_pick_server_ex((*conn_data)->proxy_conn, &query, &query_len, &free_query, &switched_servers TSRMLS_CC);
-		if (connection && CONN_DATA_TRX_SET(conn_data) && FALSE == (*conn_data)->stgy.in_transaction && (*conn_data)->global_trx.m->gtid_validate) {
+		if (connection && CONN_DATA_TRX_SET(conn_data) && (*conn_data)->global_trx.m->gtid_validate) {
 			zend_bool retry = FALSE;
 			connection = (*conn_data)->global_trx.m->gtid_validate(connection, &retry, query, query_len TSRMLS_CC);
 			if (!connection && retry) {

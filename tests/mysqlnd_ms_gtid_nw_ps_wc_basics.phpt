@@ -258,8 +258,8 @@ Num_rows 1
 Server uid Master1-%s-Master1
 Server uid Master1-MY_EXECUTED_GTID
 Num_rows 1
-Server uid Master1-%s-Master1
 Server uid Master1-%s-Master2
+Server uid Master1-%s-Master1
 Server uid Master1-MY_EXECUTED_GTID
 array(1) {
   ["id"]=>

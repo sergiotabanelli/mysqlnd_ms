@@ -539,11 +539,13 @@ mysqlnd_ms_choose_connection_qos(MYSQLND_CONN_DATA * conn, void * f_data, const 
 			{
 				MS_DECLARE_AND_LOAD_CONN_DATA(conn_data, conn);
 				enum enum_which_server which_server = mysqlnd_ms_qos_which_server(*query, *query_len, stgy TSRMLS_CC);
-				if ((*conn_data)->global_trx.type != GTID_NONE && (*conn_data)->global_trx.is_prepare == FALSE) {
-					(*conn_data)->global_trx.injectable_query = stgy->forced & TYPE_INJECT_SWITCH ? TRUE : FALSE;
+				zend_bool is_transaction = (*conn_data)->stgy.trx_stickiness_strategy != TRX_STICKINESS_STRATEGY_DISABLED && (*conn_data)->stgy.in_transaction && ((*conn_data)->stgy.trx_stickiness_strategy == TRX_STICKINESS_STRATEGY_MASTER || (*conn_data)->stgy.trx_read_only == FALSE);
+				if ((*conn_data)->global_trx.type != GTID_NONE && ((*conn_data)->global_trx.is_prepare == FALSE || is_transaction)) {
+					// If we are in a transaction, first query must be considered injectable, this way write consistency check will be enforced also for read query
+					// see bug #16 on github  
+					(*conn_data)->global_trx.injectable_query = (stgy->forced & TYPE_INJECT_SWITCH) || is_transaction;
 					if (which_server == USE_MASTER || which_server == USE_SLAVE) {
-						zend_bool is_write = (USE_MASTER == which_server) ||
-								((*conn_data)->stgy.trx_stickiness_strategy != TRX_STICKINESS_STRATEGY_DISABLED && (*conn_data)->stgy.in_transaction && ((*conn_data)->stgy.trx_stickiness_strategy == TRX_STICKINESS_STRATEGY_MASTER || (*conn_data)->stgy.trx_read_only == FALSE));
+						zend_bool is_write = (USE_MASTER == which_server) || is_transaction;
 						MYSQLND_MS_GTID_CALL((*conn_data)->global_trx.m->gtid_filter, conn, filter_data->option_data.gtid, query, query_len, free_query, slave_list, master_list, selected_slaves, selected_masters, is_write TSRMLS_CC);
 						if ((zend_llist_count(selected_masters) + zend_llist_count(selected_slaves)) <= 0) {
 							php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Something wrong no valid selection");
