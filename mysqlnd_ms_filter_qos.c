@@ -52,12 +52,12 @@ mysqlnd_ms_qos_server_has_gtid(MYSQLND_CONN_DATA * conn, MYSQLND_MS_CONN_DATA **
 
 /* {{{ mysqlnd_ms_section_filters_set_gtid_qos */
 enum_func_status
-mysqlnd_ms_section_filters_set_gtid_qos(MYSQLND_CONN_DATA * conn, char * gtid, size_t gtid_len TSRMLS_DC)
+mysqlnd_ms_section_filters_set_gtid_qos(MYSQLND_CONN_DATA * conn, const char * gtid, size_t gtid_len TSRMLS_DC)
 {
 	MS_DECLARE_AND_LOAD_CONN_DATA(conn_data, conn);
 	enum_func_status ret = FAIL;
-	DBG_ENTER("mysqlnd_ms_section_filters_set_gtid_qos");
-	DBG_INF_FMT("set gtid %s", gtid);
+	MYSQLND_MS_DBG_ENTER("mysqlnd_ms_section_filters_set_gtid_qos");
+	MYSQLND_MS_DBG_INF_FMT("set gtid %s", gtid);
 	if (conn_data && *conn_data) {
 		struct mysqlnd_ms_lb_strategies * stgy = &(*conn_data)->stgy;
 		zend_llist * filters = stgy->filters;
@@ -87,12 +87,12 @@ mysqlnd_ms_section_filters_set_gtid_qos(MYSQLND_CONN_DATA * conn, char * gtid, s
 				qos_filter->option_data.gtid_len = gtid_len;
 				qos_filter->option_data.gtid = estrndup(gtid, gtid_len);
 				qos_filter->option = QOS_OPTION_GTID;
-				DBG_INF_FMT("set qos gtid %s", qos_filter->option_data.gtid);
+				MYSQLND_MS_DBG_INF_FMT("set qos gtid %s", qos_filter->option_data.gtid);
 			}
 			ret = PASS;
 		}
 	}
-	DBG_RETURN(ret);
+	MYSQLND_MS_DBG_RETURN(ret);
 }
 /* }}} */
 
@@ -530,8 +530,8 @@ mysqlnd_ms_choose_connection_qos(MYSQLND_CONN_DATA * conn, void * f_data, const 
 	MYSQLND_MS_FILTER_QOS_DATA * filter_data = (MYSQLND_MS_FILTER_QOS_DATA *) f_data;
 	MYSQLND_MS_LIST_DATA * element;
 
-	DBG_ENTER("mysqlnd_ms_choose_connection_qos");
-	DBG_INF_FMT("query(50bytes)=%*s", MIN(50, *query_len), *query);
+	MYSQLND_MS_DBG_ENTER("mysqlnd_ms_choose_connection_qos");
+	MYSQLND_MS_DBG_INF_FMT("query(50bytes)=%*s", MIN(50, *query_len), *query);
 	mysqlnd_ms_section_filters_switch_qos(stgy, filter_data TSRMLS_CC);
 
 	switch (filter_data->consistency) {
@@ -550,11 +550,11 @@ mysqlnd_ms_choose_connection_qos(MYSQLND_CONN_DATA * conn, void * f_data, const 
 						if ((zend_llist_count(selected_masters) + zend_llist_count(selected_slaves)) <= 0) {
 							php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Something wrong no valid selection");
 							if ((*conn_data)->global_trx.race_avoid_strategy & GTID_RACE_AVOID_ADD_ERROR) {
-								DBG_INF_FMT("Race avoid: add error marker %s", MEMCACHED_ERROR_KEY);
+								MYSQLND_MS_DBG_INF_FMT("Race avoid: add error marker %s", MEMCACHED_ERROR_KEY);
 								MYSQLND_MS_GTID_CALL((*conn_data)->global_trx.m->gtid_trace, conn, MEMCACHED_ERROR_KEY, sizeof(MEMCACHED_ERROR_KEY) - 1, 0, *query, *query_len TSRMLS_CC);
 							}
 							if ((*conn_data)->global_trx.race_avoid_strategy & GTID_RACE_AVOID_ADD_ACTIVE) {
-								DBG_INF("Race avoid: add active servers");
+								MYSQLND_MS_DBG_INF("Race avoid: add active servers");
 								MYSQLND_MS_GTID_CALL((*conn_data)->global_trx.m->gtid_race_add_active, conn, master_list, selected_masters, is_write TSRMLS_CC);
 								if ((USE_SLAVE == which_server)) {
 									MYSQLND_MS_GTID_CALL((*conn_data)->global_trx.m->gtid_race_add_active, conn, slave_list, selected_slaves, FALSE TSRMLS_CC);
@@ -564,7 +564,7 @@ mysqlnd_ms_choose_connection_qos(MYSQLND_CONN_DATA * conn, void * f_data, const 
 						break;
 					} else { //Someone other than me will provide ?
 						zend_bool forced;
-						DBG_INF_FMT("Something forced: no master or slave %u add all slaves", which_server);
+						MYSQLND_MS_DBG_INF_FMT("Something forced: no master or slave %u add all slaves", which_server);
 						BEGIN_ITERATE_OVER_SERVER_LIST(element, slave_list)
 							zend_llist_add_element(selected_slaves, &element);
 						END_ITERATE_OVER_SERVER_LIST;
@@ -577,12 +577,12 @@ mysqlnd_ms_choose_connection_qos(MYSQLND_CONN_DATA * conn, void * f_data, const 
 	 * set gtid session consistency programmatically as usual
 	 */
 				else if (USE_MASTER != which_server) {
-					DBG_INF("No gtid writes add all slaves");
+					MYSQLND_MS_DBG_INF("No gtid writes add all slaves");
 					BEGIN_ITERATE_OVER_SERVER_LIST(element, slave_list)
 						zend_llist_add_element(selected_slaves, &element);
 					END_ITERATE_OVER_SERVER_LIST;
 				}
-				DBG_INF("fall-through from session consistency");
+				MYSQLND_MS_DBG_INF("fall-through from session consistency");
 			}
 		case CONSISTENCY_STRONG:
 			/*
@@ -592,7 +592,7 @@ mysqlnd_ms_choose_connection_qos(MYSQLND_CONN_DATA * conn, void * f_data, const 
 				This is our master_on_write replacement. All the other filters
 				don't need to take care in the future.
 			*/
-			DBG_INF("using masters only for strong consistency");
+			MYSQLND_MS_DBG_INF("using masters only for strong consistency");
 			BEGIN_ITERATE_OVER_SERVER_LIST(element, master_list)
 				zend_llist_add_element(selected_masters, &element);
 			END_ITERATE_OVER_SERVER_LIST;
@@ -621,13 +621,13 @@ mysqlnd_ms_choose_connection_qos(MYSQLND_CONN_DATA * conn, void * f_data, const 
 					ttl = filter_data->option_data.ttl;
 
 					if (FALSE == mysqlnd_qc_query_is_cached(conn, (const char *)*query, *query_len, server_id, server_id_len TSRMLS_CC)) {
-						DBG_INF("Query is not cached");
+						MYSQLND_MS_DBG_INF("Query is not cached");
 						search_slaves = TRUE;
 					} else {
-						DBG_INF("Query is in the cache");
+						MYSQLND_MS_DBG_INF("Query is in the cache");
 						search_slaves = FALSE;
 					}
-					DBG_INF_FMT("Eventual server id %s(%d) %p", server_id, server_id_len, server_id);
+					MYSQLND_MS_DBG_INF_FMT("Eventual server id %s(%d) %p", server_id, server_id_len, server_id);
 					efree(server_id);
 				}
 
@@ -655,7 +655,7 @@ mysqlnd_ms_choose_connection_qos(MYSQLND_CONN_DATA * conn, void * f_data, const 
 								(PASS == mysqlnd_ms_lazy_connect(element, TRUE TSRMLS_CC))
 							))
 						{
-							DBG_INF_FMT("Checking slave connection "MYSQLND_LLU_SPEC"", connection->thread_id);
+							MYSQLND_MS_DBG_INF_FMT("Checking slave connection "MYSQLND_LLU_SPEC"", connection->thread_id);
 
 							if (PASS == mysqlnd_ms_qos_server_get_lag_stage1(connection, conn_data TSRMLS_CC)) {
 								zend_llist_add_element(&stage1_slaves, &element);
@@ -716,19 +716,19 @@ mysqlnd_ms_choose_connection_qos(MYSQLND_CONN_DATA * conn, void * f_data, const 
 						*query);
 					*query = new_query;
 					*free_query = TRUE;
-					DBG_INF_FMT("Eventual Cache query %s(%d) %p", *query, *query_len, *query);
-					DBG_INF_FMT("Cache option ttl %lu, slave list ttl %lu, %s", filter_data->option_data.ttl, ttl, *query);
+					MYSQLND_MS_DBG_INF_FMT("Eventual Cache query %s(%d) %p", *query, *query_len, *query);
+					MYSQLND_MS_DBG_INF_FMT("Cache option ttl %lu, slave list ttl %lu, %s", filter_data->option_data.ttl, ttl, *query);
 				}
 #endif
 			}
 			break;
 		default:
-			DBG_ERR("Invalid filter data, we should never get here");
+			MYSQLND_MS_DBG_ERR("Invalid filter data, we should never get here");
 			ret = FAIL;
 			break;
 	}
 
-	DBG_RETURN(ret);
+	MYSQLND_MS_DBG_RETURN(ret);
 }
 /* }}} */
 

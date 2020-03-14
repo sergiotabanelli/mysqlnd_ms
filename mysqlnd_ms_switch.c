@@ -831,8 +831,8 @@ mysqlnd_ms_pick_server_ex(MYSQLND_CONN_DATA * conn, char ** query, size_t * quer
 {
 	MS_DECLARE_AND_LOAD_CONN_DATA(conn_data, conn);
 	MYSQLND_CONN_DATA * connection = conn;
-	DBG_ENTER("mysqlnd_ms_pick_server_ex");
-	DBG_INF_FMT("conn_data=%p *conn_data=%p", conn_data, conn_data? *conn_data : NULL);
+	MYSQLND_MS_DBG_ENTER("mysqlnd_ms_pick_server_ex");
+	MYSQLND_MS_DBG_INF_FMT("conn_data=%p *conn_data=%p", conn_data, conn_data? *conn_data : NULL);
 	*switched_servers = FALSE;
 
 	if (conn_data && *conn_data) {
@@ -974,7 +974,7 @@ mysqlnd_ms_pick_server_ex(MYSQLND_CONN_DATA * conn, char ** query, size_t * quer
 					mysqlnd_ms_client_n_php_error(&MYSQLND_MS_ERROR_INFO(conn), CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, E_WARNING TSRMLS_CC,
 												  MYSQLND_MS_ERROR_PREFIX " Unknown pick type");
 			}
-			DBG_INF_FMT("out_masters_count=%d  out_slaves_count=%d", zend_llist_count(output_masters), zend_llist_count(output_slaves));
+			MYSQLND_MS_DBG_INF_FMT("out_masters_count=%d  out_slaves_count=%d", zend_llist_count(output_masters), zend_llist_count(output_slaves));
 			if (trx_continue_filtering) {
 				continue;
 			}
@@ -993,11 +993,11 @@ mysqlnd_ms_pick_server_ex(MYSQLND_CONN_DATA * conn, char ** query, size_t * quer
 				if (el_pp && (*el_pp)->conn) {
 					MYSQLND_MS_LIST_DATA * element = *el_pp;
 					if (_MS_CONN_GET_STATE(element->conn) == CONN_ALLOCED) {
-						DBG_INF("Lazy connection, trying to connect...");
+						MYSQLND_MS_DBG_INF("Lazy connection, trying to connect...");
 						/* lazy connection, connect now */
 
 						if (PASS != mysqlnd_ms_lazy_connect(element, zend_llist_count(output_masters)? TRUE:FALSE TSRMLS_CC)) {
-							DBG_INF_FMT("Using master connection "MYSQLND_LLU_SPEC"", element->conn->thread_id);
+							MYSQLND_MS_DBG_INF_FMT("Using master connection "MYSQLND_LLU_SPEC"", element->conn->thread_id);
 							connection = element->conn;
 						}
 					} else {
@@ -1014,7 +1014,7 @@ mysqlnd_ms_pick_server_ex(MYSQLND_CONN_DATA * conn, char ** query, size_t * quer
 			if (!connection && (0 == zend_llist_count(output_masters) && 0 == zend_llist_count(output_slaves))) {
 				/* filtered everything out */
 				if ((SERVER_FAILOVER_MASTER == stgy->failover_strategy) || (SERVER_FAILOVER_LOOP == stgy->failover_strategy)) {
-					DBG_INF("FAILOVER");
+					MYSQLND_MS_DBG_INF("FAILOVER");
 					connection = conn;
 				} else {
 					mysqlnd_ms_client_n_php_error(&MYSQLND_MS_ERROR_INFO(conn), CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, E_WARNING TSRMLS_CC,
@@ -1054,7 +1054,7 @@ end:
 #endif
 	}
 
-	DBG_RETURN(connection);
+	MYSQLND_MS_DBG_RETURN(connection);
 }
 /* }}} */
 

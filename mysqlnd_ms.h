@@ -60,6 +60,35 @@
 
 #define MYSQLND_MS_CONFIG_FORMAT "json"
 
+#if !defined(PHP_WIN32) && PHP_DEBUG 
+#define MYSQLND_MS_DBG_ENABLED 1
+
+#define MYSQLND_MS_DBG_INF(msg) do { if (dbg_skip_trace == FALSE) MYSQLND_MS_G(dbg)->m->log(MYSQLND_MS_G(dbg), __LINE__, __FILE__, -1, "info : ", (msg)); } while (0)
+#define MYSQLND_MS_DBG_ERR(msg) do { if (dbg_skip_trace == FALSE) MYSQLND_MS_G(dbg)->m->log(MYSQLND_MS_G(dbg), __LINE__, __FILE__, -1, "error: ", (msg)); } while (0)
+#define MYSQLND_MS_DBG_INF_FMT(...) do { if (dbg_skip_trace == FALSE) MYSQLND_MS_G(dbg)->m->log_va(MYSQLND_MS_G(dbg), __LINE__, __FILE__, -1, "info : ", __VA_ARGS__); } while (0)
+#define MYSQLND_MS_DBG_ERR_FMT(...) do { if (dbg_skip_trace == FALSE) MYSQLND_MS_G(dbg)->m->log_va(MYSQLND_MS_G(dbg), __LINE__, __FILE__, -1, "error: ", __VA_ARGS__); } while (0)
+#define MYSQLND_MS_DBG_ENTER(func_name) \
+	zend_bool dbg_skip_trace = TRUE; \
+	((void) dbg_skip_trace); \
+	if (MYSQLND_MS_G(dbg)) \
+		dbg_skip_trace = !MYSQLND_MS_G(dbg)->m->func_enter(MYSQLND_MS_G(dbg), __LINE__, __FILE__, func_name, strlen(func_name));
+
+#define MYSQLND_MS_DBG_RETURN(value)	do { if (MYSQLND_MS_G(dbg)) MYSQLND_MS_G(dbg)->m->func_leave(MYSQLND_MS_G(dbg), __LINE__, __FILE__, 0); return (value); } while (0)
+#define MYSQLND_MS_DBG_VOID_RETURN		do { if (MYSQLND_MS_G(dbg)) MYSQLND_MS_G(dbg)->m->func_leave(MYSQLND_MS_G(dbg), __LINE__, __FILE__, 0); return; } while (0)
+
+#else
+#define MYSQLND_MS_DBG_ENABLED 0
+
+static inline void MYSQLND_MS_DBG_INF(char *msg) {}
+static inline void MYSQLND_MS_DBG_ERR(char *msg) {}
+static inline void MYSQLND_MS_DBG_INF_FMT(char *format, ...) {}
+static inline void MYSQLND_MS_DBG_ERR_FMT(char *format, ...) {}
+static inline void MYSQLND_MS_DBG_ENTER(char *func_name) {}
+#define MYSQLND_MS_DBG_RETURN(value)	return (value)
+#define MYSQLND_MS_DBG_VOID_RETURN		return;
+
+#endif
+
 ZEND_BEGIN_MODULE_GLOBALS(mysqlnd_ms)
 	zend_bool enable;
 	zend_bool force_config_usage;
@@ -73,6 +102,10 @@ ZEND_BEGIN_MODULE_GLOBALS(mysqlnd_ms)
 	const char * master_on;
 	const char * inject_on;
 	const char * config_dir;
+#if MYSQLND_MS_DBG_ENABLED
+	char          *debug; /* The actual string */
+	MYSQLND_DEBUG *dbg;	/* The DBG object */
+#endif
 ZEND_END_MODULE_GLOBALS(mysqlnd_ms)
 
 

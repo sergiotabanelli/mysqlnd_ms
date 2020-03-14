@@ -144,6 +144,10 @@ mysqlnd_ms_globals_ctor(zend_mysqlnd_ms_globals * mysqlnd_ms_globals TSRMLS_DC)
 	mysqlnd_ms_globals->master_on = NULL;
 	mysqlnd_ms_globals->inject_on = NULL;
 	mysqlnd_ms_globals->config_dir = NULL;
+#if MYSQLND_MS_DBG_ENABLED
+	mysqlnd_ms_globals->debug = NULL;	/* The actual string */
+	mysqlnd_ms_globals->dbg = NULL;	/* The DBG object*/
+#endif
 }
 /* }}} */
 
@@ -160,6 +164,16 @@ PHP_RINIT_FUNCTION(mysqlnd_ms)
 		MYSQLND_MS_CONFIG_JSON_LOCK(mysqlnd_ms_json_config);
 		mysqlnd_ms_check_config(TSRMLS_C);
 		MYSQLND_MS_CONFIG_JSON_UNLOCK(mysqlnd_ms_json_config);
+#if MYSQLND_MS_DBG_ENABLED
+		if (MYSQLND_MS_G(debug)) {
+			MYSQLND_DEBUG *dbg = mysqlnd_debug_init(mysqlnd_debug_std_no_trace_funcs);
+			if (!dbg) {
+				return FAILURE;
+			}
+			dbg->m->set_mode(dbg, MYSQLND_MS_G(debug));
+			MYSQLND_MS_G(dbg) = dbg;
+		}
+#endif	
 	}
 	return SUCCESS;
 }
@@ -176,6 +190,16 @@ PHP_RSHUTDOWN_FUNCTION(mysqlnd_ms)
 		if (MYSQLND_MS_G(config_startup_error)) {
 			mnd_sprintf_free(MYSQLND_MS_G(config_startup_error));
 		}
+#if MYSQLND_MS_DBG_ENABLED
+		{
+			MYSQLND_DEBUG *dbg = MYSQLND_MS_G(dbg);
+			if (dbg) {
+				dbg->m->close(dbg);
+				dbg->m->free_handle(dbg);
+				MYSQLND_MS_G(dbg) = NULL;
+			}
+		}
+#endif
 	}
 
 	DBG_RETURN(SUCCESS);
@@ -195,6 +219,9 @@ PHP_INI_BEGIN()
 	STD_PHP_INI_ENTRY("mysqlnd_ms.master_on", NULL, PHP_INI_SYSTEM, OnUpdateString, master_on, zend_mysqlnd_ms_globals, mysqlnd_ms_globals)
 	STD_PHP_INI_ENTRY("mysqlnd_ms.inject_on", NULL, PHP_INI_SYSTEM, OnUpdateString, inject_on, zend_mysqlnd_ms_globals, mysqlnd_ms_globals)
 	STD_PHP_INI_ENTRY("mysqlnd_ms.config_dir", NULL, PHP_INI_SYSTEM, OnUpdateString, config_dir, zend_mysqlnd_ms_globals, mysqlnd_ms_globals)
+#if MYSQLND_MS_DBG_ENABLED
+	STD_PHP_INI_ENTRY("mysqlnd_ms.debug",	NULL, PHP_INI_SYSTEM, OnUpdateString, debug, zend_mysqlnd_ms_globals, mysqlnd_ms_globals)
+#endif
 PHP_INI_END()
 /* }}} */
 

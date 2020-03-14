@@ -121,6 +121,10 @@ mysqlnd_ms.multi_master=1
 	if (mysqli_connect_errno()) {
 		printf("[".(string)1/*offset*/."] [%d] %s\n", mysqli_connect_errno(), mysqli_connect_error());
 	}
+	$link1 = mst_mysqli_connect("myapp", $user, $passwd, $db, $port, $socket);
+	if (mysqli_connect_errno()) {
+		printf("[".(string)1/*offset*/."] [%d] %s\n", mysqli_connect_errno(), mysqli_connect_error());
+	}
 	/* we need an extra non-MS link for checking memcached GTID. */
 	$memc_link = mst_mysqli_connect($emulated_master_host_only, $user, $passwd, $db, $emulated_master_port, $emulated_master_socket);
 	$master1_link = mst_mysqli_connect($master_host_only, $user, $passwd, $db, $master_port, $master_socket);
@@ -135,7 +139,7 @@ mysqlnd_ms.multi_master=1
 	if (!($stmt3 = $link->prepare("INSERT INTO gtid_test(id) VALUES(CONCAT(@@server_uuid,'-',@myrole))"))) // Prepared on master2
 		printf("[".(string)6/*offset*/."] [%d] %s\n", $link->errno, $link->error);
 
-	if (!($stmt4 = $link->prepare("SELECT CONCAT(@myrole,'-',id) AS _ext_id FROM gtid_test"))) // Prepared on master3
+	if (!($stmt4 = $link->prepare("SELECT CONCAT(@myrole,'-',id) AS _ext_id FROM gtid_test ORDER BY id"))) // Prepared on master3
 		printf("[".(string)7/*offset*/."] [%d] %s\n", $link->errno, $link->error);
 
 	$role = NULL;
@@ -217,7 +221,34 @@ mysqlnd_ms.multi_master=1
         printf("Server uid %s\n", $server_uid);
     }
 
-	$res = mst_mysqli_query(36/*offset*/, $memc_link, "SELECT id FROM gtid_test");
+	if (!$stmt4->execute()) // Execute on master2
+		printf("[".(string)36/*offset*/."] [%d] %s\n", $link->errno, $link->error);
+	while ($stmt4->fetch()) {
+        printf("Server uid %s\n", $server_uid);
+    }
+
+	if (!$stmt4->execute()) // Execute on master1
+		printf("[".(string)37/*offset*/."] [%d] %s\n", $link->errno, $link->error);
+	while ($stmt4->fetch()) {
+        printf("Server uid %s\n", $server_uid);
+    }
+
+
+	$res = mst_mysqli_query(38/*offset*/, $link1, "SET @myrole1 = 'Master2'"); // First in list is now Master2 
+	$res = mst_mysqli_query(39/*offset*/, $link1, "SET @myrole1 = 'Master1'"); // Execute on master1
+	$res = mst_mysqli_query(40/*offset*/, $link1, "SET @myrole1 = CONCAT('Master1','-',@myrole1)"); // First in list is now Master1
+	$res = mst_mysqli_query(41/*offset*/, $link1, "SET @myrole1 = CONCAT('Master2','-',@myrole1)"); // Execute on master2
+
+	$res = mst_mysqli_query(42/*offset*/, $link1, "SELECT @myrole1 AS _role FROM DUAL"); // First in list is now Master2 
+	var_dump($res->fetch_assoc());
+	$res = mst_mysqli_query(43/*offset*/, $link1, "SELECT @myrole1 AS _role FROM DUAL"); // First in list is now Master1
+	var_dump($res->fetch_assoc());
+	$res = mst_mysqli_query(44/*offset*/, $link1, "SELECT @myrole1 AS _role FROM DUAL"); // Execute on master2
+	var_dump($res->fetch_assoc());
+	$res = mst_mysqli_query(45/*offset*/, $link1, "SELECT @myrole1 AS _role FROM DUAL"); // Execute on master1
+	var_dump($res->fetch_assoc());
+
+	$res = mst_mysqli_query(46/*offset*/, $memc_link, "SELECT id FROM gtid_test");
 	var_dump($res->fetch_assoc());
 	
 	print "done!";
@@ -258,9 +289,31 @@ Num_rows 1
 Server uid Master1-%s-Master1
 Server uid Master1-MY_EXECUTED_GTID
 Num_rows 1
-Server uid Master1-%s-Master2
 Server uid Master1-%s-Master1
+Server uid Master1-%s-Master2
 Server uid Master1-MY_EXECUTED_GTID
+Server uid Master2-%s-Master1
+Server uid Master2-%s-Master2
+Server uid Master2-MY_EXECUTED_GTID
+Server uid Master1-%s-Master1
+Server uid Master1-%s-Master2
+Server uid Master1-MY_EXECUTED_GTID
+array(1) {
+  ["_role"]=>
+  string(15) "Master2-Master2"
+}
+array(1) {
+  ["_role"]=>
+  string(15) "Master1-Master1"
+}
+array(1) {
+  ["_role"]=>
+  string(15) "Master2-Master2"
+}
+array(1) {
+  ["_role"]=>
+  string(15) "Master1-Master1"
+}
 array(1) {
   ["id"]=>
   string(16) "MY_EXECUTED_GTID"

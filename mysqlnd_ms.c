@@ -733,6 +733,7 @@ mysqlnd_ms_aux_gtid_chk_exec(const char * gtid_set, const char * gtid)
 	if (!strchr(gtid_set, ':') || !strchr(gtid, ':')) {
 		uintmax_t ngtid = mysqlnd_ms_aux_gtid_extract(gtid);
 		uintmax_t lgtid = mysqlnd_ms_aux_gtid_extract(gtid_set);
+		DBG_INF_FMT("No colons found uuid gtid_set %s, gtid %s, p %s gtid %" PRIu64 " last %" PRIu64, gtid_set, gtid, p, ngtid, lgtid);
 		if (errno == ERANGE || ngtid == UINTMAX_MAX || lgtid == UINTMAX_MAX || ngtid > lgtid) {
 			DBG_RETURN(FAIL);
 		}
@@ -963,11 +964,11 @@ mysqlnd_ms_aux_gtid_choose_connection(MYSQLND_CONN_DATA * conn, const char * gti
 {
 	MYSQLND_MS_LIST_DATA * element;
 
-	DBG_ENTER("mysqlnd_ms_aux_gtid_choose_connection");
+	MYSQLND_MS_DBG_ENTER("mysqlnd_ms_aux_gtid_choose_connection");
 	// If there is no gtid and we have multiple masters or slaves then add only actives.
 	if (zend_llist_count(server_list) > 1 && (!gtid || !strcmp(gtid, "0"))) {
 		mysqlnd_ms_aux_gtid_add_active(conn, server_list, selected_servers, is_write TSRMLS_CC);
-		DBG_VOID_RETURN;
+		MYSQLND_MS_DBG_VOID_RETURN;
 	}
 	BEGIN_ITERATE_OVER_SERVER_LIST(element, server_list)
 		MYSQLND_CONN_DATA * connection = element->conn;
@@ -983,21 +984,21 @@ mysqlnd_ms_aux_gtid_choose_connection(MYSQLND_CONN_DATA * conn, const char * gti
 		(*conn_data)->global_trx.last_ckgtid_len = gtid ? strlen(gtid) : 0;
 		(*conn_data)->global_trx.last_ckgtid = gtid ? mnd_pestrndup(gtid, strlen(gtid), connection->persistent) : NULL;
 		if (!gtid || !strcmp(gtid, "0")) {
-			DBG_INF_FMT("Empty gtid %s, valid server rgtid %s wgtid %s %s %u %s", (*conn_data)->global_trx.last_gtid, (*conn_data)->global_trx.last_wgtid, gtid, MYSQLND_MS_CONN_STRING(element->host), element->port, MYSQLND_MS_CONN_STRING(element->socket));
+			MYSQLND_MS_DBG_INF_FMT("Empty gtid %s, valid server rgtid %s wgtid %s %s %u %s", gtid, (*conn_data)->global_trx.last_gtid, (*conn_data)->global_trx.last_wgtid, MYSQLND_MS_CONN_STRING(element->host), element->port, MYSQLND_MS_CONN_STRING(element->socket));
 			zend_llist_add_element(selected_servers, &element);
 		} else if (_MS_CONN_GET_STATE(element->conn) != CONN_QUIT_SENT &&
 				_MS_CONN_GET_STATE(element->conn) > CONN_ALLOCED && (mysqlnd_ms_aux_gtid_chk_last((*conn_data)->global_trx.last_gtid, (*conn_data)->global_trx.last_gtid_len, gtid, strlen(gtid)) == PASS
 				|| mysqlnd_ms_aux_gtid_chk_last((*conn_data)->global_trx.last_wgtid, (*conn_data)->global_trx.last_wgtid_len, gtid, strlen(gtid)) == PASS)) {
-			DBG_INF_FMT("Gtid %s already checked, valid server rgtid %s wgtid %s %s %u %s", (*conn_data)->global_trx.last_gtid, (*conn_data)->global_trx.last_wgtid, gtid, MYSQLND_MS_CONN_STRING(element->host), element->port, MYSQLND_MS_CONN_STRING(element->socket));
+			MYSQLND_MS_DBG_INF_FMT("Gtid %s already checked, valid server rgtid %s wgtid %s %s %u %s", gtid, (*conn_data)->global_trx.last_gtid, (*conn_data)->global_trx.last_wgtid, MYSQLND_MS_CONN_STRING(element->host), element->port, MYSQLND_MS_CONN_STRING(element->socket));
 			zend_llist_add_element(selected_servers, &element);
 		} else if (PASS == MYSQLND_MS_GTID_CALL_PASS((*conn_data)->global_trx.m->gtid_get_last, element, NULL TSRMLS_CC) && PASS == mysqlnd_ms_aux_gtid_chk_last((*conn_data)->global_trx.last_gtid, (*conn_data)->global_trx.last_gtid_len, gtid, strlen(gtid))) {
-			DBG_INF_FMT("Gtid %s found, valid server %s %s %u %s", (*conn_data)->global_trx.last_gtid, gtid, MYSQLND_MS_CONN_STRING(element->host), element->port, MYSQLND_MS_CONN_STRING(element->socket));
+			MYSQLND_MS_DBG_INF_FMT("Gtid %s found, valid server %s %s %u %s", gtid, (*conn_data)->global_trx.last_gtid, MYSQLND_MS_CONN_STRING(element->host), element->port, MYSQLND_MS_CONN_STRING(element->socket));
 			zend_llist_add_element(selected_servers, &element);
 		} else {
-			DBG_INF_FMT("Gtid %s not found, invalid server %s %s %u %s", (*conn_data)->global_trx.last_gtid, gtid, MYSQLND_MS_CONN_STRING(element->host), element->port, MYSQLND_MS_CONN_STRING(element->socket));
+			MYSQLND_MS_DBG_INF_FMT("Gtid %s not found, invalid server %s %s %u %s", gtid, (*conn_data)->global_trx.last_gtid, MYSQLND_MS_CONN_STRING(element->host), element->port, MYSQLND_MS_CONN_STRING(element->socket));
 		}
 	END_ITERATE_OVER_SERVER_LIST;
-	DBG_VOID_RETURN;
+	MYSQLND_MS_DBG_VOID_RETURN;
 }
 /* }}} */
 
@@ -1261,7 +1262,8 @@ mysqlnd_ms_aux_ss_gtid_build_val(MYSQLND_MS_CONN_DATA * conn_data, const char *g
 {
 	struct st_mysqlnd_ms_global_trx_injection * trx = &conn_data->global_trx;
 	_ms_smart_type * hash_key = conn_data->elm_pool_hash_key;
-	size_t gl = gtid ? strlen(gtid) : 0;
+	size_t gl = gtid ? strlen(gtid) : trx->last_ckgtid_len;
+	const char * g = gtid ? gtid : trx->last_ckgtid;
     char th[80];
 	MS_DECLARE_AND_LOAD_CONN_DATA(proxy_conn_data, conn_data->proxy_conn);
 	size_t thl = snprintf(th, 80, "%llu:%llu:%llu:%llu:%llu:%llu:%llu|", conn_data->proxy_conn->thread_id,
@@ -1276,7 +1278,7 @@ mysqlnd_ms_aux_ss_gtid_build_val(MYSQLND_MS_CONN_DATA * conn_data, const char *g
 	*val = GTID_GTID_MARKER;
 	val++;
 	if (gl)
-		memcpy(val, gtid, gl);
+		memcpy(val, g, gl);
 	val +=gl;
 	// BEGIN TEMPORARY HACK
 	*val = GTID_GTID_MARKER;
@@ -1344,7 +1346,7 @@ mysqlnd_ms_aux_ss_gtid_mtoken(memcached_st *memc, const char *key, uint64_t *own
 /* {{{ mysqlnd_ms_aux_ss_gtid_mget */
 static enum_func_status
 mysqlnd_ms_aux_ss_gtid_mget(memcached_st *memc, char **value, char **gtid, uint64_t *last_chk, const char *key,
-		unsigned int depth, uint64_t token, uint64_t module, uint64_t *found, zend_bool use_get)
+		unsigned int depth, uint64_t token, uint64_t module, uint64_t *found, zend_bool use_get, zend_bool *is_gtid)
 {
 	enum_func_status ret = FAIL;
 	memcached_return_t rc = MEMCACHED_SUCCESS;
@@ -1455,13 +1457,17 @@ mysqlnd_ms_aux_ss_gtid_mget(memcached_st *memc, char **value, char **gtid, uint6
 			}
 			*value = NULL;
 			*gtid = NULL;
+			*is_gtid = TRUE;
 			if (last_r) {
 				char * p = strchr(last_r, GTID_GTID_MARKER);
 				if (p)
 					*p = 0;
 				*value = last_r;
 				last_r = NULL;
-			} else if (last_e && last_eg && *last_eg) {
+				*is_gtid = FALSE;
+
+			}
+			if (last_e && last_eg && *last_eg) {
 				size_t len = strlen(last_eg);
 				*gtid = malloc(len + 1);
 				strcpy(*gtid, last_eg);
@@ -1631,7 +1637,8 @@ mysqlnd_ms_aux_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, char 
   	char * mgtid = NULL;
   	char * mgtidw = NULL;
   	char * host = NULL;
-	DBG_ENTER("mysqlnd_ms_aux_ss_gtid_filter");
+	MYSQLND_MS_DBG_ENTER("mysqlnd_ms_aux_ss_gtid_filter");
+	MYSQLND_MS_DBG_INF_FMT("Query is %s gtid is %s", *query, gtid);
 	if ((*conn_data)->proxy_conn != conn) {
 		MS_LOAD_CONN_DATA(conn_data, (*conn_data)->proxy_conn);
 	}
@@ -1646,17 +1653,19 @@ mysqlnd_ms_aux_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, char 
 			(ret = mysqlnd_ms_aux_ss_gtid_mget((*conn_data)->global_trx.memc, &value, &mgtid, &(*conn_data)->global_trx.last_chk_token,
 				(*conn_data)->global_trx.memcached_key, (*conn_data)->global_trx.running_depth,
 				(*conn_data)->global_trx.owned_token, (*conn_data)->global_trx.module,
-				&(*conn_data)->global_trx.prev_found, (*conn_data)->global_trx.use_get)) == SUCCESS) {
-			DBG_INF_FMT("Increment token %llu last found %llu with value %s", (*conn_data)->global_trx.owned_token, (*conn_data)->global_trx.last_chk_token, value);
+				&(*conn_data)->global_trx.prev_found, (*conn_data)->global_trx.use_get, &is_gtid)) == SUCCESS) {
+			MYSQLND_MS_DBG_INF_FMT("For key %s increment token %llu last found %llu with value %s gtid %s", (*conn_data)->global_trx.memcached_key, (*conn_data)->global_trx.owned_token, (*conn_data)->global_trx.last_chk_token, value, mgtid);
 			gtid = mgtid;
 			host = value;
-			is_gtid = gtid || !host ? TRUE : FALSE;
 		} else {
 			php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Something wrong could not get owned token %s",  (*conn_data)->global_trx.memcached_key);
 		}
 	}
-	if (!is_write && (*conn_data)->global_trx.first_read)
+	if (!is_write && (*conn_data)->global_trx.first_read) {
 		(*conn_data)->global_trx.first_read = FALSE;
+		if (gtid)
+			mysqlnd_ms_section_filters_set_gtid_qos(conn, gtid, strlen(gtid) TSRMLS_CC);
+	}
 	if ((*conn_data)->global_trx.injectable_query) {
 		checkw = (*conn_data)->global_trx.memc && (*conn_data)->global_trx.memcached_wkey &&
 				((*conn_data)->global_trx.running_wdepth > 0 || !(*conn_data)->global_trx.last_whost) ? TRUE : FALSE;
@@ -1667,13 +1676,12 @@ mysqlnd_ms_aux_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, char 
 				(ret = mysqlnd_ms_aux_ss_gtid_mget((*conn_data)->global_trx.memc, &valuew, &mgtidw, &(*conn_data)->global_trx.last_chk_wtoken,
 					(*conn_data)->global_trx.memcached_wkey, (*conn_data)->global_trx.running_wdepth,
 					(*conn_data)->global_trx.owned_wtoken, (*conn_data)->global_trx.module,
-					&(*conn_data)->global_trx.prev_wfound, (*conn_data)->global_trx.use_get)) == SUCCESS) {
-				DBG_INF_FMT("Increment wtoken %llu last found %llu with value %s", (*conn_data)->global_trx.owned_wtoken, (*conn_data)->global_trx.last_chk_wtoken, valuew);
+					&(*conn_data)->global_trx.prev_wfound, (*conn_data)->global_trx.use_get, &is_gtid)) == SUCCESS) {
+				MYSQLND_MS_DBG_INF_FMT("For wkey %s increment wtoken %llu last found %llu with value %s gtid %s", (*conn_data)->global_trx.memcached_wkey, (*conn_data)->global_trx.owned_wtoken, (*conn_data)->global_trx.last_chk_wtoken, valuew, mgtidw);
 				gtid = mgtidw;
 				host = valuew;
-				is_gtid = gtid || !host ? TRUE : FALSE;
 			} else {
-				DBG_INF_FMT("Something wrong could not get owned token for key %s",  (*conn_data)->global_trx.memcached_wkey);
+				MYSQLND_MS_DBG_INF_FMT("Something wrong could not get owned token for key %s",  (*conn_data)->global_trx.memcached_wkey);
 				php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Something wrong could not get owned token %s",  (*conn_data)->global_trx.memcached_wkey);
 			}
 		} else {
@@ -1681,7 +1689,7 @@ mysqlnd_ms_aux_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, char 
 		  	host = (*conn_data)->global_trx.last_whost;
 		}
 		if (checkw || (check && (*conn_data)->global_trx.running_depth)) {
-			DBG_INF("Set running validate function");
+			MYSQLND_MS_DBG_INF("Set running validate function");
 			(*conn_data)->global_trx.m->gtid_validate = mysqlnd_ms_aux_ss_gtid_validate;
 		}
 	}
@@ -1701,7 +1709,7 @@ mysqlnd_ms_aux_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, char 
 			size_t value_len = strlen(host) + 1; // Include null in host hash key
 			_ms_smart_type ph = {(char *)host, value_len, value_len};
 			exists = (*conn_data)->pool->connection_exists((*conn_data)->pool, &ph, &data, &is_master, &is_active, &is_removed TSRMLS_CC);
-			DBG_INF_FMT("Get host from pool hash_key=%s exists=%d is_master=%d is_active=%d is_removed=%d ", value, exists, is_master, is_active, is_removed);
+			MYSQLND_MS_DBG_INF_FMT("Get host from pool hash_key=%s exists=%d is_master=%d is_active=%d is_removed=%d ", host, exists, is_master, is_active, is_removed);
 			if (exists && is_active && !is_removed && is_master &&
 					_MS_CONN_GET_STATE(data->conn) != CONN_QUIT_SENT &&
 					(_MS_CONN_GET_STATE(data->conn) > CONN_ALLOCED || PASS == mysqlnd_ms_lazy_connect(data, TRUE TSRMLS_CC))) {
@@ -1715,10 +1723,12 @@ mysqlnd_ms_aux_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, char 
 				} else {
 					zend_llist_add_element(selected_masters, &data);
 				}
-				if ((*dconn_data)->global_trx.last_ckgtid) {
-					mnd_pefree((*dconn_data)->global_trx.last_ckgtid, data->conn->persistent);
-					(*dconn_data)->global_trx.last_ckgtid = NULL;
-					(*dconn_data)->global_trx.last_ckgtid_len = 0;
+				if (gtid && !is_gtid) {
+					if ((*dconn_data)->global_trx.last_ckgtid) {
+						mnd_pefree((*dconn_data)->global_trx.last_ckgtid, data->conn->persistent);
+					}
+					(*dconn_data)->global_trx.last_ckgtid_len = strlen(gtid);
+					(*dconn_data)->global_trx.last_ckgtid = mnd_pestrndup(gtid, strlen(gtid), data->conn->persistent);
 				}
 			}
 		}
@@ -1746,7 +1756,7 @@ mysqlnd_ms_aux_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, char 
 	if (valuew) free(valuew);
 	if (mgtid) free(mgtid);
 	if (mgtidw) free(mgtidw);
-	DBG_VOID_RETURN;
+	MYSQLND_MS_DBG_VOID_RETURN;
 }
 /* }}} */
 
@@ -1757,6 +1767,8 @@ mysqlnd_ms_aux_ss_gtid_set_last_write(MYSQLND_CONN_DATA * connection, char * gti
 	MS_DECLARE_AND_LOAD_CONN_DATA(conn_data, connection);
 	MS_DECLARE_AND_LOAD_CONN_DATA(proxy_conn_data, (*conn_data)->proxy_conn);
   	enum_func_status ret = PASS;
+	size_t gl = gtid ? strlen(gtid) : (*conn_data)->global_trx.last_ckgtid_len;
+	char * g = gtid ? gtid : (*conn_data)->global_trx.last_ckgtid;
 	DBG_ENTER("mysqlnd_ms_aux_ss_gtid_set_last_write");
 	if ((*conn_data)->global_trx.last_wgtid) {
 		mnd_pefree((*conn_data)->global_trx.last_wgtid, connection->persistent);
@@ -1816,7 +1828,7 @@ mysqlnd_ms_aux_ss_gtid_set_last_write(MYSQLND_CONN_DATA * connection, char * gti
 		if (val)
 			free(val);
 	}
-	if (mysqlnd_ms_section_filters_set_gtid_qos(connection, gtid, strlen(gtid) TSRMLS_CC) == FAIL)
+	if (mysqlnd_ms_section_filters_set_gtid_qos(connection, g, gl TSRMLS_CC) == FAIL)
 		ret = FAIL;
 	DBG_INF_FMT("ret=%s", ret == PASS? "PASS":"FAIL");
 	DBG_RETURN(ret);
@@ -3675,12 +3687,12 @@ MYSQLND_METHOD(mysqlnd_ms, query)(MYSQLND_CONN_DATA * conn, const char * query, 
 #ifdef ALL_SERVER_DISPATCH
 	zend_bool use_all = 0;
 #endif
-	DBG_ENTER("mysqlnd_ms::query");
-	DBG_INF_FMT("query=%s Using thread "MYSQLND_LLU_SPEC, query, conn->thread_id);
+	MYSQLND_MS_DBG_ENTER("mysqlnd_ms::query");
+	MYSQLND_MS_DBG_INF_FMT("query=%s Using thread "MYSQLND_LLU_SPEC, query, conn->thread_id);
 
 	if (CONN_DATA_NOT_SET(conn_data)) {
 		ret = MS_CALL_ORIGINAL_CONN_DATA_METHOD(query)(conn, query, q_len TSRMLS_CC);
-		DBG_RETURN(ret);
+		MYSQLND_MS_DBG_RETURN(ret);
 	}
 
 	connection = mysqlnd_ms_pick_server_ex(conn, (char**)&query, &query_len, &free_query, &switched_servers TSRMLS_CC);
@@ -3698,7 +3710,7 @@ MYSQLND_METHOD(mysqlnd_ms, query)(MYSQLND_CONN_DATA * conn, const char * query, 
 			}
 		}
 	}
-	DBG_INF_FMT("Connection %p error_no=%d", connection, connection? (MYSQLND_MS_ERROR_INFO(connection).error_no) : -1);
+	MYSQLND_MS_DBG_INF_FMT("Connection %p error_no=%d", connection, connection? (MYSQLND_MS_ERROR_INFO(connection).error_no) : -1);
 	/*
 	  Beware : error_no is set to 0 in original->query. This, this might be a problem,
 	  as we dump a connection from usage till the end of the script.
@@ -3711,13 +3723,13 @@ MYSQLND_METHOD(mysqlnd_ms, query)(MYSQLND_CONN_DATA * conn, const char * query, 
 			COPY_CLIENT_ERROR(_ms_a_ei MYSQLND_MS_ERROR_INFO(conn), MYSQLND_MS_ERROR_INFO(connection));
 		}
 		if (TRUE == free_query) {
-			DBG_INF_FMT("Free query %p", query);
+			MYSQLND_MS_DBG_INF_FMT("Free query %p", query);
 			efree((void *)query);
 		}
 		if (CONN_DATA_TRX_SET(conn_data)) {
 			MYSQLND_MS_GTID_CALL((*conn_data)->global_trx.m->gtid_reset, (*conn_data)->proxy_conn, ret TSRMLS_CC);
 		}
-		DBG_RETURN(ret);
+		MYSQLND_MS_DBG_RETURN(ret);
 	}
 	if (CONN_DATA_TRX_SET(conn_data) && (*conn_data)->global_trx.memcached_debug_ttl) {
 		MYSQLND_MS_GTID_CALL((*conn_data)->global_trx.m->gtid_trace, connection, MEMCACHED_DEBUG_KEY, sizeof(MEMCACHED_DEBUG_KEY) - 1, (*conn_data)->global_trx.memcached_debug_ttl, query, query_len TSRMLS_CC);
@@ -3726,13 +3738,13 @@ MYSQLND_METHOD(mysqlnd_ms, query)(MYSQLND_CONN_DATA * conn, const char * query, 
 	ret = mysqlnd_ms_xa_inject_query(conn, connection, switched_servers TSRMLS_CC);
 	if (FAIL == ret) {
 		if (TRUE == free_query) {
-			DBG_INF_FMT("Free query %p", query);
+			MYSQLND_MS_DBG_INF_FMT("Free query %p", query);
 			efree((void *)query);
 		}
 		if (CONN_DATA_TRX_SET(conn_data)) {
 			MYSQLND_MS_GTID_CALL((*conn_data)->global_trx.m->gtid_reset, (*conn_data)->proxy_conn, ret TSRMLS_CC);
 		}
-		DBG_RETURN(ret);
+		MYSQLND_MS_DBG_RETURN(ret);
 	}
 
 #ifdef ALL_SERVER_DISPATCH
@@ -3745,11 +3757,11 @@ MYSQLND_METHOD(mysqlnd_ms, query)(MYSQLND_CONN_DATA * conn, const char * query, 
 	}
 #endif
 
-	DBG_INF_FMT("conn="MYSQLND_LLU_SPEC" query=%s", connection->thread_id, query);
+	MYSQLND_MS_DBG_INF_FMT("conn="MYSQLND_LLU_SPEC" query=%s", connection->thread_id, query);
 
 	MS_LOAD_CONN_DATA(conn_data, connection);
 	if (CONN_DATA_TRX_SET(proxy_conn_data) && (*conn_data)->global_trx.is_master) {
-		DBG_INF_FMT("in_transaction %u injectable %u trx type %u", (*proxy_conn_data)->stgy.in_transaction, (*proxy_conn_data)->global_trx.injectable_query, (*proxy_conn_data)->global_trx.type);
+		MYSQLND_MS_DBG_INF_FMT("in_transaction %u injectable %u trx type %u", (*proxy_conn_data)->stgy.in_transaction, (*proxy_conn_data)->global_trx.injectable_query, (*proxy_conn_data)->global_trx.type);
 		if (FALSE == (*proxy_conn_data)->stgy.in_transaction && (*proxy_conn_data)->global_trx.injectable_query == TRUE) {
 			/* autocommit mode */
 			inject = TRUE;
@@ -3760,13 +3772,13 @@ MYSQLND_METHOD(mysqlnd_ms, query)(MYSQLND_CONN_DATA * conn, const char * query, 
 
 				if (TRUE == (*proxy_conn_data)->global_trx.report_error) {
 					if (TRUE == free_query) {
-						DBG_INF_FMT("Free query %p", query);
+						MYSQLND_MS_DBG_INF_FMT("Free query %p", query);
 						efree((void *)query);
 					}
 					if ((MYSQLND_MS_ERROR_INFO(connection)).error_no == 0) {
 						SET_CLIENT_ERROR(_ms_p_ei (connection->error_info), CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, "Error on gtid_inject_before");
 					}
-					DBG_RETURN(ret);
+					MYSQLND_MS_DBG_RETURN(ret);
 				}
 				SET_EMPTY_ERROR(_ms_a_ei MYSQLND_MS_ERROR_INFO(connection));
 				ret = PASS;
@@ -3784,11 +3796,11 @@ MYSQLND_METHOD(mysqlnd_ms, query)(MYSQLND_CONN_DATA * conn, const char * query, 
 		/* Is there a transient error that we shall ignore? */
 		MS_CHECK_CONN_FOR_TRANSIENT_ERROR(connection, conn_data, transient_error_no);
 		if (transient_error_no) {
-			DBG_INF_FMT("Transient error "MYSQLND_LLU_SPEC, transient_error_no);
+			MYSQLND_MS_DBG_INF_FMT("Transient error "MYSQLND_LLU_SPEC, transient_error_no);
 			transient_error_retries++;
 			if (transient_error_retries <= (*conn_data)->stgy.transient_error_max_retries) {
 				MYSQLND_MS_INC_STATISTIC(MS_STAT_TRANSIENT_ERROR_RETRIES);
-				DBG_INF_FMT("Retry attempt %i/%i. Sleeping for "MYSQLND_LLU_SPEC" ms and retrying.",
+				MYSQLND_MS_DBG_INF_FMT("Retry attempt %i/%i. Sleeping for "MYSQLND_LLU_SPEC" ms and retrying.",
 							transient_error_retries,
 							(*conn_data)->stgy.transient_error_max_retries,
 							(*conn_data)->stgy.transient_error_usleep_before_retry);
@@ -3796,7 +3808,7 @@ MYSQLND_METHOD(mysqlnd_ms, query)(MYSQLND_CONN_DATA * conn, const char * query, 
 				usleep((*conn_data)->stgy.transient_error_usleep_before_retry);
 #endif
 			} else {
-				DBG_INF("No more transient error retries allowed");
+				MYSQLND_MS_DBG_INF("No more transient error retries allowed");
 				break;
 			}
 		}
@@ -3811,23 +3823,23 @@ MYSQLND_METHOD(mysqlnd_ms, query)(MYSQLND_CONN_DATA * conn, const char * query, 
 			if (FAIL == jret) {
 				if (TRUE == (*proxy_conn_data)->global_trx.report_error) {
 					if (TRUE == free_query) {
-						DBG_INF_FMT("Free query %p", query);
+						MYSQLND_MS_DBG_INF_FMT("Free query %p", query);
 						efree((void *)query);
 					}
 					if ((MYSQLND_MS_ERROR_INFO(connection)).error_no == 0) {
 						SET_CLIENT_ERROR(_ms_p_ei (connection->error_info), CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, "Error on gtid_inject_after");
 					}
-					DBG_RETURN(jret);
+					MYSQLND_MS_DBG_RETURN(jret);
 				}
 				SET_EMPTY_ERROR(_ms_a_ei MYSQLND_MS_ERROR_INFO(connection));
 			}
 		}
 	}
 	if (TRUE == free_query) {
-		DBG_INF_FMT("Free query %p", query);
+		MYSQLND_MS_DBG_INF_FMT("Free query %p", query);
 		efree((void *)query);
 	}
-	DBG_RETURN(ret);
+	MYSQLND_MS_DBG_RETURN(ret);
 }
 /* }}} */
 
@@ -5213,15 +5225,15 @@ MYSQLND_METHOD(mysqlnd_ms_stmt, prepare)(MYSQLND_STMT * const s, const char * co
 	zend_bool free_query = FALSE, switched_servers = FALSE;
 
 	uint transient_error_no = 0, transient_error_retries = 0;
-	DBG_ENTER("mysqlnd_ms_stmt::prepare");
-	DBG_INF_FMT("query=%s", query);
+	MYSQLND_MS_DBG_ENTER("mysqlnd_ms_stmt::prepare");
+	MYSQLND_MS_DBG_INF_FMT("query=%s", query);
 
 	if (!s || !s->data || !s->data->conn ||
 		!(MS_LOAD_CONN_DATA(conn_data, s->data->conn)) ||
 		!*conn_data || (*conn_data)->skip_ms_calls)
 	{
-		DBG_INF("skip MS");
-		DBG_RETURN(ms_orig_mysqlnd_stmt_methods->prepare(s, query, query_len TSRMLS_CC));
+		MYSQLND_MS_DBG_INF("skip MS");
+		MYSQLND_MS_DBG_RETURN(ms_orig_mysqlnd_stmt_methods->prepare(s, query, query_len TSRMLS_CC));
 	}
 	if ((*conn_data)->proxy_conn != s->data->conn) {
 		MS_LOAD_CONN_DATA(conn_data, (*conn_data)->proxy_conn);
@@ -5243,12 +5255,12 @@ MYSQLND_METHOD(mysqlnd_ms_stmt, prepare)(MYSQLND_STMT * const s, const char * co
 			COPY_CLIENT_ERROR(_ms_a_ei MYSQLND_MS_ERROR_INFO(s->data->conn), MYSQLND_MS_ERROR_INFO(connection));
 		}
 		if (TRUE == free_query) {
-			DBG_INF_FMT("Free query %p", query);
+			MYSQLND_MS_DBG_INF_FMT("Free query %p", query);
 			efree((void *)query);
 		}
-		DBG_RETURN(FAIL);
+		MYSQLND_MS_DBG_RETURN(FAIL);
 	}
-	DBG_INF_FMT("Connection %p, query=%s", connection, query);
+	MYSQLND_MS_DBG_INF_FMT("Connection %p, query=%s", connection, query);
 
 	if (connection != s->data->conn) {
 		// free what we have
@@ -5267,12 +5279,12 @@ MYSQLND_METHOD(mysqlnd_ms_stmt, prepare)(MYSQLND_STMT * const s, const char * co
 		{
 			MYSQLND_STMT * new_handle = MS_CALL_ORIGINAL_CONN_DATA_METHOD(stmt_init)(connection TSRMLS_CC);
 			if (!new_handle || !new_handle->data) {
-				DBG_ERR("new_handle is null");
+				MYSQLND_MS_DBG_ERR("new_handle is null");
 				if (TRUE == free_query) {
-					DBG_INF_FMT("Free query %p", query);
+					MYSQLND_MS_DBG_INF_FMT("Free query %p", query);
 					efree((void *)query);
 				}
-				DBG_RETURN(FAIL);
+				MYSQLND_MS_DBG_RETURN(FAIL);
 			}
 			s->data = new_handle->data;
 #if PHP_VERSION_ID < 70300
@@ -5290,11 +5302,11 @@ MYSQLND_METHOD(mysqlnd_ms_stmt, prepare)(MYSQLND_STMT * const s, const char * co
 		}
 		MS_CHECK_CONN_FOR_TRANSIENT_ERROR(connection, conn_data, transient_error_no);
 		if (transient_error_no) {
-			DBG_INF_FMT("Transient error "MYSQLND_LLU_SPEC, transient_error_no);
+			MYSQLND_MS_DBG_INF_FMT("Transient error "MYSQLND_LLU_SPEC, transient_error_no);
 			transient_error_retries++;
 			if (transient_error_retries <= (*conn_data)->stgy.transient_error_max_retries) {
 				MYSQLND_MS_INC_STATISTIC(MS_STAT_TRANSIENT_ERROR_RETRIES);
-				DBG_INF_FMT("Retry attempt %i/%i. Sleeping for "MYSQLND_LLU_SPEC" ms and retrying.",
+				MYSQLND_MS_DBG_INF_FMT("Retry attempt %i/%i. Sleeping for "MYSQLND_LLU_SPEC" ms and retrying.",
 					transient_error_retries,
 					(*conn_data)->stgy.transient_error_max_retries,
 					(*conn_data)->stgy.transient_error_usleep_before_retry);
@@ -5302,7 +5314,7 @@ MYSQLND_METHOD(mysqlnd_ms_stmt, prepare)(MYSQLND_STMT * const s, const char * co
 				usleep((*conn_data)->stgy.transient_error_usleep_before_retry);
 #endif
 			} else {
-				DBG_INF("No more transient error retries allowed");
+				MYSQLND_MS_DBG_INF("No more transient error retries allowed");
 				ret = FAIL;
 				break;
 			}
@@ -5323,7 +5335,7 @@ MYSQLND_METHOD(mysqlnd_ms_stmt, prepare)(MYSQLND_STMT * const s, const char * co
 #endif
 			if (!(*stmt_data)) {
 				MYSQLND_MS_WARN_OOM();
-				DBG_RETURN(FAIL);
+				MYSQLND_MS_DBG_RETURN(FAIL);
 			}
 			(*stmt_data)->query = NULL;
 			(*stmt_data)->query_len = 0;
@@ -5347,10 +5359,10 @@ MYSQLND_METHOD(mysqlnd_ms_stmt, prepare)(MYSQLND_STMT * const s, const char * co
 	}
 
 	if (TRUE == free_query) {
-		DBG_INF_FMT("Free query %p", query);
+		MYSQLND_MS_DBG_INF_FMT("Free query %p", query);
 		efree((void *)query);
 	}
-	DBG_RETURN(ret);
+	MYSQLND_MS_DBG_RETURN(ret);
 }
 /* }}} */
 
@@ -5367,7 +5379,7 @@ MYSQLND_METHOD(mysqlnd_ms_stmt, execute)(MYSQLND_STMT * const s TSRMLS_DC)
 	MYSQLND_STMT_DATA * stmt = s ? s->data:NULL;
 	zend_bool inject = FALSE;
 
-	DBG_ENTER("mysqlnd_ms_stmt::execute");
+	MYSQLND_MS_DBG_ENTER("mysqlnd_ms_stmt::execute");
 
 	if (!stmt ||
 		!s || !s->data || !s->data->conn ||
@@ -5377,12 +5389,12 @@ MYSQLND_METHOD(mysqlnd_ms_stmt, execute)(MYSQLND_STMT * const s TSRMLS_DC)
 		(stmt->param_count && !stmt->param_bind)
 		)
 	{
-		DBG_INF("skip MS");
+		MYSQLND_MS_DBG_INF("skip MS");
 		ret = ms_orig_mysqlnd_stmt_methods->execute(s TSRMLS_CC);
-		DBG_RETURN(ret);
+		MYSQLND_MS_DBG_RETURN(ret);
 	}
 	connection = s->data->conn;
-	DBG_INF_FMT("conn="MYSQLND_LLU_SPEC, connection->thread_id);
+	MYSQLND_MS_DBG_INF_FMT("conn="MYSQLND_LLU_SPEC, connection->thread_id);
 	{
 		zend_bool free_query = FALSE, switched_servers = FALSE;
 		size_t query_len;
@@ -5391,7 +5403,7 @@ MYSQLND_METHOD(mysqlnd_ms_stmt, execute)(MYSQLND_STMT * const s TSRMLS_DC)
 		MS_LOAD_STMT_DATA(stmt_data, s);
 		if (!stmt_data || !*stmt_data || !(*stmt_data)->query) {
 			SET_STMT_ERROR(stmt, CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, "Something wrong: No plugin data or query.");
-			DBG_RETURN(FAIL);
+			MYSQLND_MS_DBG_RETURN(FAIL);
 		}
 		query = (*stmt_data)->query;
 		query_len = (*stmt_data)->query_len;
@@ -5422,23 +5434,23 @@ MYSQLND_METHOD(mysqlnd_ms_stmt, execute)(MYSQLND_STMT * const s TSRMLS_DC)
 				COPY_CLIENT_ERROR(_ms_a_ei MYSQLND_MS_ERROR_INFO(s->data->conn), MYSQLND_MS_ERROR_INFO(connection));
 			}
 			if (TRUE == free_query) {
-				DBG_INF_FMT("Free query %p", query);
+				MYSQLND_MS_DBG_INF_FMT("Free query %p", query);
 				efree((void *)query);
 			}
 			if (CONN_DATA_TRX_SET(conn_data)) {
 				MYSQLND_MS_GTID_CALL((*conn_data)->global_trx.m->gtid_reset, (*conn_data)->proxy_conn, FAIL TSRMLS_CC);
 			}
-			DBG_RETURN(FAIL);
+			MYSQLND_MS_DBG_RETURN(FAIL);
 		}
 		if (CONN_DATA_TRX_SET(conn_data) && (*conn_data)->global_trx.memcached_debug_ttl) {
 			MYSQLND_MS_GTID_CALL((*conn_data)->global_trx.m->gtid_trace, connection, MEMCACHED_DEBUG_KEY, sizeof(MEMCACHED_DEBUG_KEY) - 1, (*conn_data)->global_trx.memcached_debug_ttl, query, query_len TSRMLS_CC);
 		}
-		DBG_INF_FMT("After pick server conn="MYSQLND_LLU_SPEC, connection->thread_id);
+		MYSQLND_MS_DBG_INF_FMT("After pick server conn="MYSQLND_LLU_SPEC, connection->thread_id);
 		if (connection != s->data->conn) {
 			MYSQLND_STMT * s_to_prepare = MS_CALL_ORIGINAL_CONN_DATA_METHOD(stmt_init)(connection TSRMLS_CC);
 			MYSQLND_STMT_DATA * stmt_to_prepare = s_to_prepare ? s_to_prepare->data:NULL;
 			if (!s_to_prepare || !s_to_prepare->data) {
-				DBG_ERR("s_to_prepare is null!");
+				MYSQLND_MS_DBG_ERR("s_to_prepare is null!");
 				SET_STMT_ERROR(stmt, CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, "Something wrong: switching statement, but s_to_prepare is null.");
 				ret = FAIL;
 			} else {
@@ -5480,7 +5492,7 @@ MYSQLND_METHOD(mysqlnd_ms_stmt, execute)(MYSQLND_STMT * const s TSRMLS_DC)
 					mnd_free(tmp_swap);
 				}
 				if (stmt_to_prepare != s->data || stmt != s_to_prepare->data || (stmt_to_prepare->param_bind && !stmt_to_prepare->send_types_to_server)) {
-					DBG_INF_FMT("Something wrong in stmt switch copy %s", query);
+					MYSQLND_MS_DBG_INF_FMT("Something wrong in stmt switch copy %s", query);
 				}
 				stmt = stmt_to_prepare;
 			}
@@ -5488,17 +5500,17 @@ MYSQLND_METHOD(mysqlnd_ms_stmt, execute)(MYSQLND_STMT * const s TSRMLS_DC)
 				s_to_prepare->m->dtor(s_to_prepare, TRUE TSRMLS_CC);
 			}
 			if (TRUE == free_query) {
-				DBG_INF_FMT("Free query %p", query);
+				MYSQLND_MS_DBG_INF_FMT("Free query %p", query);
 				efree((void *)query);
 			}
 			if (ret == FAIL) {
 				if (CONN_DATA_TRX_SET(conn_data)) {
 					MYSQLND_MS_GTID_CALL((*conn_data)->global_trx.m->gtid_reset, (*conn_data)->proxy_conn, FAIL TSRMLS_CC);
 				}
-				DBG_RETURN(FAIL);
+				MYSQLND_MS_DBG_RETURN(FAIL);
 			}
 		} else if (TRUE == free_query) {
-			DBG_INF_FMT("Free query %p", query);
+			MYSQLND_MS_DBG_INF_FMT("Free query %p", query);
 			efree((void *)query);
 		}
 	}
@@ -5521,7 +5533,7 @@ MYSQLND_METHOD(mysqlnd_ms_stmt, execute)(MYSQLND_STMT * const s TSRMLS_DC)
 					} else {
 						SET_CLIENT_ERROR(_ms_p_ei (connection->error_info), CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, "Error on gtid_inject_before");
 					}
-					DBG_RETURN(ret);
+					MYSQLND_MS_DBG_RETURN(ret);
 				}
 				SET_EMPTY_ERROR(_ms_a_ei MYSQLND_MS_ERROR_INFO(connection));
 				ret = PASS;
@@ -5534,11 +5546,11 @@ MYSQLND_METHOD(mysqlnd_ms_stmt, execute)(MYSQLND_STMT * const s TSRMLS_DC)
 		stmt_errno = ms_orig_mysqlnd_stmt_methods->get_error_no(s TSRMLS_CC);
 		MS_CHECK_FOR_TRANSIENT_ERROR(stmt_errno, conn_data, transient_error_no);
 		if (transient_error_no) {
-			DBG_INF_FMT("Transient error "MYSQLND_LLU_SPEC, transient_error_no);
+			MYSQLND_MS_DBG_INF_FMT("Transient error "MYSQLND_LLU_SPEC, transient_error_no);
 			transient_error_retries++;
 			if (transient_error_retries <= (*conn_data)->stgy.transient_error_max_retries) {
 				MYSQLND_MS_INC_STATISTIC(MS_STAT_TRANSIENT_ERROR_RETRIES);
-				DBG_INF_FMT("Retry attempt %i/%i. Sleeping for "MYSQLND_LLU_SPEC" ms and retrying.",
+				MYSQLND_MS_DBG_INF_FMT("Retry attempt %i/%i. Sleeping for "MYSQLND_LLU_SPEC" ms and retrying.",
 							transient_error_retries,
 							(*conn_data)->stgy.transient_error_max_retries,
 							(*conn_data)->stgy.transient_error_usleep_before_retry);
@@ -5546,7 +5558,7 @@ MYSQLND_METHOD(mysqlnd_ms_stmt, execute)(MYSQLND_STMT * const s TSRMLS_DC)
 				usleep((*conn_data)->stgy.transient_error_usleep_before_retry);
 #endif
 			} else {
-				DBG_INF("No more transient error retries allowed");
+				MYSQLND_MS_DBG_INF("No more transient error retries allowed");
 				break;
 			}
 		}
@@ -5560,7 +5572,7 @@ MYSQLND_METHOD(mysqlnd_ms_stmt, execute)(MYSQLND_STMT * const s TSRMLS_DC)
 				MS_STAT_GTID_AUTOCOMMIT_FAILURE);
 			if (FAIL == jret) {
 				if (TRUE == (*conn_data)->global_trx.report_error) {
-					DBG_INF("Report Error");
+					MYSQLND_MS_DBG_INF("Report Error");
 					if ((MYSQLND_MS_ERROR_INFO(connection)).error_no != 0) {
 						SET_STMT_ERROR(stmt,
 							(MYSQLND_MS_ERROR_INFO(connection)).error_no,
@@ -5569,14 +5581,14 @@ MYSQLND_METHOD(mysqlnd_ms_stmt, execute)(MYSQLND_STMT * const s TSRMLS_DC)
 					} else {
 						SET_CLIENT_ERROR(_ms_p_ei (connection->error_info), CR_UNKNOWN_ERROR, UNKNOWN_SQLSTATE, "Error on gtid_inject_after");
 					}
-					DBG_RETURN(jret);
+					MYSQLND_MS_DBG_RETURN(jret);
 				}
 				SET_EMPTY_ERROR(_ms_a_ei MYSQLND_MS_ERROR_INFO(stmt));
 				SET_EMPTY_ERROR(_ms_a_ei MYSQLND_MS_ERROR_INFO(connection));
 			}
 		}
 	}
-	DBG_RETURN(ret);
+	MYSQLND_MS_DBG_RETURN(ret);
 }
 /* }}} */
 
