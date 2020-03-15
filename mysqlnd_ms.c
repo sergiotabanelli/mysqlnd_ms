@@ -1263,7 +1263,7 @@ mysqlnd_ms_aux_ss_gtid_build_val(MYSQLND_MS_CONN_DATA * conn_data, const char *g
 	struct st_mysqlnd_ms_global_trx_injection * trx = &conn_data->global_trx;
 	_ms_smart_type * hash_key = conn_data->elm_pool_hash_key;
 	size_t gl = gtid ? strlen(gtid) : trx->last_ckgtid_len;
-	const char * g = gtid ? gtid : trx->last_ckgtid;
+	const char * g = (gtid && *gtid) ? gtid : trx->last_ckgtid;
     char th[80];
 	MS_DECLARE_AND_LOAD_CONN_DATA(proxy_conn_data, conn_data->proxy_conn);
 	size_t thl = snprintf(th, 80, "%llu:%llu:%llu:%llu:%llu:%llu:%llu|", conn_data->proxy_conn->thread_id,
@@ -1361,13 +1361,13 @@ mysqlnd_ms_aux_ss_gtid_mget(memcached_st *memc, char **value, char **gtid, uint6
 	char * pkey = (char *) ((void *)keys + sizeof(char *) * limit);
 	unsigned int i = 0;
 	unsigned int tlimit = depth == 0 ? 0 : limit;
-	DBG_ENTER("mysqlnd_ms_aux_ss_gtid_mget");
+	MYSQLND_MS_DBG_ENTER("mysqlnd_ms_aux_ss_gtid_mget");
 	*value = NULL;
 	if (limit > 0) {
 		for (; i < limit; i++) {
 			keys[i] = pkey + max_key_len * i;
 			keys_len[i] = snprintf(keys[i], max_key_len, "%s:%" PRIuMAX, key, umodule((int64_t)token - tlimit + i, module));
-			DBG_INF_FMT("Token %llu Key %d is %s", token, i, keys[i]);
+			MYSQLND_MS_DBG_INF_FMT("Token %llu Key %d is %s", token, i, keys[i]);
 		}
 		if (use_get == FALSE) {
 			rc = memcached_mget_by_key(memc, key, key_len, (const char * const*)keys, keys_len, limit);
@@ -1395,7 +1395,7 @@ mysqlnd_ms_aux_ss_gtid_mget(memcached_st *memc, char **value, char **gtid, uint6
 				if (retval && rcf == MEMCACHED_SUCCESS)
 				{
 					*last_chk = mysqlnd_ms_aux_gtid_extract(keys[i]);
-					DBG_INF_FMT("Found counter %d Key %llu is %s value %s last_r %s last_e %s last_eg %s fetch result %d", i, *last_chk, keys[i], retval, last_r, last_e, last_eg, rcf);
+					MYSQLND_MS_DBG_INF_FMT("Found counter %d Key %llu is %s value %s last_r %s last_e %s last_eg %s fetch result %d", i, *last_chk, keys[i], retval, last_r, last_e, last_eg, rcf);
 					if (*retval == GTID_RUNNING_MARKER) {
 						if (last_r)
 							free(last_r);
@@ -1440,7 +1440,7 @@ mysqlnd_ms_aux_ss_gtid_mget(memcached_st *memc, char **value, char **gtid, uint6
 						retval = NULL;
 					}
 				} else {
-					DBG_INF_FMT("Not found Key %d is %s last_r %s last_e %s last_eg %s fetch result %d", i, keys[i], last_r, last_e, last_eg, rcf);
+					MYSQLND_MS_DBG_INF_FMT("Not found Key %d is %s last_r %s last_e %s last_eg %s fetch result %d", i, keys[i], last_r, last_e, last_eg, rcf);
 					if (retval) {
 						free(retval);
 						retval = NULL;
@@ -1479,16 +1479,16 @@ mysqlnd_ms_aux_ss_gtid_mget(memcached_st *memc, char **value, char **gtid, uint6
 			if (last_e)
 				free(last_e);
 			ret = PASS;
-			DBG_INF_FMT("Return value %s gtid %s last_chk %llu depth %d mget result %d fetch result %d", *value, *gtid, *last_chk, depth, rc, rcf);
+			MYSQLND_MS_DBG_INF_FMT("Return value %s gtid %s last_chk %llu depth %d mget result %d fetch result %d", *value, *gtid, *last_chk, depth, rc, rcf);
 		}
 	} else {
 		*last_chk =  0;
-		DBG_INF_FMT("Limit 0 return value %s gtid %s last_chk %llu depth %d token %llu", *value, *gtid, *last_chk, depth, token);
+		MYSQLND_MS_DBG_INF_FMT("Limit 0 return value %s gtid %s last_chk %llu depth %d token %llu", *value, *gtid, *last_chk, depth, token);
 		ret = PASS;
 	}
 	if (mg)
 		efree(mg);
-	DBG_RETURN(ret);
+	MYSQLND_MS_DBG_RETURN(ret);
 }
 /* }}} */
 
@@ -1723,7 +1723,7 @@ mysqlnd_ms_aux_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, char 
 				} else {
 					zend_llist_add_element(selected_masters, &data);
 				}
-				if (gtid && !is_gtid) {
+				if (gtid && *gtid) {
 					if ((*dconn_data)->global_trx.last_ckgtid) {
 						mnd_pefree((*dconn_data)->global_trx.last_ckgtid, data->conn->persistent);
 					}
