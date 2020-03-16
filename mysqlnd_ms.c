@@ -1262,7 +1262,7 @@ mysqlnd_ms_aux_ss_gtid_build_val(MYSQLND_MS_CONN_DATA * conn_data, const char *g
 {
 	struct st_mysqlnd_ms_global_trx_injection * trx = &conn_data->global_trx;
 	_ms_smart_type * hash_key = conn_data->elm_pool_hash_key;
-	size_t gl = strlen(gtid);
+	size_t gl = gtid ? strlen(gtid) : 0;
 	const char * g = gtid;
     char th[80];
 	MS_DECLARE_AND_LOAD_CONN_DATA(proxy_conn_data, conn_data->proxy_conn);
@@ -1407,37 +1407,44 @@ mysqlnd_ms_aux_ss_gtid_mget(memcached_st *memc, char **value, char **gtid, uint6
 						if (tgid && *(tgid + 1)) {
 							char * p = strchr(tgid + 1, GTID_GTID_MARKER);
 							uintmax_t ngtid = 0;
-							*p = 0;
-							*tgid = 0;
-							tgid++;
-							if (*tgid) {
-								if (last_e && strcmp(last_e, retval)) {
-									max_e = 0;
-								}
-								ngtid = mysqlnd_ms_aux_gtid_extract(tgid);
-								if (ngtid > max_e) {
-									if (last_e)
-										free(last_e);
-									last_e = retval;
-									last_eg = tgid;
-									max_e = ngtid;
-									retval = NULL;
-								}
-							} else if (!last_eg) { // if no effective gtid is set fallback to checked gtid
-								tgid = strchr(p + 1, GTID_GTID_MARKER);
-								if (tgid && *(tgid + 1)) {
-									p = strchr(tgid + 1, GTID_GTID_MARKER);
-									*p = 0;
-									*tgid = 0;
-									tgid++;
-									if (*tgid) {
+							if (p) {
+								*p = 0;
+								*tgid = 0;
+								tgid++;
+	//							MYSQLND_MS_DBG_INF_FMT("First tgtid %s next is %s", tgid, p + 1);
+								if (*tgid) {
+									if (last_e && strcmp(last_e, retval)) {
+										max_e = 0;
+									}
+									ngtid = mysqlnd_ms_aux_gtid_extract(tgid);
+									if (ngtid > max_e) {
 										if (last_e)
 											free(last_e);
-										last_e = retval;
 										last_eg = tgid;
+										max_e = ngtid;
+										last_e = retval;
 										retval = NULL;
 									}
+								} else if (!last_eg) { // if no effective gtid is set fallback to checked gtid but do not set max executed gtid
+									tgid = p + 1;
+									if (tgid && *(tgid + 1)) {
+										p = strchr(tgid, GTID_GTID_MARKER);
+										if (p) {
+											*p = 0;
+		//									MYSQLND_MS_DBG_INF_FMT("Second tgtid %s next is %s", tgid, p + 1);
+											if (*tgid) {
+												if (last_e)
+													free(last_e);
+												last_eg = tgid;
+												last_e = retval;
+												retval = NULL;
+											}
+										}
+									}
 								}
+							}
+							if (!p) {
+								php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Something wrong found key %s with a non parsable exececuted format %s %s", keys[i], retval, tgid);
 							}
 						}
 					} else if (*retval == GTID_WAIT_MARKER && *found != 0) { //If we have a wait marker in the middle of found keys something is wrong
@@ -1476,23 +1483,16 @@ mysqlnd_ms_aux_ss_gtid_mget(memcached_st *memc, char **value, char **gtid, uint6
 				if (p)
 					*p = 0;
 				*value = last_r;
-				last_r = NULL;
 				*is_gtid = FALSE;
 
+			} else {
+				*value = last_e;
 			}
 			if (last_e && last_eg && *last_eg) {
 				size_t len = strlen(last_eg);
 				*gtid = malloc(len + 1);
 				strcpy(*gtid, last_eg);
-				if (!last_r) {
-					*value = last_e;
-					last_e = NULL;
-				}
 			} 
-			if (last_r)
-				free(last_r);
-			if (last_e)
-				free(last_e);
 			ret = PASS;
 			MYSQLND_MS_DBG_INF_FMT("Return value %s gtid %s last_chk %llu depth %d mget result %d fetch result %d", *value, *gtid, *last_chk, depth, rc, rcf);
 		}
@@ -1782,7 +1782,7 @@ mysqlnd_ms_aux_ss_gtid_set_last_write(MYSQLND_CONN_DATA * connection, char * gti
 	MS_DECLARE_AND_LOAD_CONN_DATA(conn_data, connection);
 	MS_DECLARE_AND_LOAD_CONN_DATA(proxy_conn_data, (*conn_data)->proxy_conn);
   	enum_func_status ret = PASS;
-	size_t gl = strlen(gtid);
+	size_t gl = gtid ? strlen(gtid) : 0;
 	char * g = gtid;
 	DBG_ENTER("mysqlnd_ms_aux_ss_gtid_set_last_write");
 	if ((*conn_data)->global_trx.last_wgtid) {

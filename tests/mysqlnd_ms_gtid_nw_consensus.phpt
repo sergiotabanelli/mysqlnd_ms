@@ -151,7 +151,7 @@ mysqlnd_ms.multi_master=1
  	echo "TEST no previous keys found with concurrent connection\n";	
 	mst_mysqli_insert_gtid_memcached(11/*offset*/, $memc_link, $sql['global_wkey'], 90, $db); 
 	// Set 90 to a wait token this way it shoud retry the selection process
-	mst_mysqli_insert_gtid_memcached(12/*offset*/, $memc_link, $sql['global_wkey'] . ":90", $wmaster1 .'?', $db); 
+	mst_mysqli_insert_gtid_memcached(12/*offset*/, $memc_link, $sql['global_wkey'] . ":90", $wmaster1 .'??', $db); 
 	//  round robin should now be on master 2 but retry should move it to master 3
   	mst_mysqli_query(13/*offset*/, $link, "SET @myrole = 'Master3'"); // We should also get a warning here
   	$rgtid = mst_mysqli_fetch_gtid_memcached(14/*offset*/, $memc_link, $db, "m.id = '" . $sql['global_wkey'] . ":88'");
@@ -171,11 +171,11 @@ mysqlnd_ms.multi_master=1
   	echo "TEST concurrency with mixed executed and running\n";	
 	mst_mysqli_insert_gtid_memcached(21/*offset*/, $memc_link, $sql['global_wkey'], 100, $db); 
 	// Set 96 to running on master2
-	mst_mysqli_insert_gtid_memcached(22/*offset*/, $memc_link, $sql['global_wkey'] . ":96", $rmaster2 .'?', $db); 
+	mst_mysqli_insert_gtid_memcached(22/*offset*/, $memc_link, $sql['global_wkey'] . ":96", $rmaster2 .'??', $db); 
 	// Set 97 to executed on master2 
-	mst_mysqli_insert_gtid_memcached(23/*offset*/, $memc_link, $sql['global_wkey'] . ":97", $emaster2 .'?', $db); 
+	mst_mysqli_insert_gtid_memcached(23/*offset*/, $memc_link, $sql['global_wkey'] . ":97", $emaster2 .'??', $db); 
 	// Set 98 to executed on master2 
-	mst_mysqli_insert_gtid_memcached(24/*offset*/, $memc_link, $sql['global_wkey'] . ":98", $emaster2 .'?', $db); 
+	mst_mysqli_insert_gtid_memcached(24/*offset*/, $memc_link, $sql['global_wkey'] . ":98", $emaster2 .'??', $db); 
   	mst_mysqli_query(25/*offset*/, $link, "SET @myrole = 'Master2'");
   	$rgtid = mst_mysqli_fetch_gtid_memcached(26/*offset*/, $memc_link, $db, "m.id = '" . $sql['global_wkey'] . ":95'");
  	if ($rgtid) {
@@ -194,11 +194,11 @@ mysqlnd_ms.multi_master=1
   	echo "TEST concurrency with non progressive executed gtid\n";	
 	mst_mysqli_insert_gtid_memcached(33/*offset*/, $memc_link, $sql['global_wkey'], 110, $db); 
 	// Set 105 to executed on master2 whith 500 
-	mst_mysqli_insert_gtid_memcached(34/*offset*/, $memc_link, $sql['global_wkey'] . ":107", $emaster2 .'m2:500?', $db); 
+	mst_mysqli_insert_gtid_memcached(34/*offset*/, $memc_link, $sql['global_wkey'] . ":107", $emaster2 .'m2:500??', $db); 
 	// Set 106 to executed on master1 with 400 this should be the gtid against which shoud be checked 
-	mst_mysqli_insert_gtid_memcached(35/*offset*/, $memc_link, $sql['global_wkey'] . ":108", $emaster1 .'m1:400?', $db); 
+	mst_mysqli_insert_gtid_memcached(35/*offset*/, $memc_link, $sql['global_wkey'] . ":108", $emaster1 .'m1:400??', $db); 
 	// Set 107 to executed on master1 with 200 this should not be chosed
-	mst_mysqli_insert_gtid_memcached(36/*offset*/, $memc_link, $sql['global_wkey'] . ":109", $emaster1 .'m1:200?', $db); 
+	mst_mysqli_insert_gtid_memcached(36/*offset*/, $memc_link, $sql['global_wkey'] . ":109", $emaster1 .'m1:200??', $db); 
 	mst_mysqli_set_my_gtid_executed($master1_link, 'm2:500,m1:200,m1:400');
 	mst_mysqli_set_my_gtid_executed($master2_link, 'm2:500');
 	mst_mysqli_set_my_gtid_executed($master3_link, 'm1:400'); // Only master1 and master3 has the right gtid	

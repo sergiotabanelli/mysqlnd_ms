@@ -136,10 +136,10 @@ mysqlnd_ms.multi_master=1
 	if (!($stmt2 = $link->prepare("/*".MYSQLND_MS_LAST_USED_SWITCH."*/SELECT @myrole AS _role FROM DUAL"))) // Prepared on master1
 		printf("[".(string)5/*offset*/."] [%d] %s\n", $link->errno, $link->error);
 
-	if (!($stmt3 = $link->prepare("INSERT INTO gtid_test(id) VALUES(CONCAT(@@server_uuid,'-',@myrole))"))) // Prepared on master2
+	if (!($stmt3 = $link->prepare("INSERT INTO gtid_test(id) VALUES(CONCAT(@myrole,'-',@@server_uuid))"))) // Prepared on master2
 		printf("[".(string)6/*offset*/."] [%d] %s\n", $link->errno, $link->error);
 
-	if (!($stmt4 = $link->prepare("SELECT CONCAT(@myrole,'-',id) AS _ext_id FROM gtid_test ORDER BY id"))) // Prepared on master3
+	if (!($stmt4 = $link->prepare("SELECT CONCAT(@myrole,'-',id) AS _ext_id FROM gtid_test ORDER BY _ext_id"))) // Prepared on master3
 		printf("[".(string)7/*offset*/."] [%d] %s\n", $link->errno, $link->error);
 
 	$role = NULL;
@@ -236,8 +236,8 @@ mysqlnd_ms.multi_master=1
 
 	$res = mst_mysqli_query(38/*offset*/, $link1, "SET @myrole1 = 'Master2'"); // First in list is now Master2 
 	$res = mst_mysqli_query(39/*offset*/, $link1, "SET @myrole1 = 'Master1'"); // Execute on master1
-	$res = mst_mysqli_query(40/*offset*/, $link1, "SET @myrole1 = CONCAT('Master1','-',@myrole1)"); // First in list is now Master1
-	$res = mst_mysqli_query(41/*offset*/, $link1, "SET @myrole1 = CONCAT('Master2','-',@myrole1)"); // Execute on master2
+	$res = mst_mysqli_query(40/*offset*/, $link1, "SET @myrole1 = CONCAT('Master2','-',@myrole1)"); // Execute on master2
+	$res = mst_mysqli_query(41/*offset*/, $link1, "SET @myrole1 = CONCAT('Master1','-',@myrole1)"); // Execute on master1
 
 	$res = mst_mysqli_query(42/*offset*/, $link1, "SELECT @myrole1 AS _role FROM DUAL"); // First in list is now Master2 
 	var_dump($res->fetch_assoc());
@@ -286,17 +286,17 @@ array(1) {
   string(7) "Master3"
 }
 Num_rows 1
-Server uid Master1-%s-Master1
+Server uid Master1-Master1-%s
 Server uid Master1-MY_EXECUTED_GTID
 Num_rows 1
-Server uid Master1-%s-Master1
-Server uid Master1-%s-Master2
+Server uid Master1-Master1-%s
+Server uid Master1-Master2-%s
 Server uid Master1-MY_EXECUTED_GTID
-Server uid Master2-%s-Master1
-Server uid Master2-%s-Master2
+Server uid Master2-Master1-%s
+Server uid Master2-Master2-%s
 Server uid Master2-MY_EXECUTED_GTID
-Server uid Master1-%s-Master1
-Server uid Master1-%s-Master2
+Server uid Master1-Master1-%s
+Server uid Master1-Master2-%s
 Server uid Master1-MY_EXECUTED_GTID
 array(1) {
   ["_role"]=>
