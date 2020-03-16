@@ -1782,8 +1782,8 @@ mysqlnd_ms_aux_ss_gtid_set_last_write(MYSQLND_CONN_DATA * connection, char * gti
 	MS_DECLARE_AND_LOAD_CONN_DATA(conn_data, connection);
 	MS_DECLARE_AND_LOAD_CONN_DATA(proxy_conn_data, (*conn_data)->proxy_conn);
   	enum_func_status ret = PASS;
-	size_t gl = gtid ? strlen(gtid) : (*conn_data)->global_trx.last_ckgtid_len;
-	char * g = gtid ? gtid : (*conn_data)->global_trx.last_ckgtid;
+	size_t gl = strlen(gtid);
+	char * g = gtid;
 	DBG_ENTER("mysqlnd_ms_aux_ss_gtid_set_last_write");
 	if ((*conn_data)->global_trx.last_wgtid) {
 		mnd_pefree((*conn_data)->global_trx.last_wgtid, connection->persistent);
