@@ -1262,8 +1262,8 @@ mysqlnd_ms_aux_ss_gtid_build_val(MYSQLND_MS_CONN_DATA * conn_data, const char *g
 {
 	struct st_mysqlnd_ms_global_trx_injection * trx = &conn_data->global_trx;
 	_ms_smart_type * hash_key = conn_data->elm_pool_hash_key;
-	size_t gl = gtid ? strlen(gtid) : trx->last_ckgtid_len;
-	const char * g = (gtid && *gtid) ? gtid : trx->last_ckgtid;
+	size_t gl = strlen(gtid);
+	const char * g = gtid;
     char th[80];
 	MS_DECLARE_AND_LOAD_CONN_DATA(proxy_conn_data, conn_data->proxy_conn);
 	size_t thl = snprintf(th, 80, "%llu:%llu:%llu:%llu:%llu:%llu:%llu|", conn_data->proxy_conn->thread_id,
@@ -1280,17 +1280,17 @@ mysqlnd_ms_aux_ss_gtid_build_val(MYSQLND_MS_CONN_DATA * conn_data, const char *g
 	if (gl)
 		memcpy(val, g, gl);
 	val +=gl;
+	*val = GTID_GTID_MARKER;
+	val++;
+	if (trx->last_ckgtid_len)
+		memcpy(val, trx->last_ckgtid, trx->last_ckgtid_len);
+	val += trx->last_ckgtid_len;
 	// BEGIN TEMPORARY HACK
 	*val = GTID_GTID_MARKER;
 	val++;
 	if (trx->last_gtid_len)
 		memcpy(val, trx->last_gtid, trx->last_gtid_len);
 	val += trx->last_gtid_len;
-	*val = GTID_GTID_MARKER;
-	val++;
-	if (trx->last_ckgtid_len)
-		memcpy(val, trx->last_ckgtid, trx->last_ckgtid_len);
-	val += trx->last_ckgtid_len;
 	*val = GTID_GTID_MARKER;
 	val++;
 	if (query_len)
@@ -1402,14 +1402,12 @@ mysqlnd_ms_aux_ss_gtid_mget(memcached_st *memc, char **value, char **gtid, uint6
 						last_r = retval;
 						retval = NULL;
 						*found = *last_chk + 1;
-					} else if (*retval == GTID_EXECUTED_MARKER && !last_r) {
+					} else if (*retval == GTID_EXECUTED_MARKER) {
 						char * tgid = strchr(retval, GTID_GTID_MARKER);
 						if (tgid && *(tgid + 1)) {
 							char * p = strchr(tgid + 1, GTID_GTID_MARKER);
 							uintmax_t ngtid = 0;
-							if (p) {
-								*p = 0;
-							}
+							*p = 0;
 							*tgid = 0;
 							tgid++;
 							if (*tgid) {
@@ -1424,6 +1422,21 @@ mysqlnd_ms_aux_ss_gtid_mget(memcached_st *memc, char **value, char **gtid, uint6
 									last_eg = tgid;
 									max_e = ngtid;
 									retval = NULL;
+								}
+							} else if (!last_eg) { // if no effective gtid is set fallback to checked gtid
+								tgid = strchr(p + 1, GTID_GTID_MARKER);
+								if (tgid && *(tgid + 1)) {
+									p = strchr(tgid + 1, GTID_GTID_MARKER);
+									*p = 0;
+									*tgid = 0;
+									tgid++;
+									if (*tgid) {
+										if (last_e)
+											free(last_e);
+										last_e = retval;
+										last_eg = tgid;
+										retval = NULL;
+									}
 								}
 							}
 						}
@@ -1471,9 +1484,11 @@ mysqlnd_ms_aux_ss_gtid_mget(memcached_st *memc, char **value, char **gtid, uint6
 				size_t len = strlen(last_eg);
 				*gtid = malloc(len + 1);
 				strcpy(*gtid, last_eg);
-				*value = last_e;
-				last_e = NULL;
-			}
+				if (!last_r) {
+					*value = last_e;
+					last_e = NULL;
+				}
+			} 
 			if (last_r)
 				free(last_r);
 			if (last_e)
