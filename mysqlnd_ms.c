@@ -968,6 +968,7 @@ mysqlnd_ms_aux_gtid_choose_connection(MYSQLND_CONN_DATA * conn, const char * gti
 	// If there is no gtid and we have multiple masters or slaves then add only actives.
 	if (zend_llist_count(server_list) > 1 && (!gtid || !strcmp(gtid, "0"))) {
 		mysqlnd_ms_aux_gtid_add_active(conn, server_list, selected_servers, is_write TSRMLS_CC);
+		MYSQLND_MS_DBG_INF_FMT("Empty gtid %s, add all active servers list %u selected %u", gtid, zend_llist_count(server_list), zend_llist_count(selected_servers));
 		MYSQLND_MS_DBG_VOID_RETURN;
 	}
 	BEGIN_ITERATE_OVER_SERVER_LIST(element, server_list)
