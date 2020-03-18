@@ -536,6 +536,17 @@
 		return $ret;
 	}
 
+	function mst_mysqli_fetch_gtid_memcached_errors($offset, $link, $db) {
+		$oprf = is_numeric($offset) ? "%03d" : "%s";
+		$sql = mst_get_gtid_memcached($db);
+		$query = sprintf("/*%d*/%s WHERE %s", $offset, $sql['select'], "m.id LIKE '__error__%'");
+		if (!($res = $link->query($query))) {
+			printf("[$oprf] [%d] %s\n", $offset, $link->errno, $link->error);
+			return NULL;
+		}
+		return $res;
+	}
+
 	function mst_mysqli_fetch_wgtid_memcached($offset, $link, $db, $where, $nw = false) {
 		$oprf = is_numeric($offset) ? "%03d" : "%s";
 		$sql = mst_get_gtid_memcached($db);

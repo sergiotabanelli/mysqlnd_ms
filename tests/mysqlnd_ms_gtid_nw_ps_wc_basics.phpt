@@ -298,10 +298,6 @@ Server uid Master1-Master2-%s
 Server uid Master1-MY_EXECUTED_GTID
 array(1) {
   ["_role"]=>
-  string(15) "Master2-Master2"
-}
-array(1) {
-  ["_role"]=>
   string(15) "Master1-Master1"
 }
 array(1) {
@@ -311,6 +307,10 @@ array(1) {
 array(1) {
   ["_role"]=>
   string(15) "Master1-Master1"
+}
+array(1) {
+  ["_role"]=>
+  string(15) "Master2-Master2"
 }
 array(1) {
   ["id"]=>
