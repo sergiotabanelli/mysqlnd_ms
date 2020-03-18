@@ -260,8 +260,6 @@ mysqlnd_ms.multi_master=1
 
 	require_once("connect.inc");
 	require_once("util.inc");
-	require_once("connect.inc");
-	require_once("util.inc");
 	if ($error = mst_mysqli_drop_gtid_memcached($emulated_master_host_only, $user, $passwd, $db, $emulated_master_port, $emulated_master_socket))
 		printf("[clean] %s\n", $error);
 	if ($error = mst_mysqli_drop_gtid_test_table($master_host_only, $user, $passwd, $db, $master_port, $master_socket))
