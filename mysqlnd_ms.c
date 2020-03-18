@@ -1316,14 +1316,14 @@ mysqlnd_ms_aux_ss_gtid_mtoken(memcached_st *memc, const char *key, uint64_t *own
 	size_t key_len = strlen(key);
 	uint64_t token = 0;
 	uint32_t flags;
-	DBG_ENTER("mysqlnd_ms_aux_ss_gtid_mtoken");
+	MYSQLND_MS_DBG_ENTER("mysqlnd_ms_aux_ss_gtid_mtoken");
 	if (inc) {
 		if ((rc = memcached_increment_by_key(memc, key, key_len, key, key_len, 1, &token)) == MEMCACHED_SUCCESS) {
 			if (module && token == module + 1) {
 				uint64_t t;
 				rc = memcached_decrement_by_key(memc, key, key_len, key, key_len, module, &t);
 			}
-			DBG_INF_FMT("Increment key %s token %llu return %d", key, token, rc);
+			MYSQLND_MS_DBG_INF_FMT("Increment key %s token %llu return %d", key, token, rc);
 		}
 	} else {
 		size_t value_len;
@@ -1332,15 +1332,15 @@ mysqlnd_ms_aux_ss_gtid_mtoken(memcached_st *memc, const char *key, uint64_t *own
 			token = strtoumax(value, NULL, 10);
 			free(value);
 		}
-		DBG_INF_FMT("Get key %s token %llu return %d", key, token, rc);
+		MYSQLND_MS_DBG_INF_FMT("Get key %s token %llu return %d", key, token, rc);
 	}
 	if (rc == MEMCACHED_SUCCESS) {
 		*owned_token = umodule(((int64_t)token  - 1), module);
 	} else {
-		DBG_INF_FMT("Something wrong increment returned %d token %llu",  rc, token);
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Something wrong increment returned %d token %llu",  rc, token);
 	}
-	DBG_RETURN(rc == MEMCACHED_SUCCESS ? SUCCESS : FAIL);
+	MYSQLND_MS_DBG_INF_FMT("Memcached returned %d token %llu",  rc, token);
+	MYSQLND_MS_DBG_RETURN(rc == MEMCACHED_SUCCESS ? SUCCESS : FAIL);
 }
 /* }}} */
 
@@ -1673,14 +1673,14 @@ mysqlnd_ms_aux_ss_gtid_filter(MYSQLND_CONN_DATA * conn, const char * gtid, char 
 			MYSQLND_MS_DBG_INF_FMT("For key %s increment token %llu last found %llu with value %s gtid %s", (*conn_data)->global_trx.memcached_key, (*conn_data)->global_trx.owned_token, (*conn_data)->global_trx.last_chk_token, value, mgtid);
 			gtid = mgtid;
 			host = value;
+			if (gtid)
+				mysqlnd_ms_section_filters_set_gtid_qos(conn, gtid, strlen(gtid) TSRMLS_CC);
 		} else {
 			php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Something wrong could not get owned token %s",  (*conn_data)->global_trx.memcached_key);
 		}
 	}
 	if (!is_write && (*conn_data)->global_trx.first_read) {
 		(*conn_data)->global_trx.first_read = FALSE;
-		if (gtid)
-			mysqlnd_ms_section_filters_set_gtid_qos(conn, gtid, strlen(gtid) TSRMLS_CC);
 	}
 	if ((*conn_data)->global_trx.injectable_query) {
 		checkw = (*conn_data)->global_trx.memc && (*conn_data)->global_trx.memcached_wkey &&

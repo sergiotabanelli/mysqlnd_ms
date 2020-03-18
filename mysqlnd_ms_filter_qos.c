@@ -57,7 +57,7 @@ mysqlnd_ms_section_filters_set_gtid_qos(MYSQLND_CONN_DATA * conn, const char * g
 	MS_DECLARE_AND_LOAD_CONN_DATA(conn_data, conn);
 	enum_func_status ret = FAIL;
 	MYSQLND_MS_DBG_ENTER("mysqlnd_ms_section_filters_set_gtid_qos");
-	MYSQLND_MS_DBG_INF_FMT("set gtid %s", gtid);
+	MYSQLND_MS_DBG_INF_FMT("set gtid %s %lu", gtid, gtid_len);
 	if (conn_data && *conn_data) {
 		struct mysqlnd_ms_lb_strategies * stgy = &(*conn_data)->stgy;
 		zend_llist * filters = stgy->filters;
@@ -87,7 +87,7 @@ mysqlnd_ms_section_filters_set_gtid_qos(MYSQLND_CONN_DATA * conn, const char * g
 				qos_filter->option_data.gtid_len = gtid_len;
 				qos_filter->option_data.gtid = estrndup(gtid, gtid_len);
 				qos_filter->option = QOS_OPTION_GTID;
-				MYSQLND_MS_DBG_INF_FMT("set qos gtid %s", qos_filter->option_data.gtid);
+				MYSQLND_MS_DBG_INF_FMT("set qos option gtid_len %lu gtid %s pointer %p, gtid arg is %s pointer %p", qos_filter->option_data.gtid_len, qos_filter->option_data.gtid, qos_filter->option_data.gtid, gtid, gtid);
 			}
 			ret = PASS;
 		}
