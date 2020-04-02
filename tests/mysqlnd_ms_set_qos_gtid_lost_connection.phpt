@@ -134,6 +134,12 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_set_qos_gtid_lost_connection.ini
 		printf("[clean] %s\n", $error);
 ?>
 --EXPECTF--
+
+Warning: mysqli::query(): (mysqlnd_ms) No consistent node found %s
+
+Warning: mysqli::query(): (mysqlnd_ms) No consistent node found %s
+
+Warning: mysqli::query(): (mysqlnd_ms) No consistent node found %s
 [006] [%d] %s
 [007] [%d] %s
 done!

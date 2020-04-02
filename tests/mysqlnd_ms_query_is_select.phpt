@@ -60,6 +60,10 @@ mysqlnd_ms.enable=1
 		 /* Note: tokenizer is stupid - only switches at the very beginning are recognized */
 		"SELECT 1 FROM DUAL/*" . MYSQLND_MS_MASTER_SWITCH . "*/" => MYSQLND_MS_QUERY_USE_SLAVE,
 		"INSERT INTO test(id) VALUES (1); SELECT 1 FROM DUAL/*" . MYSQLND_MS_SLAVE_SWITCH . "*/" => MYSQLND_MS_QUERY_USE_MASTER,
+		/* some strange select */
+		"     SELECT 1 from DUAL" 	=> MYSQLND_MS_QUERY_USE_SLAVE,
+		"(SELECT 1 from DUAL)" 	=> MYSQLND_MS_QUERY_USE_MASTER,
+		"  (   SELECT 1 from DUAL)" 	=> MYSQLND_MS_QUERY_USE_MASTER,
 	);
 
 	if (!is_null(($tmp = @mysqlnd_ms_query_is_select())))
@@ -92,6 +96,9 @@ mysqlnd_ms.enable=1
 'CALL p()/*ms=master*/' => 'master'
 'SELECT 1 FROM DUAL/*ms=master*/' => 'slave'
 'INSERT INTO test(id) VALUES (1); SELECT 1 FROM DUAL/*ms=slave*/' => 'master'
+'     SELECT 1 from DUAL' => 'slave'
+'(SELECT 1 from DUAL)' => 'master'
+'  (   SELECT 1 from DUAL)' => 'master'
 '' => 'master'
 %sa%s => 'master'
 done!

@@ -640,18 +640,18 @@ mysqlnd_ms_query_is_select(const char * query, size_t query_len, unsigned int * 
 	struct st_mysqlnd_query_scanner * scanner;
 	const char * master_on = INI_STR("mysqlnd_ms.master_on");
 	const char * inject_on = INI_STR("mysqlnd_ms.inject_on");
-	DBG_ENTER("mysqlnd_ms_query_is_select");
+	MYSQLND_MS_DBG_ENTER("mysqlnd_ms_query_is_select");
 
 	*forced = 0;
 	if (!query) {
-		DBG_RETURN(USE_MASTER);
+		MYSQLND_MS_DBG_RETURN(USE_MASTER);
 	}
 
-	DBG_INF_FMT("Query(len)  %s(%d)", query, query_len);
+	MYSQLND_MS_DBG_INF_FMT("Query(len)  %s(%d)", query, query_len);
 	scanner = mysqlnd_qp_create_scanner(TSRMLS_C);
 	mysqlnd_qp_set_string(scanner, query, query_len TSRMLS_CC);
 	token = mysqlnd_qp_get_token(scanner TSRMLS_CC);
-	DBG_INF_FMT("token=COMMENT? = %d", token.token == QC_TOKEN_COMMENT);
+	MYSQLND_MS_DBG_INF_FMT("token=COMMENT? = %d", token.token == QC_TOKEN_COMMENT);
 	while (token.token == QC_TOKEN_COMMENT) {
 		size_t comment_len = Z_STRLEN(token.value);
 		char * comment = Z_STRVAL(token.value);
@@ -663,44 +663,46 @@ mysqlnd_ms_query_is_select(const char * query, size_t query_len, unsigned int * 
 		if ((comment_len >= sizeof(MASTER_SWITCH)) && (comment[sizeof(MASTER_SWITCH)] == '\0' || isspace(comment[sizeof(MASTER_SWITCH)])) &&
 				!strncasecmp(comment, MASTER_SWITCH, sizeof(MASTER_SWITCH) - 1))
 		{
-			DBG_INF("forced master");
+			MYSQLND_MS_DBG_INF("forced master");
 			*forced = *forced | TYPE_MASTER_SWITCH;
 		} else if ((comment_len >= sizeof(SLAVE_SWITCH)) && (comment[sizeof(SLAVE_SWITCH)] == '\0' || isspace(comment[sizeof(SLAVE_SWITCH)])) &&
 						!strncasecmp(comment, SLAVE_SWITCH, sizeof(SLAVE_SWITCH) - 1) && !MYSQLND_MS_G(disable_rw_split))
 		{
-			DBG_INF("forced slave");
+			MYSQLND_MS_DBG_INF("forced slave");
 			*forced = *forced | TYPE_SLAVE_SWITCH;
 		} else if ((comment_len >= sizeof(LAST_USED_SWITCH)) && (comment[sizeof(LAST_USED_SWITCH)] == '\0' || isspace(comment[sizeof(LAST_USED_SWITCH)])) &&
 						!strncasecmp(comment, LAST_USED_SWITCH, sizeof(LAST_USED_SWITCH) - 1))
 		{
-			DBG_INF("forced last used");
+			MYSQLND_MS_DBG_INF("forced last used");
 			*forced = *forced | TYPE_LAST_USED_SWITCH;
 #ifdef ALL_SERVER_DISPATCH
 		} else if ((comment_len >= sizeof(ALL_SERVER_SWITCH)) && (comment[sizeof(ALL_SERVER_SWITCH)] == '\0' || isspace(comment[sizeof(ALL_SERVER_SWITCH)])) &&
 						!strncasecmp(comment, ALL_SERVER_SWITCH, sizeof(ALL_SERVER_SWITCH) - 1))
 		{
-			DBG_INF("forced all server");
+			MYSQLND_MS_DBG_INF("forced all server");
 			*forced = *forced | TYPE_ALL_SERVER_SWITCH;
 #endif
 		} else 	if ((comment_len >= sizeof(STRONG_SWITCH)) && (comment[sizeof(STRONG_SWITCH)] == '\0' || isspace(comment[sizeof(STRONG_SWITCH)])) &&
 				!strncasecmp(comment, STRONG_SWITCH, sizeof(STRONG_SWITCH) - 1))
 		{
-			DBG_INF("forced strong");
+			MYSQLND_MS_DBG_INF("forced strong");
 			*forced = *forced | TYPE_STRONG_SWITCH;
 		} else if ((comment_len >= sizeof(SESSION_SWITCH)) && (comment[sizeof(SESSION_SWITCH)] == '\0' || isspace(comment[sizeof(SESSION_SWITCH)])) &&
 						!strncasecmp(comment, SESSION_SWITCH, sizeof(SESSION_SWITCH) - 1))
 		{
-			DBG_INF("forced session");
+			MYSQLND_MS_DBG_INF("forced session");
 			*forced = *forced | TYPE_SESSION_SWITCH;
 		} else if ((comment_len >= sizeof(EVENTUAL_SWITCH)) && (comment[sizeof(EVENTUAL_SWITCH)] == '\0' || isspace(comment[sizeof(EVENTUAL_SWITCH)])) &&
 						!strncasecmp(comment, EVENTUAL_SWITCH, sizeof(EVENTUAL_SWITCH) - 1))
 		{
-			DBG_INF("forced eventual");
+			MYSQLND_MS_DBG_INF("forced eventual");
 			*forced = *forced | TYPE_EVENTUAL_SWITCH;
 		}
 		zval_dtor(&token.value);
 		token = mysqlnd_qp_get_token(scanner TSRMLS_CC);
 	}
+	MYSQLND_MS_DBG_INF_FMT("token type %d", token.token);
+
 	if (MYSQLND_MS_G(disable_rw_split)) {
 		ret = USE_MASTER;
 	} else if (token.token == QC_TOKEN_SELECT) {
@@ -712,17 +714,17 @@ mysqlnd_ms_query_is_select(const char * query, size_t query_len, unsigned int * 
 	} else if (master_on && strlen(master_on) && Z_TYPE(token.value) == IS_STRING && Z_STRVAL(token.value)) {
 		char * master_tok;
 		char * tok;
-		DBG_INF_FMT("master_on %s", master_on);
+		MYSQLND_MS_DBG_INF_FMT("master_on %s token %s", master_on, Z_STRVAL(token.value));
 		master_tok = strdup(master_on);
 		tok = strtok(master_tok, ",");
 		while( tok != NULL && strcasecmp(tok, Z_STRVAL(token.value))) {
 			tok = strtok(NULL, ",");
 		}
 		if (tok) {
-			DBG_INF("master_on master");
+			MYSQLND_MS_DBG_INF("master_on master");
 			ret = USE_MASTER;
 		} else {
-			DBG_INF("master_on slave");
+			MYSQLND_MS_DBG_INF("master_on slave");
 			ret = USE_SLAVE;
 		}
 		free(master_tok);
@@ -732,21 +734,21 @@ mysqlnd_ms_query_is_select(const char * query, size_t query_len, unsigned int * 
 	if (ret == USE_MASTER && inject_on && strlen(inject_on) && Z_TYPE(token.value) == IS_STRING && Z_STRVAL(token.value)) {
 		char * master_tok;
 		char * tok;
-		DBG_INF_FMT("inject_on %s", inject_on);
+		MYSQLND_MS_DBG_INF_FMT("inject_on %s", inject_on);
 		master_tok = strdup(inject_on);
 		tok = strtok(master_tok, ",");
 		while( tok != NULL && strcasecmp(tok, Z_STRVAL(token.value))) {
 			tok = strtok(NULL, ",");
 		}
 		if (tok) {
-			DBG_INF_FMT("injectable query token %s", tok);
+			MYSQLND_MS_DBG_INF_FMT("injectable query token %s", tok);
 			*forced = *forced | TYPE_INJECT_SWITCH;
 		}
 		free(master_tok);
 	} else if (ret == USE_MASTER || (*forced & TYPE_MASTER_SWITCH) == TYPE_MASTER_SWITCH){
 		*forced = *forced | TYPE_INJECT_SWITCH;
 	}
-	DBG_INF_FMT("Forced %d guess ret %d", *forced, ret);
+	MYSQLND_MS_DBG_INF_FMT("Forced %d guess ret %d", *forced, ret);
 	if ((*forced & TYPE_NODE_SWITCH) == 0) {
 		if (!MYSQLND_MS_G(disable_rw_split)) {
 			if (ret == USE_SLAVE) {
@@ -766,10 +768,10 @@ mysqlnd_ms_query_is_select(const char * query, size_t query_len, unsigned int * 
 			MYSQLND_MS_INC_STATISTIC(MS_STAT_USE_LAST_USED_FORCED);
 		}
 	}
-	DBG_INF_FMT("Query is %u", ret);
+	MYSQLND_MS_DBG_INF_FMT("Query is %u", ret);
 	zval_dtor(&token.value);
 	mysqlnd_qp_free_scanner(scanner TSRMLS_CC);
-	DBG_RETURN(ret);
+	MYSQLND_MS_DBG_RETURN(ret);
 }
 /* }}} */
 

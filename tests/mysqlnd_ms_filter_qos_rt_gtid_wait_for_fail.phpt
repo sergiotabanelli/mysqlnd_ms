@@ -155,6 +155,10 @@ array(1) {
   }
 }
 GTID '%s'
+
+Warning: mysqli::query(): (mysqlnd_ms) No consistent node found %s
+
+Warning: mysqli::query(): (mysqlnd_ms) No consistent node found %s
 array(1) {
   [0]=>
   array(1) {

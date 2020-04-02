@@ -104,6 +104,8 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_gtid_nw_serverside_basics.ini
 <?php
 	require_once("connect.inc");
 	require_once("util.inc");
+ 	$sql = mst_get_gtid_memcached($db);
+    $rwhere = "m.id = '" . $sql['global_key'] . ":0'";
 
 	$link = mst_mysqli_connect("myapp", $user, $passwd, $db, $port, $socket);
 	if (mysqli_connect_errno()) {
@@ -189,7 +191,7 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_gtid_nw_serverside_basics.ini
 		printf("[000] [%d] %s\n", mysqli_connect_errno(), mysqli_connect_error());
 	}
 
-	$mgtid = mst_mysqli_fetch_gtid_memcached(15, $memc_link, $db, NULL, true);
+	$mgtid = mst_mysqli_fetch_gtid_memcached(15, $memc_link, $db, $rwhere, true);
 	if (!$mgtid[1] || $mgtid[1] != $gtid)
 		printf("[15CHK] Expecting gtid %s on memcached got %s\n", $gtid, $mgtid[1]);	
 

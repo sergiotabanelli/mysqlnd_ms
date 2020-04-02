@@ -303,6 +303,8 @@ le AS _role FROM DUAL", MYSQLND_MS_MASTER_SWITCH))) {
 ?>
 --EXPECTF--
 Hi there, this is your Master speaking
+
+Warning: mysqli::query(): (mysqlnd_ms) No consistent node found %s
 Let me be your #1
 [043] [2006] %s
 [054] [2006] %s

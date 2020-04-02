@@ -423,6 +423,7 @@
 											VALUES ('default', '$mst_gtid_db', 'memcached', 'id', 'trx_id', 'flags','cas','expiry','PRIMARY')",
 				'delete_container'		=> "DELETE FROM `innodb_memcache`.`containers` WHERE `db_schema` = '$mst_gtid_db' AND `db_table` = 'memcached'",
 				'select'				=> 'SELECT m.trx_id AS trx_id FROM ' . $mst_gtid_db . '.memcached m',
+				'select_all'			=> 'SELECT id, trx_id FROM ' . $mst_gtid_db . '.memcached m',
 				'selectw'				=> "SELECT mm.trx_id AS trx_id FROM $mst_gtid_db.memcached m JOIN $mst_gtid_db.memcached mm ON mm.id = CONCAT(m.id, ':', m.trx_id)",
 				'selectw_nw'			=> "SELECT mm.trx_id AS trx_id FROM $mst_gtid_db.memcached m JOIN $mst_gtid_db.memcached mm ON mm.id = CONCAT(m.id, ':', (m.trx_id - 1))",
 				'fetch_last_gtid'		=> 'SELECT @@GLOBAL.GTID_EXECUTED AS trx_id FROM DUAL',

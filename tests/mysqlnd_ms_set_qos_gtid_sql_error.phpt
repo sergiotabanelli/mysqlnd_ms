@@ -111,6 +111,7 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_set_qos_gtid_sql_error.ini
 		printf("[clean] %s\n", $error);
 ?>
 --EXPECTF--
+Warning: mysqli::query(): (mysqlnd_ms) No consistent node found %s
 array(1) {
   [0]=>
   array(1) {

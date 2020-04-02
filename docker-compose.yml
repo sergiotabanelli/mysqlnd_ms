@@ -78,3 +78,14 @@ services:
         source: .
         target: /mysqlnd_ms
         consistency: delegated
+  mysqlnd_ms_centos6:
+    image: mysqlnd_ms_centos6
+    build:
+      context: .
+      dockerfile: Dockerfile.centos6
+    tty: true
+    volumes:
+      - type: bind
+        source: .
+        target: /mysqlnd_ms
+        consistency: delegated

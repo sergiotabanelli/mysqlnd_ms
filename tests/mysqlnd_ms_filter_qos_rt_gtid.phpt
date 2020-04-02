@@ -143,6 +143,8 @@ GTID '4'
 Warning: mysqli::query(): (mysqlnd_ms) Error on gtid SQL connection. in %s on line %d
 
 Warning: mysqli::query(): (mysqlnd_ms) Error no gtid_conn_elm or failed lazy connection. in %s on line %d
+
+Warning: mysqli::query(): (mysqlnd_ms) No consistent node found %s
 array(1) {
   [0]=>
   array(1) {

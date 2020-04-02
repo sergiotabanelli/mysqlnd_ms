@@ -124,58 +124,94 @@ mysqlnd_ms.multi_master=1
 	if (mysqli_connect_errno()) {
 		printf("[".(string)2/*offset*/."] [%d] %s\n", mysqli_connect_errno(), mysqli_connect_error());
 	}
+	$link3 = mst_mysqli_connect("myapp", $user, $passwd, $db, $port, $socket);
+	if (mysqli_connect_errno()) {
+		printf("[".(string)3/*offset*/."] [%d] %s\n", mysqli_connect_errno(), mysqli_connect_error());
+	}
 	/* we need an extra non-MS link for checking memcached GTID. */
 	$memc_link = mst_mysqli_connect($emulated_master_host_only, $user, $passwd, $db, $emulated_master_port, $emulated_master_socket);
 	$master1_link = mst_mysqli_connect($master_host_only, $user, $passwd, $db, $master_port, $master_socket);
 	$master2_link = mst_mysqli_connect($slave_host_only, $user, $passwd, $db, $slave_port, $slave_socket);
 	
-	mst_mysqli_query(3/*offset*/, $link, "SET @myrole = 'Master1'"); //Execute on master1
+	mst_mysqli_query(4/*offset*/, $link, "SET @myrole = 'Master1'"); //Execute on master1
 
-	mst_mysqli_query(4/*offset*/, $link, "SET @myrole = 'Master2'"); //Execute on master2
+	mst_mysqli_query(5/*offset*/, $link, "SET @myrole = 'Master2'"); //Execute on master2
 
-	mst_mysqli_query(5/*offset*/, $link, "SET @myrole = 'Master3'"); //Execute on master3
+	mst_mysqli_query(6/*offset*/, $link, "SET @myrole = 'Master3'"); //Execute on master3
 
-	mst_mysqli_query(6/*offset*/, $link, "INSERT INTO gtid_test(id) VALUES(@myrole)"); //Execute on master1
+	mst_mysqli_query(7/*offset*/, $link, "INSERT INTO gtid_test(id) VALUES(@myrole)"); //Execute on master1
 	$master1_gtid = $gtid = mysqlnd_ms_get_last_gtid($link);
 	if (!$gtid)
-		printf("[".(string)7/*offset*/."] Expecting gtid got empty, [%d] %s\n", $link->errno, $link->error);	
-	$rgtid = mst_mysqli_fetch_gtid_memcached(8/*offset*/, $memc_link, $db, $rwhere, true);
-	$wgtid = mst_mysqli_fetch_wgtid_memcached(9/*offset*/, $memc_link, $db, $wwhere, true);
+		printf("[".(string)8/*offset*/."] Expecting gtid got empty, [%d] %s\n", $link->errno, $link->error);	
+	$rgtid = mst_mysqli_fetch_gtid_memcached(9/*offset*/, $memc_link, $db, $rwhere, true);
+	$wgtid = mst_mysqli_fetch_wgtid_memcached(10/*offset*/, $memc_link, $db, $wwhere, true);
 	if ($rgtid[1] != $gtid || $wgtid[1] != $gtid)
-		printf("[".(string)10/*offset*/."] Expecting gtid %s on memcached got %s %s\n", $gtid, $rgtid, $wgtid[1]);	
-	if (!mst_mysqli_wait_gtid_memcached(11/*offset*/, $master2_link, $db, $gtid))
-		printf("[".(string)12/*offset*/."] Timeout or gtid not replicated for %s, [%d] %s\n", $gtid, $master2_link->errno, $master2_link->error);	
+		printf("[".(string)11/*offset*/."] Expecting gtid %s on memcached got %s %s\n", $gtid, $rgtid, $wgtid[1]);	
+	if (!mst_mysqli_wait_gtid_memcached(12/*offset*/, $master2_link, $db, $gtid))
+		printf("[".(string)13/*offset*/."] Timeout or gtid not replicated for %s, [%d] %s\n", $gtid, $master2_link->errno, $master2_link->error);	
+
+    print "fetch on master2?";
+	$res = mst_mysqli_query(14/*offset*/, $link, "SELECT CONCAT(@myrole,'-',id) AS _ext_id FROM gtid_test ORDER BY _ext_id"); //Execute on master2
+	var_dump($res->fetch_all());
+	
+    print "fetch on master1?";
+	$res = mst_mysqli_query(15/*offset*/, $link, "SELECT CONCAT(@myrole,'-',id) AS _ext_id FROM gtid_test ORDER BY _ext_id"); //Execute on master1
+	var_dump($res->fetch_all());
+
+    print "fetch on master2?";
+	$res = mst_mysqli_query(16/*offset*/, $link, "SELECT CONCAT(@myrole,'-',id) AS _ext_id FROM gtid_test ORDER BY _ext_id"); //Execute on master2
+	var_dump($res->fetch_all());
+
+    print "Errors for link1?";
+	$res = mst_mysqli_fetch_gtid_memcached_errors(17/*offset*/, $memc_link, $db);
+	var_dump($res->fetch_all());
 
     print "fetch on master1?";
-	$res = mst_mysqli_query(13/*offset*/, $link, "SELECT CONCAT(@myrole,'-',id) AS _ext_id FROM gtid_test ORDER BY _ext_id"); //Execute on master2
+	$res = mst_mysqli_query(18/*offset*/, $link2, "SELECT *  FROM gtid_test"); //Execute on master1
 	var_dump($res->fetch_all());
 	
     print "fetch on master2?";
-	$res = mst_mysqli_query(14/*offset*/, $link, "SELECT CONCAT(@myrole,'-',id) AS _ext_id FROM gtid_test ORDER BY _ext_id"); //Execute on master1
-	var_dump($res->fetch_all());
-
-    print "fetch on master1?";
-	$res = mst_mysqli_query(15/*offset*/, $link, "SELECT CONCAT(@myrole,'-',id) AS _ext_id FROM gtid_test ORDER BY _ext_id"); //Execute on master2
-	var_dump($res->fetch_all());
-
-    print "Errors?";
-	$res = mst_mysqli_fetch_gtid_memcached_errors(16/*offset*/, $memc_link, $db);
-	var_dump($res->fetch_all());
-
-    print "fetch on master1?";
-	$res = mst_mysqli_query(17/*offset*/, $link2, "SELECT *  FROM gtid_test"); //Execute on master2
-	var_dump($res->fetch_all());
-	
-    print "fetch on master2?";
-	$res = mst_mysqli_query(18/*offset*/, $link2, "SELECT * FROM gtid_test"); //Execute on master1
-	var_dump($res->fetch_all());
-
-    print "fetch on master1?";
 	$res = mst_mysqli_query(19/*offset*/, $link2, "SELECT * FROM gtid_test"); //Execute on master2
 	var_dump($res->fetch_all());
 
-    print "Errors?";
-	$res = mst_mysqli_fetch_gtid_memcached_errors(20/*offset*/, $memc_link, $db);
+    print "fetch on master1?";
+	$res = mst_mysqli_query(20/*offset*/, $link2, "SELECT * FROM gtid_test"); //Execute on master2
+	var_dump($res->fetch_all());
+
+    print "Errors for link2?";
+	$res = mst_mysqli_fetch_gtid_memcached_errors(21/*offset*/, $memc_link, $db);
+	var_dump($res->fetch_all());
+
+	$res = mst_mysqli_query(22/*offset*/, $master1_link, $sql['fetch_last_gtid']); //get last gtid from valid master
+	$gtid = $res->fetch_assoc()['trx_id'];
+
+    $emid = $emulated_master_host_only . ':' . $emulated_master_port . ':' . ($emulated_master_socket ? $emulated_master_socket : '/var/lib/mysql/mysql.sock');
+    $slid = $slave_host_only . ':' . $slave_port . ':' . ($slave_socket ? $slave_socket : '/var/lib/mysql/mysql.sock');
+
+	// Check cached
+	$res = mst_mysqli_query(24/*offset*/, $memc_link, $sql['select'] . " WHERE id = '$emid' OR id = '$slid'"); //get last gtid from valid master
+	if (($c = count($res->fetch_all())) != 2)
+		printf("[".(string)13/*offset*/."] Unexpected last_gtid cached count %d\n", $c);	
+
+	// Add cache for master3
+
+	mst_mysqli_set_gtid_memcached(23/*offset*/, $memc_link, $db, $gtid, 'id = \'' . $emulated_master_host_only . ':' . $emulated_master_port . ':' . ($emulated_master_socket ? $emulated_master_socket : '/var/lib/mysql/mysql.sock') . '\'', $gtid, $db);
+
+    print "fetch on master1?";
+	$res = mst_mysqli_query(25/*offset*/, $link3, "SELECT *  FROM gtid_test"); //Execute on master1
+	var_dump($res->fetch_all());
+	
+    print "fetch on master2?";
+	$res = mst_mysqli_query(26/*offset*/, $link3, "SELECT * FROM gtid_test"); //Execute on master2
+	var_dump($res->fetch_all());
+
+    print "fetch on master3?";
+	$res = mst_mysqli_query(27/*offset*/, $link3, "SELECT * FROM gtid_test"); //Execute on master3
+	var_dump($res->fetch_all());
+
+
+    print "Errors for link3?";
+	$res = mst_mysqli_fetch_gtid_memcached_errors(28/*offset*/, $memc_link, $db);
 	var_dump($res->fetch_all());
 
 	print "done!";
@@ -196,7 +232,7 @@ mysqlnd_ms.multi_master=1
 		
 ?>
 --EXPECTF--
-fetch on master1?array(2) {
+fetch on master2?array(2) {
   [0]=>
   array(1) {
     [0]=>
@@ -208,7 +244,7 @@ fetch on master1?array(2) {
     string(24) "Master1-MY_EXECUTED_GTID"
   }
 }
-fetch on master2?array(2) {
+fetch on master1?array(2) {
   [0]=>
   array(1) {
     [0]=>
@@ -220,7 +256,7 @@ fetch on master2?array(2) {
     string(24) "Master2-MY_EXECUTED_GTID"
   }
 }
-fetch on master1?array(2) {
+fetch on master2?array(2) {
   [0]=>
   array(1) {
     [0]=>
@@ -232,7 +268,7 @@ fetch on master1?array(2) {
     string(24) "Master1-MY_EXECUTED_GTID"
   }
 }
-Errors?array(0) {
+Errors for link1?array(0) {
 }
 fetch on master1?array(2) {
   [0]=>
@@ -282,7 +318,50 @@ fetch on master1?array(2) {
     string(0) ""
   }
 }
-Errors?array(0) {
+Errors for link2?array(0) {
+}
+fetch on master1?array(2) {
+  [0]=>
+  array(2) {
+    [0]=>
+    string(7) "Master1"
+    [1]=>
+    NULL
+  }
+  [1]=>
+  array(2) {
+    [0]=>
+    string(16) "MY_EXECUTED_GTID"
+    [1]=>
+    string(0) ""
+  }
+}
+fetch on master2?array(2) {
+  [0]=>
+  array(2) {
+    [0]=>
+    string(7) "Master1"
+    [1]=>
+    NULL
+  }
+  [1]=>
+  array(2) {
+    [0]=>
+    string(16) "MY_EXECUTED_GTID"
+    [1]=>
+    string(0) ""
+  }
+}
+fetch on master3?array(1) {
+  [0]=>
+  array(2) {
+    [0]=>
+    string(16) "MY_EXECUTED_GTID"
+    [1]=>
+    string(0) ""
+  }
+}
+Errors for link3?array(0) {
 }
 done!
 

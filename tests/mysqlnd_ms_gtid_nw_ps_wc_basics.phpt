@@ -255,7 +255,7 @@ mysqlnd_ms.multi_master=1
 ?>
 --CLEAN--
 <?php
-	if (!unlink("test_mysqlnd_ms_gtid_ps_autocommit_report_error.ini"))
+	if (!unlink("test_mysqlnd_ms_gtid_nw_ps_wc_basics.ini"))
 		printf("[clean] Cannot unlink ini file 'test_mysqlnd_ms_gtid_nw_ps_wc_basics.ini'.\n");
 
 	require_once("connect.inc");

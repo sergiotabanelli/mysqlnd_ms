@@ -613,6 +613,7 @@ extern struct st_mysqlnd_conn_methods * ms_orig_mysqlnd_conn_handle_methods;
 #define TRANSIENT_ERROR_MAX_RETRIES			"max_retries"
 #define TRANSIENT_ERROR_USLEEP_RETRY		"usleep_retry"
 #define TRANSIENT_ERROR_CODES				"mysql_error_codes"
+#define LAST_GTID_GROUP_KEY					"last_gtid_group_key"
 
 typedef enum
 {
@@ -888,8 +889,9 @@ enum mysqlnd_ms_gtid_type
 
 #define GTID_RACE_AVOID_DISABLED				0
 #define GTID_RACE_AVOID_ADD_ERROR				1
-#define GTID_RACE_AVOID_ADD_ACTIVE					2
-#define GTID_RACE_AVOID_MAX_VALUE				3
+#define GTID_RACE_AVOID_ADD_ACTIVE				2
+#define GTID_RACE_AVOID_ONLY_ACTIVE             4
+#define GTID_RACE_AVOID_MAX_VALUE				7
 
 /* using struct because we will likely add cache ttl later */
 typedef struct st_mysqlnd_ms_filter_qos_option_data
@@ -1024,6 +1026,7 @@ typedef struct st_mysqlnd_ms_xa_trx {
 /* Low-level extraction functionality */
 typedef struct st_mysqlnd_ms_gtid_trx_methods {
 	enum mysqlnd_ms_gtid_type type;
+	enum_func_status (*gtid_check_last_cached)(MYSQLND_MS_LIST_DATA * gtid_conn_elm, const char * gtid, char ** last_gtid TSRMLS_DC);
 	enum_func_status (*gtid_get_last)(MYSQLND_MS_LIST_DATA * gtid_conn_elm, char ** gtid TSRMLS_DC);
 	enum_func_status (*gtid_set_last_write)(MYSQLND_CONN_DATA * connection, char * gtid TSRMLS_DC);
 	enum_func_status (*gtid_init)(MYSQLND_CONN_DATA * proxy_conn TSRMLS_DC);

@@ -181,10 +181,16 @@ Warning: mysqli::query(): OK packet set GTID failed %s in %s on line %d
 Warning: mysqli::query(): (mysqlnd_ms) Error setting memcached last write %s in %s on line %d
 
 Warning: mysqli::query(): OK packet set GTID failed %s in %s on line %d
+
+Warning: mysqli::query(): (mysqlnd_ms) Error setting memcached last gtid host %s
+
+Warning: mysqli::query(): (mysqlnd_ms) Error setting memcached last gtid host %s
 array(1) {
   ["_role"]=>
   string(6) "Slave1"
 }
+
+Warning: mysqli::query(): (mysqlnd_ms) Error setting memcached last gtid host %s
 array(1) {
   ["_role"]=>
   string(6) "Slave1"

@@ -451,7 +451,7 @@ pool_connection_exists(MYSQLND_MS_POOL * pool, _ms_smart_type * hash_key,
 {
 	zend_bool ret = FALSE;
 	MYSQLND_MS_POOL_ENTRY _ms_p_zval * pool_element;
-	char first = GTID_RUNNING_MARKER;
+//	char first = GTID_RUNNING_MARKER;
 
 	DBG_ENTER("mysqlnd_ms::pool_connection_exists");
 	DBG_INF_FMT("pool=%p  hash_key=%p  is_master=%p  is_active=%p  is_removed=%p", pool, hash_key, is_master, is_active, is_removed);
@@ -469,10 +469,10 @@ pool_connection_exists(MYSQLND_MS_POOL * pool, _ms_smart_type * hash_key,
 		DBG_RETURN(FAIL);	
 	}
 	// TERRIBLE HACK
-	if (hash_key->c && hash_key->len - 1 && hash_key->c[0] != GTID_RUNNING_MARKER) {
+/*	if (hash_key->c && hash_key->len - 1 && hash_key->c[0] != GTID_RUNNING_MARKER) {
 		first = hash_key->c[0];
 		hash_key->c[0] = GTID_RUNNING_MARKER;
-	}  
+	}  */
 	if (SUCCESS == _MS_HASHSTR_GET_ZR_FUNC_PTR(zend_hash_str_find_ptr, &(pool->data.master_list), hash_key->c, hash_key->len - 1, pool_element)) {
 		*is_master = TRUE;
 		*is_active = (_ms_p_zval pool_element)->active;
@@ -488,10 +488,10 @@ pool_connection_exists(MYSQLND_MS_POOL * pool, _ms_smart_type * hash_key,
 		DBG_INF_FMT("element=%p list=%p is_master=%d", _ms_p_zval pool_element, &(pool->data.slave_list), *is_master);
 		ret = TRUE;
 	}
-	if (first != GTID_RUNNING_MARKER) {
+/*	if (first != GTID_RUNNING_MARKER) {
 		hash_key->c[0] = first;
 	}
-
+*/
 	DBG_RETURN(ret);
 }
 /* }}} */

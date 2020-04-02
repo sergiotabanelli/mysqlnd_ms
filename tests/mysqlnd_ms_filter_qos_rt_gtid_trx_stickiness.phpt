@@ -126,6 +126,8 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_filter_qos_tr_gtid_trx_stickiness.ini
 Server: master1-%d
 Server: master1-%d
 Server: master1-%d
+
+Warning: mysqli::query(): (mysqlnd_ms) No consistent node found %s
 Server: master1-%d
 Server: master1-%d
 done!
