@@ -1567,8 +1567,10 @@ mysqlnd_ms_aux_ss_gtid_madd(memcached_st *memc, char *value, const char *key, ui
 	DBG_ENTER("mysqlnd_ms_aux_ss_gtid_madd");
 	DBG_INF_FMT("Init value %s key %s last_chk_token %llu token %llu limit %llu i %llu found %llu", value, key, last_chk_token, token, limit, i, found);
 	if (i < limit) {
+/*		TODO: Eliminate all wait marker logic
 		if (found == 0 && token > 0)
-			*value = GTID_WAIT_MARKER;
+			*value = GTID_WAIT_MARKER; 
+*/
 		for (; i != limit; i = umodule(++i, module)) {
 			l = snprintf(ot, MAXGTIDSIZE, "%s:%" PRIuMAX, key, i);
 			rc = memcached_add_by_key(memc,

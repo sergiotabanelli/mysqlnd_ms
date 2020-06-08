@@ -89,3 +89,14 @@ services:
         source: .
         target: /mysqlnd_ms
         consistency: delegated
+  mysqlnd_ms_bionic:
+    image: mysqlnd_ms_bionic
+    build:
+      context: .
+      dockerfile: Dockerfile.bionic
+    tty: true
+    volumes:
+      - type: bind
+        source: .
+        target: /mysqlnd_ms
+        consistency: delegated

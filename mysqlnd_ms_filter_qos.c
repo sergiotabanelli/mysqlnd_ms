@@ -548,7 +548,7 @@ mysqlnd_ms_choose_connection_qos(MYSQLND_CONN_DATA * conn, void * f_data, const 
 						zend_bool is_write = (USE_MASTER == which_server) || is_transaction;
 						MYSQLND_MS_GTID_CALL((*conn_data)->global_trx.m->gtid_filter, conn, filter_data->option_data.gtid, query, query_len, free_query, slave_list, master_list, selected_slaves, selected_masters, is_write TSRMLS_CC);
 						if ((zend_llist_count(selected_masters) + zend_llist_count(selected_slaves)) <= 0) {
-							php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Something wrong no valid selection");
+							php_error_docref(NULL TSRMLS_CC, E_WARNING, MYSQLND_MS_ERROR_PREFIX " Something wrong no valid selection gtid %s query %s is_write %d", filter_data->option_data.gtid, query, is_write);
 							if ((*conn_data)->global_trx.race_avoid_strategy & GTID_RACE_AVOID_ADD_ERROR) {
 								MYSQLND_MS_DBG_INF_FMT("Race avoid: add error marker %s", MEMCACHED_ERROR_KEY);
 								MYSQLND_MS_GTID_CALL((*conn_data)->global_trx.m->gtid_trace, conn, MEMCACHED_ERROR_KEY, sizeof(MEMCACHED_ERROR_KEY) - 1, 0, *query, *query_len TSRMLS_CC);
