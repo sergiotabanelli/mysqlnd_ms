@@ -49,5 +49,37 @@ phpize
 make
 sudo make install
 ```
+
+## TESTS
+Tests are not mocked and need 4 effective running mysql instances.
+With Docker there is a docker-compose.yml that could be used to build and run tests for centos 7.
+
+From your source directory run:
+```
+docker-compose -f "docker-compose.yml" up -d --build
+```
+then open a shell on mysqlnd_ms running container, then compile and test, default php is php 5.5, if you want to compile against a different php version use `module load` and `module unload`. More or less this way:
+```
+module load php72
+make distclean
+phpize
+./configure
+make
+make test
+```
+
+Without Docker there is a simple stupid script `tests/make_sandbox.sh` that installs the needed instances. To run it you need to install https://mysqlsandbox.net/ then download a mysql tarball extract it under `$HOME/opt/mysql` then rename the extracted directory to mysql version, i.e:
+```
+cd $HOME/opt/mysql
+tar xvzf /path/to/mysql-5.7.24-el7-x86_64.tar.gz
+mv mysql-5.7.24-el7-x86_64 5.7.24
+
+cd /path/to/mysqnd_ms
+./tests/make_sandbox.sh 5.7.24
+make test
+```
+
+Some tests will still fail but those are test bugs not code bugs...
+
 If you find any problems open an [issue on Github](https://github.com/sergiotabanelli/mymysqlnd_ms/issues) 
 
