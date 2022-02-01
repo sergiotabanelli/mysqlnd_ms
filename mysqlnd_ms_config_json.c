@@ -34,11 +34,6 @@
 
 #include "ext/json/php_json.h"
 
-#ifndef mnd_sprintf
-#define mnd_sprintf spprintf
-#define mnd_sprintf_free efree
-#endif
-
 struct st_mysqlnd_ms_config_json_entry
 {
 	union {

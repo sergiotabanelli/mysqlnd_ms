@@ -22,8 +22,11 @@
 #include "config.h"
 #endif
 
-#include "mysqlnd_ms_conn_pool.h"
-#include "mysqlnd_ms.h"
+#include "php.h"
+#include "ext/standard/info.h"
+#include "ext/mysqlnd/mysqlnd.h"
+#include "ext/mysqlnd/mysqlnd_debug.h"
+#include "ext/mysqlnd/mysqlnd_priv.h"
 
 #if PHP_VERSION_ID >= 50400
 #include "ext/mysqlnd/mysqlnd_ext_plugin.h"
@@ -32,6 +35,8 @@
 #include "ext/mysqlnd/mysqlnd_alloc.h"
 #endif
 
+#include "mysqlnd_ms_conn_pool.h"
+#include "mysqlnd_ms.h"
 
 /* {{{ mysqlnd_ms_pool_all_list_dtor */
 void

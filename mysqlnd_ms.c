@@ -42,9 +42,6 @@
 #ifndef mnd_emalloc
 #include "ext/mysqlnd/mysqlnd_alloc.h"
 #endif
-#ifndef mnd_sprintf
-#define mnd_sprintf spprintf
-#endif
 #include "mysqlnd_ms.h"
 #include "mysqlnd_ms_config_json.h"
 
@@ -801,13 +798,17 @@ mysqlnd_ms_aux_gtid_get_last(MYSQLND_MS_LIST_DATA * gtid_conn_elm, char ** gtid 
 
 	if (PASS == MS_CALL_ORIGINAL_CONN_DATA_METHOD(send_query)(conn, (*conn_data)->global_trx.fetch_last_gtid, (*conn_data)->global_trx.fetch_last_gtid_len _MS_SEND_QUERY_AD_EXT TSRMLS_CC)
 			&& PASS == MS_CALL_ORIGINAL_CONN_DATA_METHOD(reap_query)(conn _MS_REAP_QUERY_AD_EXT TSRMLS_CC) &&
-#if PHP_VERSION_ID < 50600
+#ifndef MYSQLND_STORE_NO_COPY
 			(res = MS_CALL_ORIGINAL_CONN_DATA_METHOD(store_result)(conn TSRMLS_CC))) {
 #else
 			(res = MS_CALL_ORIGINAL_CONN_DATA_METHOD(store_result)(conn, MYSQLND_STORE_NO_COPY TSRMLS_CC))) {
 #endif
 		MAKE_STD_ZVAL(row);
+#ifdef MYSQLND_STORE_NO_COPY
 		mysqlnd_fetch_into(res, MYSQLND_FETCH_NUM, _ms_a_zval row, MYSQLND_MYSQL);
+#else
+		mysqlnd_fetch_into(res, MYSQLND_FETCH_NUM, _ms_a_zval row);
+#endif
 		MYSQLND_MS_DBG_INF_FMT("fetch last gtid row type %d", Z_TYPE(_ms_p_zval row));
 		if (Z_TYPE(_ms_p_zval row) == IS_ARRAY && SUCCESS == _MS_HASH_GET_ZR_FUNC_PTR_1(zend_hash_index_find, Z_ARRVAL(_ms_p_zval row), 0, zgtid) && Z_TYPE_P(_ms_p_zval zgtid) == IS_STRING) {
 			if (!gtid) {
@@ -865,7 +866,7 @@ mysqlnd_ms_aux_gtid_server_stage2(MYSQLND_CONN_DATA * conn, MYSQLND_MS_CONN_DATA
 	(*conn_data)->skip_ms_calls = TRUE;
 
 	if ((PASS == MS_CALL_ORIGINAL_CONN_DATA_METHOD(reap_query)(conn _MS_REAP_QUERY_AD_EXT TSRMLS_CC)) &&
-#if PHP_VERSION_ID < 50600
+#ifndef MYSQLND_STORE_NO_COPY
 		(res = MS_CALL_ORIGINAL_CONN_DATA_METHOD(store_result)(conn TSRMLS_CC))
 #else
 		(res = MS_CALL_ORIGINAL_CONN_DATA_METHOD(store_result)(conn, MYSQLND_STORE_NO_COPY TSRMLS_CC))
@@ -874,7 +875,11 @@ mysqlnd_ms_aux_gtid_server_stage2(MYSQLND_CONN_DATA * conn, MYSQLND_MS_CONN_DATA
 	{
 		zval _ms_p_zval row;
 		MAKE_STD_ZVAL(row);
+#ifdef MYSQLND_STORE_NO_COPY
 		mysqlnd_fetch_into(res, MYSQLND_FETCH_NUM, _ms_a_zval row, MYSQLND_MYSQL);
+#else
+		mysqlnd_fetch_into(res, MYSQLND_FETCH_NUM, _ms_a_zval row);
+#endif
 		DBG_INF_FMT("fetch stage2 row type %d", Z_TYPE_P(_ms_a_zval row));
 		if (Z_TYPE_P(_ms_a_zval row) == IS_ARRAY && SUCCESS == _MS_HASH_GET_ZR_FUNC_PTR_1(zend_hash_index_find, Z_ARRVAL_P(_ms_a_zval row), 0, zret) && Z_TYPE_P(_ms_p_zval zret) == IS_STRING) {
 			if (retval) {
@@ -3986,7 +3991,11 @@ static MYSQLND_RES *
 #if PHP_VERSION_ID < 50600
 MYSQLND_METHOD(mysqlnd_ms, use_result)(MYSQLND_CONN_DATA * const proxy_conn TSRMLS_DC)
 #else
+#ifndef MYSQLND_STORE_NO_COPY
+MYSQLND_METHOD(mysqlnd_ms, use_result)(MYSQLND_CONN_DATA * const proxy_conn TSRMLS_DC)
+#else
 MYSQLND_METHOD(mysqlnd_ms, use_result)(MYSQLND_CONN_DATA * const proxy_conn, const unsigned int flags TSRMLS_DC)
+#endif
 #endif
 {
 	MYSQLND_RES * result;
@@ -3994,7 +4003,7 @@ MYSQLND_METHOD(mysqlnd_ms, use_result)(MYSQLND_CONN_DATA * const proxy_conn, con
 	MYSQLND_CONN_DATA * conn = ((*conn_data) && (*conn_data)->stgy.last_used_conn)? (*conn_data)->stgy.last_used_conn:proxy_conn;
 	DBG_ENTER("mysqlnd_ms::use_result");
 	DBG_INF_FMT("Using thread "MYSQLND_LLU_SPEC, conn->thread_id);
-#if PHP_VERSION_ID < 50600
+#ifndef MYSQLND_STORE_NO_COPY
 	result = MS_CALL_ORIGINAL_CONN_DATA_METHOD(use_result)(conn TSRMLS_CC);
 #else
 	result = MS_CALL_ORIGINAL_CONN_DATA_METHOD(use_result)(conn, flags TSRMLS_CC);
@@ -4009,7 +4018,11 @@ static MYSQLND_RES *
 #if PHP_VERSION_ID < 50600
 MYSQLND_METHOD(mysqlnd_ms, store_result)(MYSQLND_CONN_DATA * const proxy_conn TSRMLS_DC)
 #else
+#ifndef MYSQLND_STORE_NO_COPY
+MYSQLND_METHOD(mysqlnd_ms, store_result)(MYSQLND_CONN_DATA * const proxy_conn TSRMLS_DC)
+#else
 MYSQLND_METHOD(mysqlnd_ms, store_result)(MYSQLND_CONN_DATA * const proxy_conn, const unsigned int flags TSRMLS_DC)
+#endif
 #endif
 {
 	MYSQLND_RES * result;
@@ -4017,7 +4030,7 @@ MYSQLND_METHOD(mysqlnd_ms, store_result)(MYSQLND_CONN_DATA * const proxy_conn, c
 	MYSQLND_CONN_DATA * conn = ((*conn_data) && (*conn_data)->stgy.last_used_conn)? (*conn_data)->stgy.last_used_conn:proxy_conn;
 	DBG_ENTER("mysqlnd_ms::store_result");
 	DBG_INF_FMT("Using thread "MYSQLND_LLU_SPEC, conn->thread_id);
-#if PHP_VERSION_ID < 50600
+#ifndef MYSQLND_STORE_NO_COPY
 	result = MS_CALL_ORIGINAL_CONN_DATA_METHOD(store_result)(conn TSRMLS_CC);
 #else
 	result = MS_CALL_ORIGINAL_CONN_DATA_METHOD(store_result)(conn, flags TSRMLS_CC);

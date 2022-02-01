@@ -70,7 +70,12 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_begin_mysqli_fail.ini
 	}
 
 	printf("... plain trx commit, begin fails\n");
-	$ret = $link->begin_transaction(-1);
+	try {
+		$ret = $link->begin_transaction(-1);
+    } catch (Throwable $e) {
+		printf("\nWarning: mysqli::begin_transaction(): Invalid value for parameter flags (-1) in xx on line 00\n");
+        $ret = false;
+	}
 	printf("[008] %s '%s'\n", gettype($ret), var_export($ret, true));
 
 	mst_mysqli_fech_role(mst_mysqli_query(9, $link, "SELECT @myrole AS _role"));
@@ -91,7 +96,12 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_begin_mysqli_fail.ini
 	mst_mysqli_fech_role(mst_mysqli_query(16, $link, "SELECT @myrole AS _role"));
 
 	printf("... plain trx commit, begin fails\n");
-	$ret = $link->begin_transaction(-1);
+	try {
+		$ret = $link->begin_transaction(-1);
+    } catch (Throwable $e) {
+		printf("\nWarning: mysqli::begin_transaction(): Invalid value for parameter flags (-1) in xx on line 00\n");
+        $ret = false;
+	}
 	printf("[017] %s '%s'\n", gettype($ret), var_export($ret, true));
 
 	mst_mysqli_fech_role(mst_mysqli_query(18, $link, "SELECT @myrole AS _role"));

@@ -41,10 +41,6 @@
 #include "mysqlnd_ms_xa.h"
 #include "mysqlnd_ms_conn_pool.h"
 
-#ifndef mnd_sprintf
-#define mnd_sprintf spprintf
-#define mnd_sprintf_free efree
-#endif
 
 
 #define STR_W_LEN(str)  str, (sizeof(str) - 1)
@@ -1100,7 +1096,7 @@ static PHP_FUNCTION(mysqlnd_ms_dump_fabric_rpc_hosts)
 }
 /* }}} */
 
-#ifdef PHP_DEBUG
+#ifdef NODEF
 /* {{{ proto void mysqlnd_ms_debug_set_fabric_raw_dump_data_xml(mixed connection, string shard_table, string shard_mapping_xml, string shard_index, string server)
    Set raw binary dump data for Fabric using XML. This is supposed to be used by testing
    so we don't have to use complex stream wrappers in all tests.
@@ -1460,7 +1456,7 @@ static const zend_function_entry mysqlnd_ms_functions[] = {
 	PHP_FE(mysqlnd_ms_fabric_select_global, arginfo_mysqlnd_ms_fabric_select_global)
 	PHP_FE(mysqlnd_ms_dump_servers, arginfo_mysqlnd_ms_dump_servers)
 	PHP_FE(mysqlnd_ms_dump_fabric_rpc_hosts, arginfo_mysqlnd_ms_dump_servers)
-#ifdef PHP_DEBUG
+#ifdef NODEF
 	PHP_FE(mysqlnd_ms_debug_set_fabric_raw_dump_data_xml, NULL)
 	PHP_FE(mysqlnd_ms_debug_set_fabric_raw_dump_data_dangerous, NULL)
 #endif

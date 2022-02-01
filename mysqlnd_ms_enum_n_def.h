@@ -160,8 +160,33 @@ static zend_always_inline void zend_string_free(zend_string *s)
 	pefree(s, s->persistent);
 }
 #else
+#ifndef TSRMLS_D
+#define TSRMLS_D void
+#define TSRMLS_DC
+#define TSRMLS_C
+#define TSRMLS_CC
+#define TSRMLS_FETCH()
+#endif
+
+#ifndef MYSQLND_SZ_T_SPEC
+#define MYSQLND_SZ_T_SPEC "%zu"
+#endif
+
+#ifndef mnd_sprintf
+#define mnd_sprintf spprintf
+#define mnd_sprintf_free efree
+#endif
+
+#ifndef mnd_malloc
+#define mnd_malloc malloc
+#define mnd_calloc calloc
+#define mnd_realloc	realloc
+#define mnd_free free
+#endif
+
 extern zval *php_get_session_var(zend_string *name);
 
+#if PHP_VERSION_ID < 80100
 #define _MS_SEND_QUERY_A_EXT , type, read_cb, err_cb
 #define _MS_SEND_QUERY_D_EXT , enum_mysqlnd_send_query_type type, zval *read_cb, zval *err_cb
 #define _MS_SEND_QUERY_AD_EXT , MYSQLND_SEND_QUERY_IMPLICIT, NULL, NULL
@@ -169,7 +194,15 @@ extern zval *php_get_session_var(zend_string *name);
 #define _MS_REAP_QUERY_A_EXT , type
 #define _MS_REAP_QUERY_D_EXT , enum_mysqlnd_reap_result_type type
 #define _MS_REAP_QUERY_AD_EXT , MYSQLND_REAP_RESULT_IMPLICIT
+#else
+#define _MS_SEND_QUERY_A_EXT , read_cb, err_cb
+#define _MS_SEND_QUERY_D_EXT , zval *read_cb, zval *err_cb
+#define _MS_SEND_QUERY_AD_EXT , NULL, NULL
 
+#define _MS_REAP_QUERY_A_EXT
+#define _MS_REAP_QUERY_D_EXT
+#define _MS_REAP_QUERY_AD_EXT
+#endif
 #define _ms_zval_dtor(zv) zval_dtor(&(zv))
 #define _ms_zval_ptr_dtor(zv) zval_ptr_dtor((zv))
 #define _ms_p_zval

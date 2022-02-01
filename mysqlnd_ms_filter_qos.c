@@ -318,7 +318,7 @@ mysqlnd_ms_qos_server_has_gtid(MYSQLND_CONN_DATA * conn, MYSQLND_MS_CONN_DATA **
 	do {
 		if ((PASS == MS_CALL_ORIGINAL_CONN_DATA_METHOD(send_query)(conn, sql, sql_len _MS_SEND_QUERY_AD_EXT TSRMLS_CC)) &&
 			(PASS ==  MS_CALL_ORIGINAL_CONN_DATA_METHOD(reap_query)(conn  _MS_REAP_QUERY_AD_EXT TSRMLS_CC)) &&
-#if PHP_VERSION_ID < 50600
+#ifndef MYSQLND_STORE_NO_COPY
 			(res = MS_CALL_ORIGINAL_CONN_DATA_METHOD(store_result)(conn TSRMLS_CC))
 #else
 			(res = MS_CALL_ORIGINAL_CONN_DATA_METHOD(store_result)(conn, MYSQLND_STORE_NO_COPY TSRMLS_CC))
@@ -401,7 +401,7 @@ mysqlnd_ms_qos_server_get_lag_stage2(MYSQLND_CONN_DATA * conn, MYSQLND_MS_CONN_D
 	(*conn_data)->skip_ms_calls = TRUE;
 
 	if ((PASS == MS_CALL_ORIGINAL_CONN_DATA_METHOD(reap_query)(conn  _MS_REAP_QUERY_AD_EXT TSRMLS_CC)) &&
-#if PHP_VERSION_ID < 50600
+#ifndef MYSQLND_STORE_NO_COPY
 		(res = MS_CALL_ORIGINAL_CONN_DATA_METHOD(store_result)(conn TSRMLS_CC))
 #else
 		(res = MS_CALL_ORIGINAL_CONN_DATA_METHOD(store_result)(conn, MYSQLND_STORE_NO_COPY TSRMLS_CC))
@@ -414,7 +414,11 @@ mysqlnd_ms_qos_server_get_lag_stage2(MYSQLND_CONN_DATA * conn, MYSQLND_MS_CONN_D
 		zval _ms_p_zval * sql_running;
 
 		MAKE_STD_ZVAL(row);
+#ifdef MYSQLND_STORE_NO_COPY
 		mysqlnd_fetch_into(res, MYSQLND_FETCH_ASSOC, _ms_a_zval row, MYSQLND_MYSQL);
+#else
+		mysqlnd_fetch_into(res, MYSQLND_FETCH_ASSOC, _ms_a_zval row);
+#endif
 		if (Z_TYPE_P(_ms_a_zval row) == IS_ARRAY) {
 			/* TODO: make test incasesensitive */
 			if (FAILURE == _MS_HASHSTR_GET_ZR_FUNC_PTR(zend_hash_str_find, Z_ARRVAL_P(_ms_a_zval row), "Slave_IO_Running", sizeof("Slave_IO_Running") - 1, io_running)) {

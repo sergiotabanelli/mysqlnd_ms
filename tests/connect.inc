@@ -8,6 +8,7 @@
 	*/
 
 	$driver    = new mysqli_driver;
+	$driver->report_mode = MYSQLI_REPORT_OFF;
     $stop_eslave = getenv("MYSQL_TEST_STOP_ESLAVE");
     $start_eslave = getenv("MYSQL_TEST_START_ESLAVE");
     $real_memcached = getenv("MYSQL_TEST_REAL_MEMCACHED");
@@ -121,7 +122,6 @@
 		}
 
 	}
-
 	if (!function_exists('sys_get_temp_dir')) {
 		function sys_get_temp_dir() {
 

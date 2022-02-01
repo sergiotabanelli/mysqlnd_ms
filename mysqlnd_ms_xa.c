@@ -24,11 +24,12 @@
 #include "config.h"
 #endif
 
-#include "mysqlnd_ms_xa.h"
-#include "mysqlnd_ms.h"
-#include "mysqlnd_ms_config_json.h"
-#include "mysqlnd_ms_xa_store_mysql.h"
-#include "mysqlnd_ms_conn_pool.h"
+#include "php.h"
+#include "ext/standard/info.h"
+#include "ext/mysqlnd/mysqlnd.h"
+#include "ext/mysqlnd/mysqlnd_debug.h"
+#include "ext/mysqlnd/mysqlnd_priv.h"
+
 
 #if PHP_VERSION_ID >= 50400
 #include "ext/mysqlnd/mysqlnd_ext_plugin.h"
@@ -38,6 +39,12 @@
 #endif
 
 #include "ext/standard/php_rand.h"
+
+#include "mysqlnd_ms_xa.h"
+#include "mysqlnd_ms.h"
+#include "mysqlnd_ms_config_json.h"
+#include "mysqlnd_ms_xa_store_mysql.h"
+#include "mysqlnd_ms_conn_pool.h"
 
 #define BEGIN_ITERATE_OVER_PARTICIPANT_LIST(el, participants) \
 { \

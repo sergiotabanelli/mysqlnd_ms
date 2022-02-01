@@ -38,9 +38,6 @@
 #ifndef mnd_emalloc
 #include "ext/mysqlnd/mysqlnd_alloc.h"
 #endif
-#ifndef mnd_sprintf
-#define mnd_sprintf spprintf
-#endif
 #include "mysqlnd_ms.h"
 #include "ext/standard/php_rand.h"
 

@@ -24,9 +24,11 @@
 #include "config.h"
 #endif
 
-#include "mysqlnd_ms_xa.h"
-#include "mysqlnd_ms.h"
-#include "mysqlnd_ms_config_json.h"
+#include "php.h"
+#include "ext/standard/info.h"
+#include "ext/mysqlnd/mysqlnd.h"
+#include "ext/mysqlnd/mysqlnd_debug.h"
+#include "ext/mysqlnd/mysqlnd_priv.h"
 
 #if PHP_VERSION_ID >= 50400
 #include "ext/mysqlnd/mysqlnd_ext_plugin.h"
@@ -34,11 +36,21 @@
 #ifndef mnd_emalloc
 #include "ext/mysqlnd/mysqlnd_alloc.h"
 #endif
+#include "mysqlnd_ms_xa.h"
+#include "mysqlnd_ms.h"
+#include "mysqlnd_ms_config_json.h"
+
 
 #define MYSQL_STORE_DEFAULT_GC_TABLE "mysqlnd_ms_xa_gc"
 #define MYSQL_STORE_DEFAULT_TRX_TABLE "mysqlnd_ms_xa_trx"
 #define MYSQL_STORE_DEFAULT_PARTICIPANTS_TABLE "mysqlnd_ms_xa_participants"
-
+#if PHP_MAJOR_VERSION > 7
+#define ms_convert_to_string_ex(pstring) convert_to_string_ex(pstring);
+#define ms_convert_to_long_ex(plong) convert_to_long_ex(plong);
+#else
+#define ms_convert_to_string_ex(pstring) convert_to_string_ex(pstring)
+#define ms_convert_to_long_ex(plong) convert_to_long_ex(plong)
+#endif
 #define COPY_SQL_ERROR(from_conn, to_error_info) \
 	if ((to_error_info)) { \
 		mysqlnd_ms_client_n_php_error((to_error_info), \
@@ -54,7 +66,7 @@
 		(_MS_HASH_GET_ZR_FUNC_PTR(zend_hash_get_current_data, Z_ARRVAL_P(_ms_p_zval (pprow)), (pstring)) != SUCCESS)) { \
 		continue; \
 	} \
-	convert_to_string_ex((pstring)) \
+	ms_convert_to_string_ex((pstring)) \
 	zend_hash_move_forward(Z_ARRVAL_P(_ms_p_zval (pprow)));
 
 #define GET_ZVAL_LONG_FROM_HASH(pprow, plong) \
@@ -62,7 +74,7 @@
 		(_MS_HASH_GET_ZR_FUNC_PTR(zend_hash_get_current_data, Z_ARRVAL_P(_ms_p_zval (pprow)), (plong)) != SUCCESS)) { \
 		continue; \
 	} \
-	convert_to_long_ex((plong)) \
+	ms_convert_to_long_ex((plong)) \
 	zend_hash_move_forward(Z_ARRVAL_P(_ms_p_zval (pprow)));
 
 typedef struct st_mysqlnd_ms_xa_trx_state_store_mysql {
@@ -81,6 +93,44 @@ typedef struct st_mysqlnd_ms_xa_trx_state_store_mysql {
 	MYSQLND *conn;
 } MYSQLND_MS_XA_STATE_STORE_MYSQL;
 
+#if PHP_MAJOR_VERSION > 7
+#ifndef mysqlnd_fetch_all
+/* {{{ mysqlnd_res::fetch_all */
+static void
+mysqlnd_fetch_all(MYSQLND_RES * result, const unsigned int flags, zval *return_value ZEND_FILE_LINE_DC)
+{
+	zval  row;
+	zend_ulong i = 0;
+	MYSQLND_RES_BUFFERED *set = result->stored_data;
+
+	DBG_ENTER("mysqlnd_res::fetch_all");
+
+	if ((!result->unbuf && !set)) {
+		php_error_docref(NULL, E_WARNING, "fetch_all can be used only with buffered sets");
+		if (result->conn) {
+			SET_CLIENT_ERROR(result->conn->error_info, CR_NOT_IMPLEMENTED, UNKNOWN_SQLSTATE, "fetch_all can be used only with buffered sets");
+		}
+		RETVAL_NULL();
+		DBG_VOID_RETURN;
+	}
+
+	/* 4 is a magic value. The cast is safe, if larger then the array will be later extended - no big deal :) */
+	array_init_size(return_value, set? (unsigned int) set->row_count : 4);
+
+	do {
+		mysqlnd_fetch_into(result, flags, &row);
+		if (Z_TYPE(row) != IS_ARRAY) {
+			zval_ptr_dtor_nogc(&row);
+			break;
+		}
+		add_index_zval(return_value, i++, &row);
+	} while (1);
+
+	DBG_VOID_RETURN;
+}
+/* }}} */
+#endif
+#endif
 
 /* {{{ mysqlnd_ms_xa_store_mysql_connect */
 
@@ -1075,7 +1125,11 @@ mysqlnd_ms_xa_store_mysql_do_gc_one(void * data,
 	}
 
 	MAKE_STD_ZVAL(row);
+#ifdef MYSQLND_STORE_NO_COPY
 	mysqlnd_fetch_into(res, MYSQLND_FETCH_NUM, _ms_a_zval row, MYSQLND_MYSQLI);
+#else
+	mysqlnd_fetch_into(res, MYSQLND_FETCH_NUM, _ms_a_zval row);
+#endif
 	if (Z_TYPE(_ms_p_zval row) == IS_ARRAY) {
 
 		zend_hash_internal_pointer_reset(Z_ARRVAL(_ms_p_zval row));
