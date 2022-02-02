@@ -55,9 +55,6 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_dump_servers.ini
 	require_once("connect.inc");
 	require_once("util.inc");
 
-	var_dump(mysqlnd_ms_dump_servers());
-	var_dump(mysqlnd_ms_dump_servers(new stdClass()));
-
 	if (!($link =  mst_mysqli_connect($master_host_only, $user, $passwd, $db, $master_port, $master_socket)))
 		printf("[001] [%d] %s\n", mysqli_connect_errno(), mysqli_connect_error());
 
@@ -81,10 +78,6 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_dump_servers.ini
 	  printf("[clean] Cannot unlink ini file 'test_mysqlnd_ms_dump_servers.ini'.\n");
 ?>
 --EXPECTF--
-Warning: mysqlnd_ms_dump_servers() expects exactly 1 parameter, 0 given in %s on line %d
-NULL
-bool(false)
-
 Warning: mysqlnd_ms_dump_servers(): (mysqlnd_ms) No mysqlnd_ms connection in %s on line %d
 bool(false)
 array(2) {

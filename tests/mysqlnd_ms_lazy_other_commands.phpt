@@ -97,7 +97,7 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_lazy_escape.ini
 	check_codes(24, $link, $link->autocommit(false));
 	check_codes(25, $link, $link->dump_debug_info());
 	check_codes(26, $link, $link->stmt_init(), 1);
-	check_codes(29, $link, $link->kill(-1));
+	check_codes(29, $link, $link->kill(230822));
 	check_codes(30, $link, $link->select_db($db));
 	check_codes(31, $link, $link->ssl_set('blubb_server-key.pem','blubb_server-cert.pem', 'blubb_cacert.pem', NULL, NULL));
 	check_codes(32, $link, $link->dump_debug_info());
@@ -112,7 +112,6 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_lazy_escape.ini
 	check_codes(103, $link, mysqli_stat($link));
 	check_codes(104, $link, $link->dump_debug_info());
 	check_codes(105, $link, mysqli_dump_debug_info($link));
-*/
 	check_codes(45, $link, $link->close());
 
 	if (function_exists('mysqli_set_local_infile_handler')) {
@@ -128,6 +127,7 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_lazy_escape.ini
 	if (function_exists('mysqli_get_connection_stats')) {
 		$link->get_connection_stats();
 	}
+*/
 
 	print "done!";
 ?>
@@ -162,16 +162,9 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_lazy_escape.ini
 [023] true
 [024] true
 [025] true
-
-Warning: mysqli::kill(): processid should have positive value in %s on line %d
-[029] false
+[029] [1094/HY000] Unknown thread id: 230822
 [030] true
 [031] true
 [032] true
 [033] true
-
-Warning: check_codes(): Couldn't fetch mysqli in %s on line %d
-[045] true
-
-Warning: mysqli::get_connection_stats(): Couldn't fetch mysqli in %s on line %d
 done!

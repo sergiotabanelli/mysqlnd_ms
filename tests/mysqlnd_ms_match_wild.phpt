@@ -9,12 +9,6 @@ mysqlnd_ms.enable=1
 --FILE--
 <?php
 
-	if (!is_null($ret = @mysqlnd_ms_match_wild()))
-		printf("[001] Expecting NULL got %s\n", var_export($ret, true));
-
-	if (!is_null($ret = @mysqlnd_ms_match_wild("test")))
-	  printf("[002] Expecting NULL got %s\n", var_export($ret, true));
-
 	$pattern = array(
 		array('', '', true),
 		array('\0', '\0', false),

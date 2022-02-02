@@ -84,15 +84,15 @@ mysqlnd_ms.collect_statistics=1
 	  printf("[clean] Cannot unlink ini file 'test_mysqlnd_ms_lazy_slave_failure_failover_loop_no_master2_random.ini'.\n");
 ?>
 --EXPECTF--
-no result 0 - php_network_getaddresses: getaddrinfo failed: %s
-no result 1 - php_network_getaddresses: getaddrinfo failed: %s
-no result 2 - php_network_getaddresses: getaddrinfo failed: %s
-no result 3 - php_network_getaddresses: getaddrinfo failed: %s
-no result 4 - php_network_getaddresses: getaddrinfo failed: %s
-no result 5 - php_network_getaddresses: getaddrinfo failed: %s
-no result 6 - php_network_getaddresses: getaddrinfo failed: %s
-no result 7 - php_network_getaddresses: getaddrinfo failed: %s
-no result 8 - php_network_getaddresses: getaddrinfo failed: %s
-no result 9 - php_network_getaddresses: getaddrinfo failed: %s
+no result 0 - php_network_getaddresses: getaddrinfo %s
+no result 1 - php_network_getaddresses: getaddrinfo %s
+no result 2 - php_network_getaddresses: getaddrinfo %s
+no result 3 - php_network_getaddresses: getaddrinfo %s
+no result 4 - php_network_getaddresses: getaddrinfo %s
+no result 5 - php_network_getaddresses: getaddrinfo %s
+no result 6 - php_network_getaddresses: getaddrinfo %s
+no result 7 - php_network_getaddresses: getaddrinfo %s
+no result 8 - php_network_getaddresses: getaddrinfo %s
+no result 9 - php_network_getaddresses: getaddrinfo %s
 
 done!

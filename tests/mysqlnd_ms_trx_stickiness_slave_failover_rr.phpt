@@ -100,7 +100,7 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_trx_stickiness_slave_failover_rr.ini
 ?>
 --EXPECTF--
 
-Warning: mysqli::query(): php_network_getaddresses: getaddrinfo failed: %s in %s on line %d
+Warning: mysqli::query(): php_network_getaddresses: getaddrinfo %s
 [006] 5 - [0] ''
 Number of server contacted 2
 done!

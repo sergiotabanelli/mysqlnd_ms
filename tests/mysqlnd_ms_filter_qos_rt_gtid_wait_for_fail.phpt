@@ -116,7 +116,6 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_filter_qos_rt_gtid_wait_for_fail.ini
 	if ($res = mst_mysqli_query(7, $link, "SELECT id FROM test")) {
 		var_dump($res->fetch_all());
 	}
-
 	$run_time = microtime(true) - $run_time;
 	$sql = mst_get_gtid_sql($db);
 	if ($run_time < $sql['wait_for_gtid_fail']) {

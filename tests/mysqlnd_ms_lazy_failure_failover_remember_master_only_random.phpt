@@ -61,6 +61,6 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_lazy_failure_failover_remember_master_onl
 ?>
 --EXPECTF--
 
-Warning: mysqli::query(): php_network_getaddresses: getaddrinfo failed: %s in %s on line %A
+Warning: mysqli::query(): php_network_getaddresses: getaddrinfo %s
 %d: 10
 done!

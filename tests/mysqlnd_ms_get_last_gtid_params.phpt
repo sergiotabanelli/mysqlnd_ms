@@ -64,12 +64,6 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_get_last_gtid_params.ini
 
 	$link = NULL;
 
-	if (NULL !== ($ret = @mysqlnd_ms_get_last_gtid()))
-		printf("[001] Expecting NULL, got %s\n", var_export($ret, true));
-
-	if (NULL !== ($ret = @mysqlnd_ms_get_last_gtid($link, $link)))
-		printf("[002] Expecting NULL, got %s\n", var_export($ret, true));
-
 	if (false !== ($ret = mysqlnd_ms_get_last_gtid($link)))
 		printf("[003] Expecting false, got %s\n", var_export($ret, true));
 

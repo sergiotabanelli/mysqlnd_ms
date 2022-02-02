@@ -100,14 +100,8 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_get_last_used_connection.ini
 		return true;
 	}
 
-	if (!is_null($ret = @mysqlnd_ms_get_last_used_connection()))
-		printf("[001] Expecting NULL got %s\n", var_export($ret, true));
-
 	if (false !== ($ret = @mysqlnd_ms_get_last_used_connection("test")))
 	  printf("[002] Expecting FALSE got %s\n", var_export($ret, true));
-
-	if (!is_null($ret = @mysqlnd_ms_get_last_used_connection("test", "test")))
-	  printf("[003] Expecting NULL got %s\n", var_export($ret, true));
 
 	$members = array(
 		"scheme" 			=> "string",

@@ -33,8 +33,8 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_settings_ini_file_json_empty.ini
 --EXPECTF--
 Warning: mysqli_real_connect(): (mysqlnd_ms) (mysqlnd_ms) Config file [test_mysqlnd_ms_settings_ini_file_json_empty.ini] is empty. If this is not by mistake, please add some minimal JSON to it to prevent this warning. For example, use '{}'  in %s on line %d
 
-Warning: mysqli_real_connect(): php_network_getaddresses: getaddrinfo failed: %s in %s on line %d
+Warning: mysqli_real_connect(): php_network_getaddresses: getaddrinfo %s
 
-Warning: mysqli_real_connect(): (HY000/2002): php_network_getaddresses: getaddrinfo failed: %s in %s on line %d
+Warning: mysqli_real_connect(): (HY000/2002): php_network_getaddresses: getaddrinfo %s
 [001] Cannot connect to the server using %A
 done!

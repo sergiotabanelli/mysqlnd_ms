@@ -9,12 +9,6 @@ mysqlnd_ms.enable=1
 --FILE--
 <?php
 
-	if (!is_null($ret = @mysqlnd_ms_check_gtid_in_set()))
-		printf("[001] Expecting NULL got %s\n", var_export($ret, true));
-
-	if (!is_null($ret = @mysqlnd_ms_check_gtid_in_set("test")))
-	  printf("[002] Expecting NULL got %s\n", var_export($ret, true));
-
 	$pattern = array(
 		array('', '', false),
 		array('%', '1234', false),

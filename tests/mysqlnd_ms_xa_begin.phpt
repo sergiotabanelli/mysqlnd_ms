@@ -33,10 +33,6 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_xa_begin.ini
 
 	/* Parameter mess */
 
-	if (NULL !== ($ret = @mysqlnd_ms_xa_begin())) {
-		printf("[001] Expecting NULL, got %s\n", var_export($ret, true));
-	}
-
 	$xa_id = mt_rand(0, 1000);
 	if (NULL !== ($ret = @mysqlnd_ms_xa_begin($xa_id))) {
 		printf("[002] Expecting NULL, got %s\n", var_export($ret, true));

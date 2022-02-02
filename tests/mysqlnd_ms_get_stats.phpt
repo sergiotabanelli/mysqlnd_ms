@@ -83,10 +83,6 @@ mysqlnd_ms.collect_statistics=1
 		$expected["pool_slave_reactivated"] = true;
 	}
 
-	if (NULL !== ($ret = @mysqlnd_ms_get_stats(123))) {
-		printf("[001] Expecting NULL got %s/%s\n", gettype($ret), $ret);
-	}
-
 	$stats = mysqlnd_ms_get_stats();
 	$exp_stats = $stats;
 

@@ -63,15 +63,11 @@ mysqlnd_ms.disable_rw_split=1
 		"INSERT INTO test(id) VALUES (1); SELECT 1 FROM DUAL/*" . MYSQLND_MS_SLAVE_SWITCH . "*/" => MYSQLND_MS_QUERY_USE_MASTER,
 	);
 
-	if (!is_null(($tmp = @mysqlnd_ms_query_is_select())))
-		printf("[001] Expecting NULL got %s/%s\n", gettype($tmp), var_export($tmp, true));
-
 	foreach ($queries as $query => $expected) {
 		is_select($query, $expected);
 	}
 
 
-	is_select(NULL, MYSQLND_MS_QUERY_USE_MASTER);
 	is_select("\0a", MYSQLND_MS_QUERY_USE_MASTER);
 
 	print "done!";
@@ -93,6 +89,5 @@ mysqlnd_ms.disable_rw_split=1
 'CALL p()/*ms=master*/' => 'master'
 'SELECT 1 FROM DUAL/*ms=master*/' => 'master'
 'INSERT INTO test(id) VALUES (1); SELECT 1 FROM DUAL/*ms=slave*/' => 'master'
-%s => 'master'
 %s => 'master'
 done!

@@ -48,8 +48,6 @@ mysqlnd_ms.collect_statistics=1
 	mst_stats_diff(4, mysqlnd_ms_get_stats());
 	mysqlnd_ms_xa_commit($link, $xa_id);
 
-	/* what happens to stats when param parsing fails? */
-	@mysqlnd_ms_xa_begin($link, $link);
 	mst_stats_diff(5, mysqlnd_ms_get_stats());
 
 	/* Related: participants */

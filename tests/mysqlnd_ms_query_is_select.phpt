@@ -66,15 +66,11 @@ mysqlnd_ms.enable=1
 		"  (   SELECT 1 from DUAL)" 	=> MYSQLND_MS_QUERY_USE_MASTER,
 	);
 
-	if (!is_null(($tmp = @mysqlnd_ms_query_is_select())))
-		printf("[001] Expecting NULL got %s/%s\n", gettype($tmp), var_export($tmp, true));
-
 	foreach ($queries as $query => $expected) {
 		is_select($query, $expected);
 	}
 
 
-	is_select(NULL, MYSQLND_MS_QUERY_USE_MASTER);
 	is_select("\0a", MYSQLND_MS_QUERY_USE_MASTER);
 
 	print "done!";
@@ -99,6 +95,5 @@ mysqlnd_ms.enable=1
 '     SELECT 1 from DUAL' => 'slave'
 '(SELECT 1 from DUAL)' => 'master'
 '  (   SELECT 1 from DUAL)' => 'master'
-'' => 'master'
 %sa%s => 'master'
 done!

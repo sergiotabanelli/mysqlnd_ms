@@ -115,7 +115,7 @@ mysqlnd_ms.config_file=test_mysqlnd_ms_filter_qos_eventual_trx_stickiness_on_fai
 		printf("[clean] %s\n");
 ?>
 --EXPECTF--
-Warning: mysqli::query(): php_network_getaddresses: getaddrinfo failed: %s in %s on line %d
+Warning: mysqli::query(): php_network_getaddresses: getaddrinfo %s
 array(1) {
   [0]=>
   array(1) {
